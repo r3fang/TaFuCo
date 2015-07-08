@@ -28,21 +28,54 @@ static PyObject *foo_FastaReader(PyObject *self, PyObject *args){
 	if (!PyArg_ParseTuple(args, "s", &fasta_file)){
 		return NULL;
 	}
-	
-	gzFile fp;
-	kseq_t *seq;
-	int l;
-	PyObject *list = PyList_New(100);
+	/* Initlize variable*/
+	gzFile fp; kseq_t *seq; int l;
 	fp = gzopen(fasta_file, "r");
-	seq = kseq_init(fp);
-	while ((l = kseq_read(seq)) >= 0) {
-		return Py_BuildValue("{s:s}", seq->name.s, seq->seq.s);
-		printf("name: %s\n", seq->name.s);
-		if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
-		printf("seq: %s\n", seq->seq.s);
-		if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
+	if(!fp){
+		return NULL;
 	}
+	seq = kseq_init(fp);
+	/* Create a python list to contain the (name, seq)*/
+	PyObject *pylist = PyList_New(0);
+	while ((l = kseq_read(seq)) >= 0) {
+		PyObject *tmp = Py_BuildValue("(s,s)", seq->name.s, seq->seq.s);
+		PyList_Append(pylist, tmp);
+		Py_DECREF(tmp);
+	}
+	return pylist;
 }
+
+static PyObject *foo_ReverseComplement(PyObject *self, PyObject *args){
+	char *s;
+	if (!PyArg_ParseTuple(args, "s", &s)){
+		return NULL;
+	}
+	int n, c, d;
+	n=strlen(s);
+	char* r;
+	r = (char*)malloc(n * sizeof(char));
+	for (c = n - 1, d = 0; c >= 0; c--, d++){
+		switch(toupper(s[c])){
+			case 'A':
+				r[d] = 'T';
+				break;
+			case 'T':
+				r[d] = 'A';
+				break;
+			case 'C':
+				r[d] = 'G';
+				break;
+			case 'G':
+				r[d] = 'C';
+				break;
+			default:
+				r[d] = s[d];
+				break;
+		}
+	}
+	return Py_BuildValue("s", r);
+}
+
 
 static PyObject *foo_totalIter(PyObject *self, PyObject *args)
 {
@@ -85,6 +118,8 @@ static char FastaReader_docs[] =
 	"Fasta parser.";
 static char totalIter_docs[] = 
 	"Sum of a sequence of number.";
+static char ReverseComplement_docs[] = 
+	"Reverse complement of given DNA sequence.";
 
 static char foo_docs[] = 
 	"A collections of non-sense functions.";
@@ -95,6 +130,7 @@ static PyMethodDef foo_funcs[] = {
 	{"strlen", (PyCFunction)foo_strlen, METH_VARARGS, strlen_docs},
 	{"FastaReader", (PyCFunction)foo_FastaReader, METH_VARARGS, FastaReader_docs},
 	{"totalIter", (PyCFunction)foo_totalIter, METH_VARARGS, totalIter_docs},
+	{"ReverseComplement", (PyCFunction)foo_ReverseComplement, METH_VARARGS, ReverseComplement_docs},	
 	{NULL}
 };
 
