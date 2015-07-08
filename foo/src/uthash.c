@@ -1,80 +1,75 @@
 #include <stdio.h>   /* gets */
 #include <stdlib.h>  /* atoi, malloc */
 #include <string.h>  /* strcpy */
+#include <zlib.h>  
 #include "uthash.h"
+#include "utlist.h"
+#include "utstring.h"
+#include "utarray.h"
+#include "kseq.h"
 
-struct my_struct {
-    int id;                    /* key */
-    char name[10];
+KSEQ_INIT(gzFile, gzread)  
+
+struct kmer_uthash {
+    char kmer[15];                /* key */
+    int pos;                    
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-struct my_struct *users = NULL;
-
-void add_user(int user_id, char *name) {
-    struct my_struct *s;
-
-    HASH_FIND_INT(users, &user_id, s);  /* id already in the hash? */
-    if (s==NULL) {
-      s = (struct my_struct*)malloc(sizeof(struct my_struct));
-      s->id = user_id;
-      HASH_ADD_INT( users, id, s );  /* id: name of key field */
-    }
-    strcpy(s->name, name);
+char* concat(char *s1, char *s2)
+{
+    char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
+    //in real code you would check for errors in malloc here
+    strcpy(result, s1);
+	strcat(result, s2);
+	return result;
 }
 
-struct my_struct *find_user(int user_id) {
-    struct my_struct *s;
-
-    HASH_FIND_INT( users, &user_id, s );  /* s: output pointer */
-    return s;
+void add_kmer(struct kmer_uthash **table, char kmer[15], int pos) {
+	/* You really need to pass a pointer to the hash pointer: **table*/
+	struct kmer_uthash *s;
+	HASH_FIND_STR(*table, kmer, s);
+	if (s==NULL){
+		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
+		strncpy(s->kmer, kmer, 15);
+		s->pos = pos;
+	}
+	HASH_ADD_STR(*table, kmer, s);
 }
-
-void delete_user(struct my_struct *user) {
-    HASH_DEL( users, user);  /* user: pointer to deletee */
-    free(user);
-}
-
-void delete_all() {
-  struct my_struct *current_user, *tmp;
-
-  HASH_ITER(hh, users, current_user, tmp) {
-    HASH_DEL(users,current_user);  /* delete it (users advances to next) */
-    free(current_user);            /* free it */
-  }
-}
-
-void print_users() {
-    struct my_struct *s;
-
-    for(s=users; s != NULL; s=(struct my_struct*)(s->hh.next)) {
-        printf("user id %d: name %s\n", s->id, s->name);
-    }
-}
-
-int name_sort(struct my_struct *a, struct my_struct *b) {
-    return strcmp(a->name,b->name);
-}
-
-int id_sort(struct my_struct *a, struct my_struct *b) {
-    return (a->id - b->id);
-}
-
-void sort_by_name() {
-    HASH_SORT(users, name_sort);
-}
-
-void sort_by_id() {
-    HASH_SORT(users, id_sort);
-}
-
-int test(int argc, char *argv[]) {
-    char in[10];
-    int id=1, running=1;
-    struct my_struct *s;
-    unsigned num_users;
-    add_user(1, "Rongxin");
-    add_user(2, "Felix");
-    delete_all();  /* free any structures */
+	
+int test(char *fasta_file) {
+	struct kmer_uthash *table = NULL;
+	gzFile fp;  
+	kseq_t *seqs;  
+	int l;
+	int k=15;
+	printf("%s\n", fasta_file);
+	fp = gzopen(fasta_file, "r");
+	seqs = kseq_init(fp); // STEP 3: initialize seq  
+	while ((l = kseq_read(seqs)) >= 0) { // STEP 4: read sequence 
+		char *seq = seqs->seq.s;
+		int i;
+		if (seqs->name.s==NULL)
+			return NULL;
+		char *name = seqs->name.s;
+		char kmer[k];
+		for(i=0; i < strlen(seq)-k+1; i++){
+			memcpy(kmer, &seq[i], k);
+			kmer[k] = '\0';
+			/* convert i to string */
+			char i_str[100];
+			sprintf(i_str, "%d", i);
+			add_kmer(&table, kmer, i); /* You really need to pass a pointer to the hash pointer: */
+			//printf("%s\t%s\n", kmer, concat(concat(name, "."), i_str));
+		}
+		break;
+	}  
+	struct kmer_uthash *s, *tmp;
+	HASH_ITER(hh, table, s, tmp) {
+	    printf("kmer %s: pos %d\n", s->kmer, s->pos);
+	}
+	
+	kseq_destroy(seqs);
+	gzclose(fp);
 	return 0;
 }

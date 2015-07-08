@@ -7,7 +7,15 @@ KSEQ_INIT(gzFile, gzread)
 
 static PyObject *foo_test(PyObject *self, PyObject *args)
 {
-	test();
+	char *fasta_file;
+	/* Parsing input paramters */
+	if (!PyArg_ParseTuple(args, "s", &fasta_file)){
+		return NULL;
+	}
+	if (fasta_file == NULL){
+		return NULL;
+	}
+	test(fasta_file);
 	return Py_BuildValue("");
 }
 
