@@ -5,6 +5,21 @@
 #include "uthash.h"
 KSEQ_INIT(gzFile, gzread)
 
+static PyObject *foo_predict(PyObject *self, PyObject *args)
+{
+	/* Index the reference genome. */
+	char *fasta_file;
+	/* Parsing input paramters */
+	if (!PyArg_ParseTuple(args, "s", &fasta_file)){
+		return NULL;
+	}
+	if (fasta_file == NULL){
+		return NULL;
+	}
+	predict_main(fasta_file);
+	return Py_BuildValue("");
+}
+
 static PyObject *foo_index(PyObject *self, PyObject *args)
 {
 	/* Index the reference genome. */
@@ -16,18 +31,8 @@ static PyObject *foo_index(PyObject *self, PyObject *args)
 	if (fasta_file == NULL){
 		return NULL;
 	}
-	index_seq(fasta_file);
+	index_main(fasta_file);
 	return Py_BuildValue("");
-}
-
-static PyObject *foo_strlen(PyObject *self, PyObject *args)
-{
-	char *s;
-	/* Parsing input paramters */
-	if (!PyArg_ParseTuple(args, "s", &s)){
-		return NULL;
-	}
-	return Py_BuildValue("i", strlen(s));
 }
 
 static PyObject *foo_FastaReader(PyObject *self, PyObject *args){
@@ -141,8 +146,6 @@ static PyObject *foo_totalIter(PyObject *self, PyObject *args)
 }	
 
 /* docstring for functions */
-static char strlen_docs[] = 
-	"Length of a string.";
 static char FastaReader_docs[] = 
 	"Fasta parser.";
 static char totalIter_docs[] = 
@@ -153,18 +156,19 @@ static char kmer_match_docs[] =
 	"If given kmer occurs in ref seq.";
 static char index_docs[] = 
 	"Index reference DNA sequence.";
-
+static char predict_docs[] = 
+	"Predict gene fusion.";
 static char foo_docs[] = 
 	"A collections of non-sense functions.";
 
 /* Method Mapping Fucntion of the module */
 static PyMethodDef foo_funcs[] = {
-	{"strlen", (PyCFunction)foo_strlen, METH_VARARGS, strlen_docs},
 	{"FastaReader", (PyCFunction)foo_FastaReader, METH_VARARGS, FastaReader_docs},
 	{"totalIter", (PyCFunction)foo_totalIter, METH_VARARGS, totalIter_docs},
 	{"ReverseComplement", (PyCFunction)foo_ReverseComplement, METH_VARARGS, ReverseComplement_docs},	
 	{"kmer_match", (PyCFunction)foo_kmer_match, METH_VARARGS, kmer_match_docs},	
 	{"index", (PyCFunction)foo_index, METH_VARARGS, index_docs},	
+	{"predict", (PyCFunction)foo_predict, METH_VARARGS, predict_docs},	
 	{NULL}
 };
 

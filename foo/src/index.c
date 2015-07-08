@@ -7,6 +7,7 @@
 #include "utstring.h"
 #include "utarray.h"
 #include "kseq.h"
+#include "common.h"
 
 /* kmer length */
 #define k 15
@@ -22,14 +23,6 @@ struct kmer_uthash {
 
 /* Global variables */
 struct kmer_uthash *table = NULL;
-
-char* concat(char *s1, char *s2)
-{
-    char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
-    strcpy(result, s1);
-	strcat(result, s2);
-	return result;
-}
 
 void add_to_kmer_hash(char kmer[k], char* pos) {
 	/* You really need to pass a pointer to the hash pointer: **table*/
@@ -56,16 +49,19 @@ void kmer_table_destroy() {
     }
 }
 
-int index_seq(char *fasta_file) {	
+int index_main(char *fasta_file) {	
 	/* index file */
 	char *index_file = concat(fasta_file, ".index");
 	gzFile fp;  
 	kseq_t *seqs;  
 	int l;
 	fp = gzopen(fasta_file, "r");
+	if (fp == NULL){
+		return NULL;
+	}
 	seqs = kseq_init(fp); // STEP 3: initialize seq  
 	while ((l = kseq_read(seqs)) >= 0) { // STEP 4: read sequence 
-		char *seq = seqs->seq.s;
+		char *seq = strToUpper(seqs->seq.s);
 		int i;
 		if (seqs->name.s==NULL)
 			return NULL;
@@ -77,7 +73,7 @@ int index_seq(char *fasta_file) {
 			/* convert i to string */
 			char i_str[100];
 			sprintf(i_str, "%d", i);
-			add_to_kmer_hash(kmer, concat(concat(name, "."), i_str)); /* You really need to pass a pointer to the hash pointer: */
+			add_to_kmer_hash(kmer, concat(concat(name, "."), i_str)); 
 		}
 	}  
 	

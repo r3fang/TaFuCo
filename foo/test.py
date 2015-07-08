@@ -7,5 +7,5 @@ seq = [1, 3, 4, 5, 6, 8]
 print foo.totalIter(seq)
 print foo.totalIter(xrange(10))
 print foo.ReverseComplement('aaaattGGc')
-print foo.kmer_match('AAA', 'TTTTTTTASAAAAAATTT')
 foo.index('sample_data/test.fa')
+foo.predict('sample_data/test.fa')
