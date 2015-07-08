@@ -5,8 +5,9 @@
 #include "uthash.h"
 KSEQ_INIT(gzFile, gzread)
 
-static PyObject *foo_test(PyObject *self, PyObject *args)
+static PyObject *foo_index(PyObject *self, PyObject *args)
 {
+	/* Index the reference genome. */
 	char *fasta_file;
 	/* Parsing input paramters */
 	if (!PyArg_ParseTuple(args, "s", &fasta_file)){
@@ -15,7 +16,7 @@ static PyObject *foo_test(PyObject *self, PyObject *args)
 	if (fasta_file == NULL){
 		return NULL;
 	}
-	test(fasta_file);
+	index_seq(fasta_file);
 	return Py_BuildValue("");
 }
 
@@ -49,29 +50,6 @@ static PyObject *foo_FastaReader(PyObject *self, PyObject *args){
 		Py_DECREF(tmp);
 	}
 	return pylist;
-}
-
-static PyObject *foo_index(PyObject *self, PyObject *args){
-	char *fasta_file;
-	int k; 
-	if (!PyArg_ParseTuple(args, "si", &fasta_file, &k)){
-		return NULL;
-	}
-	/* Initlize variable*/
-	gzFile fp; kseq_t *seq; int l;
-	fp = gzopen(fasta_file, "r");
-	if(!fp){
-		return NULL;
-	}
-	seq = kseq_init(fp);
-	/* Create a python list to contain the (name, seq)*/
-	char *name;
-	char *s;
-	while ((l = kseq_read(seq)) >= 0) {
-		name = seq->name.s;
-		s = seq->seq.s;		
-	}
-	return Py_BuildValue("");
 }
 
 static PyObject *foo_ReverseComplement(PyObject *self, PyObject *args){
@@ -175,8 +153,6 @@ static char kmer_match_docs[] =
 	"If given kmer occurs in ref seq.";
 static char index_docs[] = 
 	"Index reference DNA sequence.";
-static char test_docs[] = 
-	"Test of hash table.";
 
 static char foo_docs[] = 
 	"A collections of non-sense functions.";
@@ -189,7 +165,6 @@ static PyMethodDef foo_funcs[] = {
 	{"ReverseComplement", (PyCFunction)foo_ReverseComplement, METH_VARARGS, ReverseComplement_docs},	
 	{"kmer_match", (PyCFunction)foo_kmer_match, METH_VARARGS, kmer_match_docs},	
 	{"index", (PyCFunction)foo_index, METH_VARARGS, index_docs},	
-	{"test", (PyCFunction)foo_test, METH_VARARGS, test_docs},	
 	{NULL}
 };
 

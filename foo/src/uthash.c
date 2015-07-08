@@ -8,42 +8,60 @@
 #include "utarray.h"
 #include "kseq.h"
 
-KSEQ_INIT(gzFile, gzread)  
+/* kmer length */
+#define k 15
 
+KSEQ_INIT(gzFile, gzread)  
+	
 struct kmer_uthash {
-    char kmer[15];                /* key */
-    int pos;                    
+    char kmer[k];                /* key */
+	char *pos;    
+	int count;
     UT_hash_handle hh;         /* makes this structure hashable */
 };
+
+/* Global variables */
+struct kmer_uthash *table = NULL;
 
 char* concat(char *s1, char *s2)
 {
     char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
-    //in real code you would check for errors in malloc here
     strcpy(result, s1);
 	strcat(result, s2);
 	return result;
 }
 
-void add_kmer(struct kmer_uthash **table, char kmer[15], int pos) {
+void add_to_kmer_hash(char kmer[k], char* pos) {
 	/* You really need to pass a pointer to the hash pointer: **table*/
 	struct kmer_uthash *s;
-	HASH_FIND_STR(*table, kmer, s);
+	HASH_FIND_STR(table, kmer, s);
 	if (s==NULL){
 		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
-		strncpy(s->kmer, kmer, 15);
+		strncpy(s->kmer, kmer, k);
 		s->pos = pos;
+		s->count = 1;		
+		HASH_ADD_STR(table, kmer, s);
+	}else{
+		s->count += 1;
+		s->pos = concat(concat(s->pos, "|"), pos);
 	}
-	HASH_ADD_STR(*table, kmer, s);
 }
-	
-int test(char *fasta_file) {
-	struct kmer_uthash *table = NULL;
+
+void kmer_table_destroy() {
+  struct kmer_uthash *cur, *tmp;
+  
+  HASH_ITER(hh, table, cur, tmp) {
+      HASH_DEL(table, cur);  /* delete it (users advances to next) */
+      free(cur);            /* free it */
+    }
+}
+
+int index_seq(char *fasta_file) {	
+	/* index file */
+	char *index_file = concat(fasta_file, ".index");
 	gzFile fp;  
 	kseq_t *seqs;  
 	int l;
-	int k=15;
-	printf("%s\n", fasta_file);
 	fp = gzopen(fasta_file, "r");
 	seqs = kseq_init(fp); // STEP 3: initialize seq  
 	while ((l = kseq_read(seqs)) >= 0) { // STEP 4: read sequence 
@@ -59,16 +77,22 @@ int test(char *fasta_file) {
 			/* convert i to string */
 			char i_str[100];
 			sprintf(i_str, "%d", i);
-			add_kmer(&table, kmer, i); /* You really need to pass a pointer to the hash pointer: */
-			//printf("%s\t%s\n", kmer, concat(concat(name, "."), i_str));
+			add_to_kmer_hash(kmer, concat(concat(name, "."), i_str)); /* You really need to pass a pointer to the hash pointer: */
 		}
-		break;
 	}  
+	
+	FILE *ofp = fopen(index_file, "w");
+	if (ofp == NULL) {
+	  fprintf(stderr, "Can't open output file %s!\n", index_file);
+	  exit(1);
+	}
 	struct kmer_uthash *s, *tmp;
 	HASH_ITER(hh, table, s, tmp) {
-	    printf("kmer %s: pos %d\n", s->kmer, s->pos);
+		fprintf(ofp, ">%s\n%s\n", s->kmer, s->pos);						
 	}
-	
+	/*free everything*/
+	fclose(ofp);
+	kmer_table_destroy();
 	kseq_destroy(seqs);
 	gzclose(fp);
 	return 0;
