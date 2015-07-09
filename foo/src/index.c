@@ -7,30 +7,19 @@
 #include "utstring.h"
 #include "utarray.h"
 #include "kseq.h"
+#include "index.h"
 #include "common.h"
-
-/* kmer length */
-#define k 15
-
-KSEQ_INIT(gzFile, gzread)  
-	
-struct kmer_uthash {
-    char kmer[k];                /* key */
-	char *pos;    
-	int count;
-    UT_hash_handle hh;         /* makes this structure hashable */
-};
 
 /* Global variables */
 struct kmer_uthash *table = NULL;
 
-void add_to_kmer_hash(char kmer[k], char* pos) {
+void add_to_kmer_hash(char kmer[k_index], char* pos) {
 	/* You really need to pass a pointer to the hash pointer: **table*/
 	struct kmer_uthash *s;
 	HASH_FIND_STR(table, kmer, s);
 	if (s==NULL){
 		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
-		strncpy(s->kmer, kmer, k);
+		strncpy(s->kmer, kmer, k_index);
 		s->pos = pos;
 		s->count = 1;		
 		HASH_ADD_STR(table, kmer, s);
@@ -66,10 +55,12 @@ int index_main(char *fasta_file) {
 		if (seqs->name.s==NULL)
 			return NULL;
 		char *name = seqs->name.s;
-		char kmer[k];
-		for(i=0; i < strlen(seq)-k+1; i++){
-			memcpy(kmer, &seq[i], k);
-			kmer[k] = '\0';
+		char kmer[k_index];
+		for(i=0; i < strlen(seq)-k_index+1; i++){
+			/*hat is because memcpy does not terminate the string with a null byte. You could start by filling the entire array with nulls*/
+			memset(kmer, 0, sizeof(kmer));
+			memcpy(kmer, &seq[i], k_index);
+			kmer[k_index] = '\0';
 			/* convert i to string */
 			char i_str[100];
 			sprintf(i_str, "%d", i);
