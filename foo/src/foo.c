@@ -3,22 +3,23 @@
 #include <stdio.h>
 #include "kseq.h"
 #include "uthash.h"
+
 KSEQ_INIT(gzFile, gzread)
 
-static PyObject *foo_predict(PyObject *self, PyObject *args)
-{
-	/* Index the reference genome. */
-	char *fasta_file;
-	/* Parsing input paramters */
-	if (!PyArg_ParseTuple(args, "s", &fasta_file)){
-		return NULL;
-	}
-	if (fasta_file == NULL){
-		return NULL;
-	}
-	predict_main(fasta_file);
-	return Py_BuildValue("");
-}
+//static PyObject *foo_predict(PyObject *self, PyObject *args)
+//{
+//	/* Index the reference genome. */
+//	char *fasta_file;
+//	/* Parsing input paramters */
+//	if (!PyArg_ParseTuple(args, "s", &fasta_file)){
+//		return NULL;
+//	}
+//	if (fasta_file == NULL){
+//		return NULL;
+//	}
+//	predict_main(fasta_file);
+//	return Py_BuildValue("");
+//}
 
 static PyObject *foo_index(PyObject *self, PyObject *args)
 {
@@ -156,8 +157,8 @@ static char kmer_match_docs[] =
 	"If given kmer occurs in ref seq.";
 static char index_docs[] = 
 	"Index reference DNA sequence.";
-static char predict_docs[] = 
-	"Predict gene fusion.";
+//static char predict_docs[] = 
+//	"Predict gene fusion.";
 static char foo_docs[] = 
 	"A collections of non-sense functions.";
 
@@ -168,7 +169,7 @@ static PyMethodDef foo_funcs[] = {
 	{"ReverseComplement", (PyCFunction)foo_ReverseComplement, METH_VARARGS, ReverseComplement_docs},	
 	{"kmer_match", (PyCFunction)foo_kmer_match, METH_VARARGS, kmer_match_docs},	
 	{"index", (PyCFunction)foo_index, METH_VARARGS, index_docs},	
-	{"predict", (PyCFunction)foo_predict, METH_VARARGS, predict_docs},	
+//	{"predict", (PyCFunction)foo_predict, METH_VARARGS, predict_docs},	
 	{NULL}
 };
 

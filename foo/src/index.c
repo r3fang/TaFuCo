@@ -7,8 +7,18 @@
 #include "utstring.h"
 #include "utarray.h"
 #include "kseq.h"
-#include "index.h"
 #include "common.h"
+
+KSEQ_INIT(gzFile, gzread)  
+
+#define k_index 30
+	
+struct kmer_uthash {
+    char kmer[k_index];                /* key */
+	char *pos;    
+	int count;
+    UT_hash_handle hh;         /* makes this structure hashable */
+};
 
 /* Global variables */
 struct kmer_uthash *table = NULL;
