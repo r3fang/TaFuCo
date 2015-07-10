@@ -40,6 +40,7 @@ struct kmer_uthash *load_kmer_htable(char *fname){
 	return(htable);
 }
 
+
 int predict_main(char *fasta_file, char *fastq_file){
 	/* main function*/
 	char *index_file = concat(fasta_file, ".index");
@@ -60,7 +61,17 @@ int predict_main(char *fasta_file, char *fastq_file){
 	while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence 
 		char *name = seq->name.s;
 		char *end = seq->seq.s;
-		printf("%s\t%s\n", name, end);
+		/* */
+		char **b;
+		char **a;
+		a = malloc(10 * sizeof(char*));
+		a[0] = malloc((strlen(name) * sizeof(char)));
+		a[0] = name;
+		a[1] = malloc((strlen(end) * sizeof(char)));
+		a[1] = end;
+		b = a;
+		printf("%s\n", b[0]);
+		printf("%s\n", b[1]);
 	}
 	gzclose(fp); // STEP 6: close the file handler  
 	kseq_destroy(seq);

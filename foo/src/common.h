@@ -16,12 +16,14 @@
 
 struct kmer_uthash {
     char kmer[MAX_K];                /* key */
-	char *pos;    
+	int count;
+	char **pos;    
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-void kmer_table_destroy(struct kmer_uthash **table);
-char* concat(char *s1, char *s2);
-char* strToUpper(char* s);
+void kmer_table_destroy(struct kmer_uthash**);
+char* concat(char*, char*);
+char* strToUpper(char*);
+int write_kmer_htable(struct kmer_uthash**, char*);
 
 #endif

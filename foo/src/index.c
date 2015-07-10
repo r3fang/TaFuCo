@@ -18,10 +18,28 @@ void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, i
 		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
 		strncpy(s->kmer, kmer, k_index);
 		s->kmer[k_index] = '\0';     /*IMPORTANT*/
-		s->pos = pos;
+		s->count = 1;                /* first pos in the list */
+		/* an array of char pointers */
+		char **tmp;
+		s->pos = malloc(s->count * sizeof(char*));
+		s->pos = malloc((strlen(pos)+1) * sizeof(char));
+		s->pos[0] = pos; /* first and only 1 element*/
 		HASH_ADD_STR(*table, kmer, s);
 	}else{
-		s->pos = concat(concat(s->pos, "|"), pos); /*append one more position*/
+		char **tmp;
+		int i;
+		s->count += 1;
+		/* copy s->pos */
+		tmp = malloc(s->count * sizeof(char*));
+		for (i = 0; i < s->count-1; i++){
+		    tmp[i] = malloc((strlen(s->pos[i])+1) * sizeof(char));
+			tmp[i] = s->pos[i];
+		}
+		/* append pos */
+		tmp[i] = malloc(strlen(pos) * sizeof(char));
+		tmp[i] = pos;
+		/* assign tmp to s->pos*/
+		s->pos = tmp;
 	}
 }
 
@@ -53,18 +71,7 @@ int index_main(char *fasta_file, int k){
 		}
 	}  
 	
-	FILE *ofp = fopen(index_file, "w");
-	if (ofp == NULL) {
-	  fprintf(stderr, "Can't open output file %s!\n", index_file);
-	  exit(1);
-	}
-	
-	struct kmer_uthash *s, *tmp;
-	HASH_ITER(hh, table, s, tmp) {
-		fprintf(ofp, ">%s\n%s\n", s->kmer, s->pos);						
-	}
-	/*free everything*/
-	fclose(ofp);
+	write_kmer_htable(&table, index_file);
 	kmer_table_destroy(&table);
 	kseq_destroy(seqs);
 	gzclose(fp);
