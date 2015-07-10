@@ -118,42 +118,9 @@ static PyObject *foo_kmer_match(PyObject *self, PyObject *args){
 	return Py_BuildValue("i", -1);
 }
 
-static PyObject *foo_totalIter(PyObject *self, PyObject *args)
-{
-	PyObject* seq;
-	PyObject* item;
-	double result = 0.0;
-	
-	/* get one argument as an iterator */
-	if(!PyArg_ParseTuple(args, "O", &seq))
-		return 0;
-	
-	seq = PyObject_GetIter(seq);
-	if (!seq)
-		return 0;
-	/* process data sequentially */
-	while((item=PyIter_Next(seq))){
-		PyObject *fitem;
-		fitem = PyNumber_Float(item);
-		if(!fitem) {
-			Py_DECREF(seq);
-			Py_DECREF(item);
-			PyErr_SetString(PyExc_TypeError, "all items must be numbers");
-			return 0;
-		}
-		result += PyFloat_AS_DOUBLE(fitem);
-		Py_DECREF(fitem);
-		Py_DECREF(item);
-	}
-	Py_DECREF(seq);
-	return Py_BuildValue("d", result);
-}	
-
 /* docstring for functions */
 static char FastaReader_docs[] = 
 	"Fasta parser.";
-static char totalIter_docs[] = 
-	"Sum of a sequence of number.";
 static char ReverseComplement_docs[] = 
 	"Reverse complement of given DNA sequence.";
 static char kmer_match_docs[] = 
@@ -168,7 +135,6 @@ static char foo_docs[] =
 /* Method Mapping Fucntion of the module */
 static PyMethodDef foo_funcs[] = {
 	{"FastaReader", (PyCFunction)foo_FastaReader, METH_VARARGS, FastaReader_docs},
-	{"totalIter", (PyCFunction)foo_totalIter, METH_VARARGS, totalIter_docs},
 	{"ReverseComplement", (PyCFunction)foo_ReverseComplement, METH_VARARGS, ReverseComplement_docs},	
 	{"kmer_match", (PyCFunction)foo_kmer_match, METH_VARARGS, kmer_match_docs},	
 	{"index", (PyCFunction)foo_index, METH_VARARGS, index_docs},	

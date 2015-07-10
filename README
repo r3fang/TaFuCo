@@ -1,5 +1,5 @@
 # Author: Rongxin Fang
 # E-mail: r3fang@ucsd.edu
 # Created Date: 07-07-2015
-# Project Name: python_c_module
-# Description: Examples of C extension for python
+# Project Name: foo
+# Description: Extending Python with C.
