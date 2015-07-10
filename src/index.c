@@ -70,7 +70,6 @@ int index_main(char *fasta_file, int k){
 			add_to_kmer_hash(&table, kmer, concat(concat(name, "_"), i_str), k); 
 		}
 	}  
-	
 	write_kmer_htable(&table, index_file);
 	kmer_uthash_destroy(&table);
 	kseq_destroy(seqs);

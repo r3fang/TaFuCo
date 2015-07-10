@@ -9,18 +9,10 @@
 #include "kseq.h"
 #include "common.h"
 
+
 void kmer_uthash_destroy(struct kmer_uthash **table) {
 	/*free the kmer_hash table*/
   struct kmer_uthash *cur, *tmp;
-  HASH_ITER(hh, *table, cur, tmp) {
-      HASH_DEL(*table, cur);  /* delete it (users advances to next) */
-      free(cur);            /* free it */
-    }
-}
-
-void fasta_uthash_destroy(struct fasta_uthash **table) {
-	/*free the kmer_hash table*/
-  struct fasta_uthash *cur, *tmp;
   HASH_ITER(hh, *table, cur, tmp) {
       HASH_DEL(*table, cur);  /* delete it (users advances to next) */
       free(cur);            /* free it */
@@ -70,3 +62,15 @@ int write_kmer_htable(struct kmer_uthash **htable, char *fname){
 	fclose(ofp);
 	return 0;
 }
+
+//########################################################
+// Functions for fasta_uthash
+void fasta_uthash_destroy(struct fasta_uthash **table) {
+	/*free the kmer_hash table*/
+  struct fasta_uthash *cur, *tmp;
+  HASH_ITER(hh, *table, cur, tmp) {
+      HASH_DEL(*table, cur);  /* delete it (users advances to next) */
+      free(cur);            /* free it */
+    }
+}
+//########################################################

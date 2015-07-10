@@ -11,15 +11,16 @@ static PyObject *foo_predict(PyObject *self, PyObject *args)
 	/* Index the reference genome. */
 	char *fasta_file;
 	char *fastq_file;
+	int k;
 	
 	/* Parsing input paramters */
-	if (!PyArg_ParseTuple(args, "ss", &fasta_file, &fastq_file)){
+	if (!PyArg_ParseTuple(args, "ssi", &fasta_file, &fastq_file, &k)){
 			return NULL;
 	}
 	if (fasta_file == NULL){
 		return NULL;
 	}
-	predict_main(fasta_file, fastq_file);
+	predict_main(fasta_file, fastq_file, k);
 	return Py_BuildValue("");
 }
 
