@@ -67,7 +67,7 @@ int index_main(char *fasta_file, int k){
 			memcpy(kmer, seq+i, k);
 			char i_str[100];
 			sprintf(i_str, "%d", i);
-			add_to_kmer_hash(&table, kmer, concat(concat(name, "."), i_str), k); 
+			add_to_kmer_hash(&table, kmer, concat(concat(name, "_"), i_str), k); 
 		}
 	}  
 	
