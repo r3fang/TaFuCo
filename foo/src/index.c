@@ -8,33 +8,30 @@
 #include "utarray.h"
 #include "kseq.h"
 #include "common.h"
-
 KSEQ_INIT(gzFile, gzread)  
 
-#define k_index 30
-	
+#define MAX_K 100
+
 struct kmer_uthash {
-    char kmer[k_index];                /* key */
+    char kmer[MAX_K];                /* key */
 	char *pos;    
-	int count;
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
 /* Global variables */
 struct kmer_uthash *table = NULL;
 
-void add_to_kmer_hash(char kmer[k_index], char* pos) {
+void add_to_kmer_hash(char kmer[MAX_K], char* pos, int k_index) {
 	/* You really need to pass a pointer to the hash pointer: **table*/
 	struct kmer_uthash *s;
 	HASH_FIND_STR(table, kmer, s);
 	if (s==NULL){
 		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
 		strncpy(s->kmer, kmer, k_index);
+		s->kmer[k_index] = '\0';
 		s->pos = pos;
-		s->count = 1;		
 		HASH_ADD_STR(table, kmer, s);
 	}else{
-		s->count += 1;
 		s->pos = concat(concat(s->pos, "|"), pos);
 	}
 }
@@ -48,7 +45,7 @@ void kmer_table_destroy() {
     }
 }
 
-int index_main(char *fasta_file) {	
+int index_main(char *fasta_file, int k){	
 	/* index file */
 	char *index_file = concat(fasta_file, ".index");
 	gzFile fp;  
@@ -65,16 +62,13 @@ int index_main(char *fasta_file) {
 		if (seqs->name.s==NULL)
 			return NULL;
 		char *name = seqs->name.s;
-		char kmer[k_index];
-		for(i=0; i < strlen(seq)-k_index+1; i++){
-			/*hat is because memcpy does not terminate the string with a null byte. You could start by filling the entire array with nulls*/
-			memset(kmer, 0, sizeof(kmer));
-			memcpy(kmer, &seq[i], k_index);
-			kmer[k_index] = '\0';
-			/* convert i to string */
+		for(i=0; i < strlen(seq)-k+1; i++){
+			char kmer[MAX_K];
+			memset(kmer, '\0', sizeof(kmer));
+			memcpy(kmer, seq+i, k);
 			char i_str[100];
 			sprintf(i_str, "%d", i);
-			add_to_kmer_hash(kmer, concat(concat(name, "."), i_str)); 
+			add_to_kmer_hash(kmer, concat(concat(name, "."), i_str), k); 
 		}
 	}  
 	
@@ -83,6 +77,7 @@ int index_main(char *fasta_file) {
 	  fprintf(stderr, "Can't open output file %s!\n", index_file);
 	  exit(1);
 	}
+	
 	struct kmer_uthash *s, *tmp;
 	HASH_ITER(hh, table, s, tmp) {
 		fprintf(ofp, ">%s\n%s\n", s->kmer, s->pos);						

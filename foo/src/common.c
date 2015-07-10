@@ -8,6 +8,7 @@
 #include "utarray.h"
 #include "kseq.h"
 
+
 char* concat(char *s1, char *s2)
 {
     char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
