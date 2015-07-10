@@ -10,39 +10,19 @@
 #include "common.h"
 KSEQ_INIT(gzFile, gzread)  
 
-#define MAX_K 100
-
-struct kmer_uthash {
-    char kmer[MAX_K];                /* key */
-	char *pos;    
-    UT_hash_handle hh;         /* makes this structure hashable */
-};
-
-/* Global variables */
-struct kmer_uthash *table = NULL;
-
-void add_to_kmer_hash(char kmer[MAX_K], char* pos, int k_index) {
-	/* You really need to pass a pointer to the hash pointer: **table*/
+void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, int k_index) {
+	/* add one key to kmer_hash */
 	struct kmer_uthash *s;
-	HASH_FIND_STR(table, kmer, s);
+	HASH_FIND_STR(*table, kmer, s);  /* check if kmer exists*/
 	if (s==NULL){
 		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
 		strncpy(s->kmer, kmer, k_index);
-		s->kmer[k_index] = '\0';
+		s->kmer[k_index] = '\0';     /*IMPORTANT*/
 		s->pos = pos;
-		HASH_ADD_STR(table, kmer, s);
+		HASH_ADD_STR(*table, kmer, s);
 	}else{
-		s->pos = concat(concat(s->pos, "|"), pos);
+		s->pos = concat(concat(s->pos, "|"), pos); /*append one more position*/
 	}
-}
-
-void kmer_table_destroy() {
-  struct kmer_uthash *cur, *tmp;
-  
-  HASH_ITER(hh, table, cur, tmp) {
-      HASH_DEL(table, cur);  /* delete it (users advances to next) */
-      free(cur);            /* free it */
-    }
 }
 
 int index_main(char *fasta_file, int k){	
@@ -55,6 +35,7 @@ int index_main(char *fasta_file, int k){
 	if (fp == NULL){
 		return NULL;
 	}
+	struct kmer_uthash *table = NULL;
 	seqs = kseq_init(fp); // STEP 3: initialize seq  
 	while ((l = kseq_read(seqs)) >= 0) { // STEP 4: read sequence 
 		char *seq = strToUpper(seqs->seq.s);
@@ -68,7 +49,7 @@ int index_main(char *fasta_file, int k){
 			memcpy(kmer, seq+i, k);
 			char i_str[100];
 			sprintf(i_str, "%d", i);
-			add_to_kmer_hash(kmer, concat(concat(name, "."), i_str), k); 
+			add_to_kmer_hash(&table, kmer, concat(concat(name, "."), i_str), k); 
 		}
 	}  
 	
@@ -84,7 +65,7 @@ int index_main(char *fasta_file, int k){
 	}
 	/*free everything*/
 	fclose(ofp);
-	kmer_table_destroy();
+	kmer_table_destroy(&table);
 	kseq_destroy(seqs);
 	gzclose(fp);
 	return 0;

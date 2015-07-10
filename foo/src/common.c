@@ -7,7 +7,16 @@
 #include "utstring.h"
 #include "utarray.h"
 #include "kseq.h"
+#include "common.h"
 
+void kmer_table_destroy(struct kmer_uthash **table) {
+	/*free the kmer_hash table*/
+  struct kmer_uthash *cur, *tmp;
+  HASH_ITER(hh, *table, cur, tmp) {
+      HASH_DEL(*table, cur);  /* delete it (users advances to next) */
+      free(cur);            /* free it */
+    }
+}
 
 char* concat(char *s1, char *s2)
 {

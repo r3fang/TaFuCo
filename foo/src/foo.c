@@ -8,16 +8,18 @@ KSEQ_INIT(gzFile, gzread)
 
 static PyObject *foo_predict(PyObject *self, PyObject *args)
 {
-		/* Index the reference genome. */
+	/* Index the reference genome. */
 	char *fasta_file;
+	char *fastq_file;
+	
 	/* Parsing input paramters */
-	if (!PyArg_ParseTuple(args, "s", &fasta_file)){
+	if (!PyArg_ParseTuple(args, "ss", &fasta_file, &fastq_file)){
 			return NULL;
 	}
 	if (fasta_file == NULL){
 		return NULL;
 	}
-	predict_main(fasta_file);
+	predict_main(fasta_file, fastq_file);
 	return Py_BuildValue("");
 }
 
