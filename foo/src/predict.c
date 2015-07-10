@@ -89,13 +89,13 @@ struct fasta_uthash *fasta_parser(char *fname){
 
 
 int predict_main(char *fasta_file, char *fastq_file){
-	int k = 30;
+	int k = 15;
 	/* load kmer hash table in the memory */
 	char *index_file = concat(fasta_file, ".index");	
 	/* load kmer_uthash table */
-	struct kmer_uthash *htable = load_kmer_htable(index_file);
+	struct kmer_uthash *kmer_ht = load_kmer_htable(index_file);
 	/* load fasta_uthash table */
-	struct fasta_uthash *fasta = fasta_parser(fasta_file);
+	struct fasta_uthash *fasta_ht = fasta_parser(fasta_file);
 
 	/* starting parsing and processing fastq file*/
 	gzFile fp;
@@ -104,10 +104,16 @@ int predict_main(char *fasta_file, char *fastq_file){
 	fp = gzopen(fastq_file, "r");
 	seq = kseq_init(fp);
 	while ((l = kseq_read(seq)) >= 0) {
-		printf("name: %s\n", seq->name.s);
-		if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
-		printf("seq: %s\n", seq->seq.s);
-		if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
+		char *end = seq->seq.s;
+		int i = 0;
+		int buff[k];
+		strncpy(buff, end+i, k);
+		struct kmer_uthash *s;
+		HASH_FIND_STR(kmer_ht, buff, s);
+		if(s!=NULL){
+			printf("%s\t%s\t%d\n", buff, s->kmer, s->count);
+		}
+		//HASH_FIND_STR(, "betty", s);
 	}
 	
 	//struct kmer_uthash *s, *tmp;
@@ -120,8 +126,8 @@ int predict_main(char *fasta_file, char *fastq_file){
 	//}
 	kseq_destroy(seq);
 	gzclose(fp);
-	kmer_uthash_destroy(&htable);	
-	fasta_uthash_destroy(&fasta);	
+	kmer_uthash_destroy(&kmer_ht);	
+	fasta_uthash_destroy(&fasta_ht);	
 	return 0;
 }
 
