@@ -76,8 +76,9 @@ struct fasta_uthash *fasta_parser(char *fname){
 	while ((l = kseq_read(seq)) >= 0) {
 		struct fasta_uthash *s;
 		s = (struct fasta_uthash*)malloc(sizeof(struct fasta_uthash));
-		s->name = seq->name.s;
-		s->seq = seq->seq.s;
+		/* if we kseq_destroy(seq);, we need to duplicate the string!!!*/
+		s->name = strdup(seq->name.s);
+		s->seq = strdup(seq->seq.s);
 		if(seq->comment.l) s->comment = seq->comment.s;
 		HASH_ADD_STR(res, name, s);
 	}	
@@ -105,6 +106,12 @@ int predict_main(char *fasta_file, char *fastq_file){
 		printf("seq: %s\n", seq->seq.s);
 		if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 	}
+	struct fasta_uthash *fasta = fasta_parser(fasta_file);
+	struct fasta_uthash *s, *tmp;
+	HASH_ITER(hh, fasta, s, tmp) {
+		printf("%s\n", s->name);
+		printf("%s\n", s->seq);
+	}
 	
 	//struct kmer_uthash *s, *tmp;
 	//HASH_ITER(hh, htable, s, tmp) {
@@ -118,6 +125,7 @@ int predict_main(char *fasta_file, char *fastq_file){
 	kseq_destroy(seq);
 	gzclose(fp);
 	kmer_table_destroy(&htable);	
+	//kmer_table_destroy(&fasta);	
 	return 0;
 }
 
