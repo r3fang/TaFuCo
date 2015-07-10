@@ -94,6 +94,9 @@ int predict_main(char *fasta_file, char *fastq_file){
 	char *index_file = concat(fasta_file, ".index");	
 	/* load kmer_uthash table */
 	struct kmer_uthash *htable = load_kmer_htable(index_file);
+	/* load fasta_uthash table */
+	struct fasta_uthash *fasta = fasta_parser(fasta_file);
+
 	/* starting parsing and processing fastq file*/
 	gzFile fp;
 	kseq_t *seq;
@@ -106,12 +109,6 @@ int predict_main(char *fasta_file, char *fastq_file){
 		printf("seq: %s\n", seq->seq.s);
 		if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 	}
-	struct fasta_uthash *fasta = fasta_parser(fasta_file);
-	struct fasta_uthash *s, *tmp;
-	HASH_ITER(hh, fasta, s, tmp) {
-		printf("%s\n", s->name);
-		printf("%s\n", s->seq);
-	}
 	
 	//struct kmer_uthash *s, *tmp;
 	//HASH_ITER(hh, htable, s, tmp) {
@@ -121,7 +118,6 @@ int predict_main(char *fasta_file, char *fastq_file){
 	//			printf("%s\n", s->pos[i]);						
 	//	}
 	//}
-	
 	kseq_destroy(seq);
 	gzclose(fp);
 	kmer_uthash_destroy(&htable);	
