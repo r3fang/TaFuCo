@@ -26,56 +26,98 @@ struct kmer_uthash *load_kmer_htable(char *fname){
 		return NULL;
 	}
 	while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence 
+		/* add kmer */
 		char *kmer = seq->name.s;
-		char *pos = seq->seq.s;
 		int k = strlen(kmer);
 		struct kmer_uthash *s;
 		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
 		strncpy(s->kmer, kmer, k);
 		s->kmer[k] = '\0'; /* just in case*/
-		s->pos = pos;
-	}
+		
+		/* add count */
+		int count = atoi(seq->comment.s);
+		s->count = count;
+		
+		/* add pos */
+		char *pos = seq->seq.s;				
+		s->pos = malloc((s->count) * sizeof(char*));
+		char *token;
+	    
+		/* get the first token */
+	    token = strtok(pos, "|");		
+		
+		/* walk through other tokens */
+		int i = 0;
+	    while(token != NULL) 
+	    {
+			s->pos[i] = malloc((strlen(token)+1) * sizeof(char));
+			/*duplicate a string*/
+			s->pos[i] = strdup(token);
+			token = strtok(NULL, "|");
+			i ++;
+	    }		
+		HASH_ADD_STR(htable, kmer, s);
+	}	
 	gzclose(fp); // STEP 6: close the file handler  
 	kseq_destroy(seq);
 	return(htable);
 }
 
-
-int predict_main(char *fasta_file, char *fastq_file){
-	/* main function*/
-	char *index_file = concat(fasta_file, ".index");
-	struct kmer_uthash *htable = load_kmer_htable(index_file);
-	
-	gzFile fp;  
-	kseq_t *seq;  
+struct fasta_uthash *fasta_parser(char *fname){
+	gzFile fp;
+	kseq_t *seq;
 	int l;
-	fp = gzopen(fastq_file, "r");
-	if (fp == NULL) {
-	  fprintf(stderr, "Can't open input file %s!\n", fastq_file);
-	  exit(1);
-	}
-	seq = kseq_init(fp); // STEP 3: initialize seq  
-	if (seq == NULL){
+	struct fasta_uthash *res = NULL;
+	fp = gzopen(fname, "r");
+	if(fp == NULL){
 		return NULL;
 	}
-	while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence 
-		char *name = seq->name.s;
-		char *end = seq->seq.s;
-		/* */
-		char **b;
-		char **a;
-		a = malloc(10 * sizeof(char*));
-		a[0] = malloc((strlen(name) * sizeof(char)));
-		a[0] = name;
-		a[1] = malloc((strlen(end) * sizeof(char)));
-		a[1] = end;
-		b = a;
-		printf("%s\n", b[0]);
-		printf("%s\n", b[1]);
-	}
-	gzclose(fp); // STEP 6: close the file handler  
+	seq = kseq_init(fp);
+	while ((l = kseq_read(seq)) >= 0) {
+		struct fasta_uthash *s;
+		s = (struct fasta_uthash*)malloc(sizeof(struct fasta_uthash));
+		s->name = seq->name.s;
+		s->seq = seq->seq.s;
+		if(seq->comment.l) s->comment = seq->comment.s;
+		HASH_ADD_STR(res, name, s);
+	}	
 	kseq_destroy(seq);
-	kmer_table_destroy(&htable);
+	gzclose(fp);
+	return res;
+}
+
+
+int predict_main(char *fasta_file, char *fastq_file){
+	int k = 30;
+	/* load kmer hash table in the memory */
+	char *index_file = concat(fasta_file, ".index");	
+	/* load kmer_uthash table */
+	struct kmer_uthash *htable = load_kmer_htable(index_file);
+	/* starting parsing and processing fastq file*/
+	gzFile fp;
+	kseq_t *seq;
+	int l;
+	fp = gzopen(fastq_file, "r");
+	seq = kseq_init(fp);
+	while ((l = kseq_read(seq)) >= 0) {
+		printf("name: %s\n", seq->name.s);
+		if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
+		printf("seq: %s\n", seq->seq.s);
+		if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
+	}
+	
+	//struct kmer_uthash *s, *tmp;
+	//HASH_ITER(hh, htable, s, tmp) {
+	//	if(s->count > 1){
+	//		printf("%s\n", s->kmer);
+	//		for(int i=0; i<s->count; i++)
+	//			printf("%s\n", s->pos[i]);						
+	//	}
+	//}
+	
+	kseq_destroy(seq);
+	gzclose(fp);
+	kmer_table_destroy(&htable);	
 	return 0;
 }
 

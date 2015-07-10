@@ -21,6 +21,13 @@ struct kmer_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
+struct fasta_uthash {
+    char* name;                /* key */
+	char* seq;
+	char* comment;
+    UT_hash_handle hh;         /* makes this structure hashable */
+};
+
 void kmer_table_destroy(struct kmer_uthash**);
 char* concat(char*, char*);
 char* strToUpper(char*);

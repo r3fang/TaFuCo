@@ -48,7 +48,7 @@ int write_kmer_htable(struct kmer_uthash **htable, char *fname){
 	struct kmer_uthash *s, *tmp;
 	HASH_ITER(hh, *htable, s, tmp) {
 		/* print the head */
-		fprintf(ofp, ">%s\n", s->kmer);		
+		fprintf(ofp, ">%s\t%d\n", s->kmer, s->count);		
 		for(int i=0; i < s->count; i++){
 			if(i==0){
 				fprintf(ofp, "%s", s->pos[i]);																
