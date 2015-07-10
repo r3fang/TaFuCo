@@ -124,8 +124,8 @@ int predict_main(char *fasta_file, char *fastq_file){
 	
 	kseq_destroy(seq);
 	gzclose(fp);
-	kmer_table_destroy(&htable);	
-	//kmer_table_destroy(&fasta);	
+	kmer_uthash_destroy(&htable);	
+	fasta_uthash_destroy(&fasta);	
 	return 0;
 }
 

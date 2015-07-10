@@ -72,7 +72,7 @@ int index_main(char *fasta_file, int k){
 	}  
 	
 	write_kmer_htable(&table, index_file);
-	kmer_table_destroy(&table);
+	kmer_uthash_destroy(&table);
 	kseq_destroy(seqs);
 	gzclose(fp);
 	return 0;
