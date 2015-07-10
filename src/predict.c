@@ -146,11 +146,11 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 	while ((l = kseq_read(seq)) >= 0) {
 		char *_read = seq->seq.s;
 		int pos_read = 0;
-		find_mpm(_read, &pos_read, k, &kmer_ht, &fasta_ht);
-		
-		if(pos_read >= k){
-			printf("%d, %d\n", pos_read, k);			
+		while(pos_read<(strlen(_read)-k+1)){
+			find_mpm(_read, &pos_read, k, &kmer_ht, &fasta_ht);
+			printf("%d", pos_read);			
 		}
+		printf("\n");
 		
 //		int i = 0;
 //		int buff[k];
