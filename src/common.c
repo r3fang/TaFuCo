@@ -10,13 +10,35 @@
 #include "common.h"
 
 
+char *pos_parser(char *str, int *i) {
+	size_t size = strsplit_size(str, "_");
+	if(size!=2){
+		return NULL;
+	}
+	char **parts = calloc(size, sizeof(char *));
+	assert(parts);
+	strsplit(str, size, parts, "_");   
+	if(parts[0]==NULL || parts[1]==NULL){
+		free(parts);
+		return NULL;
+	}
+	*i = atoi(parts[1]);
+	printf("%d\t%s\n", strlen(parts[0]), parts[0]);
+	char *exon = (char*)malloc(500 * sizeof(char));
+	strncpy(exon, parts[0], strlen(parts[0]));	
+	free(parts);
+	return exon;
+}
+
 int
 strsplit_size (const char *str, const char *delimiter) {
   /* First count parts number*/
   char *pch;
-  int i = 1;
+  int i = 0;
   char *tmp = strdup(str);
   pch = strtok(tmp, delimiter);
+  /* if there is no delim in the string*/
+  i ++;
   while (pch) {
     pch = strtok(NULL, delimiter);
     if (NULL == pch) break;
@@ -28,12 +50,17 @@ strsplit_size (const char *str, const char *delimiter) {
 }
 
 int
-strsplit (const char *str, char *parts[], const char *delimiter) {	
+strsplit (const char *str, size_t size, char *parts[], const char *delimiter) {	
+	
+	if(size==1){
+		parts[0] = strdup(str);
+		return 0;
+	}
+  
   char *pch;
   int i = 0;
   char *tmp = strdup(str);
   pch = strtok(tmp, delimiter);
-
   parts[i++] = strdup(pch);
 
   while (pch) {

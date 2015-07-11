@@ -8,6 +8,24 @@
 
 KSEQ_INIT(gzFile, gzread)
 
+
+static PyObject *foo_try(PyObject *self, PyObject *args)
+{
+	char str0[] = "CTCF.exon3_176";
+	char *str =  malloc((strlen(str0)+1) * sizeof(char));
+	strncpy(str, str0, strlen(str0));
+	/* robust strsplit */	
+	int i;
+	//char* exon = pos_parser(str, &i);
+	//printf("%d\n", i);
+	char* exon = pos_parser(str, &i);
+	if(exon==NULL){
+		return Py_BuildValue("");
+	}
+	printf("exon=%s\tpos=%d\n", exon, i);
+	return Py_BuildValue("");
+}
+
 static PyObject *foo_predict(PyObject *self, PyObject *args)
 {
 	/* Index the reference genome. */
@@ -25,25 +43,6 @@ static PyObject *foo_predict(PyObject *self, PyObject *args)
 	predict_main(fasta_file, fastq_file, k);
 	return Py_BuildValue("");
 }
-
-static PyObject *foo_try(PyObject *self, PyObject *args)
-{
-	char str0[] = "0 1 2 3 4 5 6 7 8 9";
-	char *str =  malloc((strlen(str0)+1) * sizeof(char));
-	strncpy(str, str0, strlen(str0));
-	
-	size_t size = strsplit_size(str, " ");
-	assert(size);
-	char **parts = calloc(size, sizeof(char *));
-	assert(size);
-	strsplit(str, parts, " ");    
-	
-	for(int i=0; i < size; i++){
-  	  printf("%d\n", atoi(parts[i]));
-  	}
-	return Py_BuildValue("");
-}
-
 
 static PyObject *foo_index(PyObject *self, PyObject *args)
 {
