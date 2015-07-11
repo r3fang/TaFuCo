@@ -24,7 +24,6 @@ pos_parser(char *str, int *i) {
 		return NULL;
 	}
 	*i = atoi(parts[1]);
-	printf("%d\t%s\n", strlen(parts[0]), parts[0]);
 	char *exon = (char*)malloc(500 * sizeof(char));
 	strncpy(exon, parts[0], strlen(parts[0]));	
 	free(parts);

@@ -87,33 +87,58 @@ struct fasta_uthash *fasta_uthash_load(char *fname){
 	return res;
 }
 
-int find_mpm(char *_read, int *pos_read, int k, struct kmer_uthash **kmer_ht, struct fasta_uthash **fasta_ht){
-	struct kmer_uthash *s;
+char* 
+find_mpm(char *_read, int *pos_read, int k, struct kmer_uthash **kmer_ht, struct fasta_uthash **fasta_ht){
 	/* copy a part of string */
 	char buff[k];
 	strncpy(buff, _read + *pos_read, k);
 	if(buff == NULL || strlen(buff) != k){
 		*pos_read += 1; // move the pointer one base forward
-		return 0;
+		return NULL;
 	}
-	HASH_FIND_STR(*kmer_ht, buff, s);
-	if(s==NULL){ // kmer does not exist in the hash table
+	struct kmer_uthash *s_kmer;
+	HASH_FIND_STR(*kmer_ht, buff, s_kmer);
+	if(s_kmer==NULL){ // kmer does not exist in the hash table
 		*pos_read += 1;
-		return 0;
-	}else{
-		int pos_seq;
-		char *tmp = strdup(s->pos[0]);
-		assert(tmp);
-		char* exon = pos_parser(tmp, &pos_seq);
-		/* error report*/
-		if(exon==NULL || pos_seq==NULL || pos_seq<0){
-			*pos_read += 1;
-			return NULL;
+		return NULL;
+	}
+	int pos_seq;
+	char *tmp = strdup(s_kmer->pos[0]);
+	assert(tmp);
+	char* exon = pos_parser(tmp, &pos_seq);
+	/* error report*/
+	if(exon==NULL || pos_seq==NULL || pos_seq<0){
+		*pos_read += 1;
+		return NULL;
+	}
+	struct fasta_uthash *s_fasta;
+	HASH_FIND_STR(*fasta_ht, exon, s_fasta);
+	if(s_fasta == NULL){
+		* pos_read += 1;
+		return NULL;
+	}
+	char *_seq = strdup(s_fasta->seq);
+	int m = 0;
+	while(*(_seq + m + pos_seq) == *(_read+ *pos_read + m)){
+		m ++;
+	}				
+	*pos_read += m;
+	return exon;
+}
+
+int find_exons_on_read(char* _exons[], char* _read, int k, struct kmer_uthash **kmer_ht, struct fasta_uthash **fasta_ht){
+	int pos_read = 0;
+	int i = 0; 
+	while(pos_read<(strlen(_read)-k)){
+		char* exon = find_mpm(_read, &pos_read, k, kmer_ht, fasta_ht);
+		if (exon!=NULL){
+			printf("exon=%s\n", exon);
+			_exons[i++] = strdup(exon);
+			//printf("i=%d\texon=%s\n", i, _exons[0]);
 		}
-		printf("exon=%s\tpos_seq=%d\n", exon, pos_seq);		
-		*pos_read += 1;
-		return 0;
+		free(exon);
 	}
+	return i;
 }
 
 int predict_main(char *fasta_file, char *fastq_file, int k){
@@ -131,52 +156,13 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 	fp = gzopen(fastq_file, "r");
 	seq = kseq_init(fp);
 	while ((l = kseq_read(seq)) >= 0) {
-		char *_read = seq->seq.s;
-		int pos_read = 0;
-		while(pos_read<(strlen(_read)-k)){
-			find_mpm(_read, &pos_read, k, &kmer_ht, &fasta_ht);
-			//printf("%d\n", pos_read);
-		}
+		char *_read = strdup(seq->seq.s);
+		char **exons = calloc(100, sizeof(char *));
+		assert(exons);
+		int num = find_exons_on_read(exons, _read, k, &kmer_ht, &fasta_ht);
+		free(exons);
 	}
-//		int i = 0;
-//		int buff[k];
-//		strncpy(buff, end+i, k);
-//		struct kmer_uthash *s;
-//		HASH_FIND_STR(kmer_ht, buff, s);
-//		if(s!=NULL){
-//			/* walk through all matched exons */
-//			int max_len = 0;
-//			char* max_exon;
-//			int num;
-//			for(int i=0; i< s->count; i++){
-//				/* str_split to make this simpler*/
-//				char *token;
-//				/* get the first token */
-//			    token = strtok(s->pos[i], "_");				
-//				/* walk through other tokens */
-//				char* exon = malloc((strlen(token)+1) * sizeof(char));
-//				/*duplicate a string*/
-//				exon = strdup(token);
-//				token = strtok(NULL, "_");
-//				num = atoi(token);
-//				printf("%s\t%d\n", exon, num);
-//				struct fasta_uthash *tmp;
-//				/* check if the sequence exists in fasta_htable */
-//				HASH_FIND_STR(fasta_ht, exon, tmp);
-//				if(tmp != NULL){
-//					int m = 0;
-//					while(*(tmp->seq+m+num) == *(end+m)){
-//						m ++;
-//					}
-//					if(m > max_len){
-//						max_len = m;
-//						max_exon = exon;
-//					}
-//				}
-//			}
-//			printf("%d\t%d\t%s\n", num, max_len, max_exon);
-//		}
-//	}
+
 	
 	//struct kmer_uthash *s, *tmp;
 	//HASH_ITER(hh, kmer_ht, s, tmp) {

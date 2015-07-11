@@ -16,12 +16,11 @@ static PyObject *foo_try(PyObject *self, PyObject *args)
 	/* robust strsplit */	
 	int i;
 	//char* exon = pos_parser(str, &i);
-	//printf("%d\n", i);
 	char* exon = pos_parser(str, &i);
 	if(exon==NULL){
 		return Py_BuildValue("");
 	}
-	printf("exon=%s\tpos=%d\n", exon, i);
+	//printf("exon=%s\tpos=%d\n", exon, i);
 	int num = 10;
 	return Py_BuildValue("");
 }
