@@ -33,5 +33,5 @@ void kmer_uthash_destroy(struct kmer_uthash**);
 char* concat(char*, char*);
 char* strToUpper(char*);
 int write_kmer_htable(struct kmer_uthash**, char*);
-
+int strsplit (const char *, char *[], const char *);
 #endif

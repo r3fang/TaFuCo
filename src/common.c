@@ -10,7 +10,28 @@
 #include "common.h"
 
 
-void kmer_uthash_destroy(struct kmer_uthash **table) {
+int
+strsplit (const char *str, char *parts[], const char *delimiter) {
+  char *pch;
+  int i = 0;
+  char *tmp = strdup(str);
+  pch = strtok(tmp, delimiter);
+
+  parts[i++] = strdup(pch);
+
+  while (pch) {
+    pch = strtok(NULL, delimiter);
+    if (NULL == pch) break;
+    parts[i++] = strdup(pch);
+  }
+
+  free(tmp);
+  free(pch);
+  return i;
+}
+
+void 
+kmer_uthash_destroy(struct kmer_uthash **table) {
 	/*free the kmer_hash table*/
   struct kmer_uthash *cur, *tmp;
   HASH_ITER(hh, *table, cur, tmp) {
