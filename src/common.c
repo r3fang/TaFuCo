@@ -10,7 +10,8 @@
 #include "common.h"
 
 
-char *pos_parser(char *str, int *i) {
+char* 
+pos_parser(char *str, int *i) {
 	size_t size = strsplit_size(str, "_");
 	if(size!=2){
 		return NULL;

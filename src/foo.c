@@ -8,7 +8,6 @@
 
 KSEQ_INIT(gzFile, gzread)
 
-
 static PyObject *foo_try(PyObject *self, PyObject *args)
 {
 	char str0[] = "CTCF.exon3_176";
@@ -23,6 +22,7 @@ static PyObject *foo_try(PyObject *self, PyObject *args)
 		return Py_BuildValue("");
 	}
 	printf("exon=%s\tpos=%d\n", exon, i);
+	int num = 10;
 	return Py_BuildValue("");
 }
 

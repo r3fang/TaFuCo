@@ -92,54 +92,28 @@ int find_mpm(char *_read, int *pos_read, int k, struct kmer_uthash **kmer_ht, st
 	/* copy a part of string */
 	char buff[k];
 	strncpy(buff, _read + *pos_read, k);
-	HASH_FIND_STR(*kmer_ht, buff, s);
-	if(s==NULL){
-		*pos_read += 1;
-	}else{
-		int max_len = 0;
-		char* max_exon;
-		int pos_seq;
-		printf("Match\t%s\n", buff);		
-		printf("kmer=%s\n", s->kmer);		
-		printf("count=%d\n", s->count);		
-		printf("pos=%s\n", s->pos[0]);		
-		/*!!!!! we need a more robust way of interprate the exon and position !!!!!!!!*/
-		for(int i=0; i < s->count; i++){
-			/* str_split to make this simpler*/
-			char *token;
-			/* get the first token */
-			token = strtok(s->pos[i], "_");				
-			/* walk through other tokens */
-			char* exon = malloc((strlen(token)+1) * sizeof(char));
-			/*duplicate a string*/
-			exon = strdup(token);
-			token = strtok(NULL, "_");
-			pos_seq = atoi(token);
-			printf("exon=%s\tpos_seq=%d\n", exon, pos_seq);		
-			
-			struct fasta_uthash *tmp;
-			/* check if the sequence exists in fasta_htable */
-			HASH_FIND_STR(*fasta_ht, exon, tmp);
-			if(tmp==NULL){
-				*pos_read +=1;
-			}else{
-				int m = 0;
-				printf("m=%d\n", m);
-				while(*(tmp->seq + m + pos_seq) == *(_read+*pos_read+m)){
-					printf("%c%c\n", *(tmp->seq + m + pos_seq), *(_read + *pos_read + m));
-					m ++;
-				}				
-				printf("m=%d\n", m);
-				if(m > max_len){
-					max_len = m;
-					max_exon = exon;
-				}
-			}
-		}
-		printf("%d\n", max_len+1);
-		*pos_read += max_len;	
+	if(buff == NULL || strlen(buff) != k){
+		*pos_read += 1; // move the pointer one base forward
+		return 0;
 	}
-	return 0;
+	HASH_FIND_STR(*kmer_ht, buff, s);
+	if(s==NULL){ // kmer does not exist in the hash table
+		*pos_read += 1;
+		return 0;
+	}else{
+		int pos_seq;
+		char *tmp = strdup(s->pos[0]);
+		assert(tmp);
+		char* exon = pos_parser(tmp, &pos_seq);
+		/* error report*/
+		if(exon==NULL || pos_seq==NULL || pos_seq<0){
+			*pos_read += 1;
+			return NULL;
+		}
+		printf("exon=%s\tpos_seq=%d\n", exon, pos_seq);		
+		*pos_read += 1;
+		return 0;
+	}
 }
 
 int predict_main(char *fasta_file, char *fastq_file, int k){
@@ -159,11 +133,11 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 	while ((l = kseq_read(seq)) >= 0) {
 		char *_read = seq->seq.s;
 		int pos_read = 0;
-		//while(pos_read<(strlen(_read)-k)){
-		//	find_mpm(_read, &pos_read, k, &kmer_ht, &fasta_ht);
-		//	printf("%d\n", pos_read);
-		//}
-//		break;
+		while(pos_read<(strlen(_read)-k)){
+			find_mpm(_read, &pos_read, k, &kmer_ht, &fasta_ht);
+			//printf("%d\n", pos_read);
+		}
+	}
 //		int i = 0;
 //		int buff[k];
 //		strncpy(buff, end+i, k);
@@ -202,7 +176,7 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 //			}
 //			printf("%d\t%d\t%s\n", num, max_len, max_exon);
 //		}
-	}
+//	}
 	
 	//struct kmer_uthash *s, *tmp;
 	//HASH_ITER(hh, kmer_ht, s, tmp) {
