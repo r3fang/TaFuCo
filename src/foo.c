@@ -31,15 +31,16 @@ static PyObject *foo_try(PyObject *self, PyObject *args)
 	char str0[] = "0 1 2 3 4 5 6 7 8 9";
 	char *str =  malloc((strlen(str0)+1) * sizeof(char));
 	strncpy(str, str0, strlen(str0));
-	char **parts = calloc(10, sizeof(char *));
-	assert(parts);
-	size_t size = strsplit(str, parts, "-");
+	
+	size_t size = strsplit_size(str, " ");
 	assert(size);
-	printf("%d\n", size);
-	int i = 0;
-	for (; i < (int) size; ++i) {
-		printf("%s\n", parts[i]);
-	 }
+	char **parts = calloc(size, sizeof(char *));
+	assert(size);
+	strsplit(str, parts, " ");    
+	
+	for(int i=0; i < size; i++){
+  	  printf("%d\n", atoi(parts[i]));
+  	}
 	return Py_BuildValue("");
 }
 

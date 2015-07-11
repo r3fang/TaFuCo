@@ -11,7 +11,24 @@
 
 
 int
-strsplit (const char *str, char *parts[], const char *delimiter) {
+strsplit_size (const char *str, const char *delimiter) {
+  /* First count parts number*/
+  char *pch;
+  int i = 1;
+  char *tmp = strdup(str);
+  pch = strtok(tmp, delimiter);
+  while (pch) {
+    pch = strtok(NULL, delimiter);
+    if (NULL == pch) break;
+	i++;
+  }
+  free(tmp);
+  free(pch);
+  return i;
+}
+
+int
+strsplit (const char *str, char *parts[], const char *delimiter) {	
   char *pch;
   int i = 0;
   char *tmp = strdup(str);
@@ -27,7 +44,7 @@ strsplit (const char *str, char *parts[], const char *delimiter) {
 
   free(tmp);
   free(pch);
-  return i;
+  return 0;
 }
 
 void 
@@ -40,7 +57,8 @@ kmer_uthash_destroy(struct kmer_uthash **table) {
     }
 }
 
-char* concat(char *s1, char *s2)
+char* 
+concat(char *s1, char *s2)
 {
     char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
     strcpy(result, s1);
@@ -48,7 +66,8 @@ char* concat(char *s1, char *s2)
 	return result;
 }
 
-char* strToUpper(char* s){
+char* 
+strToUpper(char* s){
 	int i, n;
 	n=strlen(s);
 	char* r;
@@ -60,7 +79,8 @@ char* strToUpper(char* s){
 	return r;
 }
 
-int write_kmer_htable(struct kmer_uthash **htable, char *fname){
+int 
+write_kmer_htable(struct kmer_uthash **htable, char *fname){
 	/* write htable to disk*/
 	FILE *ofp = fopen(fname, "w");
 	if (ofp == NULL) {
@@ -84,9 +104,8 @@ int write_kmer_htable(struct kmer_uthash **htable, char *fname){
 	return 0;
 }
 
-//########################################################
-// Functions for fasta_uthash
-void fasta_uthash_destroy(struct fasta_uthash **table) {
+void 
+fasta_uthash_destroy(struct fasta_uthash **table) {
 	/*free the kmer_hash table*/
   struct fasta_uthash *cur, *tmp;
   HASH_ITER(hh, *table, cur, tmp) {
@@ -94,4 +113,3 @@ void fasta_uthash_destroy(struct fasta_uthash **table) {
       free(cur);            /* free it */
     }
 }
-//########################################################
