@@ -106,31 +106,6 @@ strToUpper(char* s){
 	return r;
 }
 
-int 
-write_kmer_htable(struct kmer_uthash **htable, char *fname){
-	/* write htable to disk*/
-	FILE *ofp = fopen(fname, "w");
-	if (ofp == NULL) {
-	  fprintf(stderr, "Can't open output file %s!\n", fname);
-	  exit(1);
-	}
-	struct kmer_uthash *s, *tmp;
-	HASH_ITER(hh, *htable, s, tmp) {
-		/* print the head */
-		fprintf(ofp, ">%s\t%d\n", s->kmer, s->count);		
-		for(int i=0; i < s->count; i++){
-			if(i==0){
-				fprintf(ofp, "%s", s->pos[i]);																
-			}else{
-				fprintf(ofp, "|%s", s->pos[i]);
-			}
-		}
-		fprintf(ofp, "\n");
-	}
-	fclose(ofp);
-	return 0;
-}
-
 void 
 fasta_uthash_destroy(struct fasta_uthash **table) {
 	/*free the kmer_hash table*/

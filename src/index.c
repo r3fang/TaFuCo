@@ -1,22 +1,40 @@
+/*--------------------------------------------------------------------*/
+/* index.c                                                            */
+/* Author: Rongxin Fang                                               */
+/* E-mail: r3fang@ucsd.edu                                            */
+/*--------------------------------------------------------------------*/
+
 #include <stdio.h>   /* gets */
 #include <stdlib.h>  /* atoi, malloc */
 #include <string.h>  /* strcpy */
 #include <zlib.h>  
+#include <errno.h>
 #include "uthash.h"
-#include "utlist.h"
-#include "utstring.h"
-#include "utarray.h"
 #include "kseq.h"
 #include "common.h"
-KSEQ_INIT(gzFile, gzread)  
 
-void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, int k_index) {
-	/* add one key to kmer_hash */
-	struct kmer_uthash *s;
-	HASH_FIND_STR(*table, kmer, s);  /* check if kmer exists*/
+/*--------------------------------------------------------------------*/
+/* The name of the file. */
+static const char *pcPgmName="index.c";
+
+KSEQ_INIT(gzFile, gzread)  
+/*--------------------------------------------------------------------*/
+
+/* add one kmer and its position to kmer_uthash table */
+static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, int k_index) {
+	struct kmer_uthash *s;	
+	assert(table != NULL);
+	assert(kmer != NULL);
+	/* check if kmer exists in table*/
+	HASH_FIND_STR(*table, kmer, s);  
+
 	if (s==NULL){
 		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
+		if (s == NULL)
+			{perror(pcPgmName); exit(EXIT_FAILURE);}
+			
 		strncpy(s->kmer, kmer, k_index);
+		//strcpy(s->kmer, kmer);		
 		s->kmer[k_index] = '\0';     /*IMPORTANT*/
 		s->count = 1;                /* first pos in the list */
 		/* an array of char pointers */
@@ -42,27 +60,71 @@ void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, i
 		s->pos = tmp;
 	}
 }
+/*--------------------------------------------------------------------*/
+
+/* Write down kmer_uthash */
+static void write_kmer_htable(struct kmer_uthash **htable, char *fname){
+	/* write htable to disk*/
+	FILE *ofp = fopen(fname, "w");
+
+	if (ofp == NULL) {
+	  fprintf(stderr, "Can't open output file %s!\n", fname);
+	  exit(1);
+	}
+
+	if(htable == NULL)
+		exit(1);
+	
+	struct kmer_uthash *s, *tmp;
+
+	HASH_ITER(hh, *htable, s, tmp) {
+
+		if(s == NULL)
+			fprintf(stderr, "Fail to write down %s!\n", fname);
+		
+		fprintf(ofp, ">%s\t%d\n", s->kmer, s->count);		
+		for(int i=0; i < s->count; i++){
+			if(i==0){
+				fprintf(ofp, "%s", s->pos[i]);																
+			}else{
+				fprintf(ofp, "|%s", s->pos[i]);
+			}
+		}
+		fprintf(ofp, "\n");
+	}
+	fclose(ofp);
+}
+/*--------------------------------------------------------------------*/
 
 int index_main(char *fasta_file, int k){	
+	if(k > MAX_K)
+		{fprintf(stderr, "ERROR: input k exceeds 100\n"); exit(EXIT_FAILURE);}	
 	/* index file */
-	char *index_file = concat(fasta_file, ".index");
 	gzFile fp;  
 	kseq_t *seqs;  
 	int l;
-	fp = gzopen(fasta_file, "r");
-	if (fp == NULL){
-		return NULL;
-	}
+	
 	struct kmer_uthash *table = NULL;
-	seqs = kseq_init(fp); // STEP 3: initialize seq  
-	while ((l = kseq_read(seqs)) >= 0) { // STEP 4: read sequence 
+
+	fp = gzopen(fasta_file, "r");
+	if (fp == NULL)
+		{perror(fasta_file); exit(EXIT_FAILURE);}
+	
+	seqs = kseq_init(fp);	
+	while ((l = kseq_read(seqs)) >= 0) {
 		char *seq = strToUpper(seqs->seq.s);
-		int i;
-		if (seqs->name.s==NULL)
-			return NULL;
+		if(seq == NULL)
+			{perror(pcPgmName); exit(EXIT_FAILURE);}
+				
 		char *name = seqs->name.s;
-		for(i=0; i < strlen(seq)-k+1; i++){
+		if (name==NULL)
+			{perror(pcPgmName); exit(EXIT_FAILURE);}
+		
+		for(int i=0; i < strlen(seq)-k+1; i++){
 			char kmer[MAX_K];
+			if(kmer == NULL)
+				{perror(pcPgmName); exit(EXIT_FAILURE);}
+			
 			memset(kmer, '\0', sizeof(kmer));
 			memcpy(kmer, seq+i, k);
 			char i_str[100];
@@ -70,6 +132,9 @@ int index_main(char *fasta_file, int k){
 			add_to_kmer_hash(&table, kmer, concat(concat(name, "_"), i_str), k); 
 		}
 	}  
+	char *index_file = concat(fasta_file, ".index");
+	if(index_file)
+		{exit(EXIT_FAILURE);}
 	write_kmer_htable(&table, index_file);
 	kmer_uthash_destroy(&table);
 	kseq_destroy(seqs);

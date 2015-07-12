@@ -122,7 +122,7 @@ find_mpm(char *_read, int *pos_read, int *pos_exon, int *mpm_len, int k, struct 
 	/* discard current kmer if it matches too many MPM */
 	for(int i =0; i < s_kmer->count; i++){
 		char *tmp = strdup(s_kmer->pos[i]);
-		char* exon = pos_parser(tmp, &_pos_exon);
+		char *exon = pos_parser(tmp, &_pos_exon);
 		/* error report*/
 		if(exon==NULL || _pos_exon==NULL || _pos_exon<0){
 			*pos_read += 1;
@@ -162,23 +162,24 @@ find_mpm(char *_read, int *pos_read, int *pos_exon, int *mpm_len, int k, struct 
 	}
 }
 
-int find_MPMs_on_read(struct MPM *_qptr, char* _read, char* _read_name, int k, struct kmer_uthash **kmer_ht, struct fasta_uthash **fasta_ht){
-	int read_pos = 0;
-	int exon_pos;
-	int i = 0; 
-	int MPM_length;
-	while(read_pos<(strlen(_read)-k)){
-		char* exon = find_mpm(_read, &read_pos, &exon_pos, &MPM_length, k, kmer_ht, fasta_ht);
-		if (exon!=NULL){
-			_qptr[i].READ_NAME = strdup(_read_name);
-			_qptr[i].READ_POS = read_pos;
-			_qptr[i].EXON_NAME = strdup(exon);
-			_qptr[i].LENGTH = MPM_length;
-			i++;	
+int find_MPMs_on_read(struct MPM *_qptr, char* _read, char* _read_name, int _k, struct kmer_uthash **_kmer_ht, struct fasta_uthash **_fasta_ht){
+	int _read_pos = 0;
+	int _exon_pos;
+	int _i = 0; 
+	int _mpm_len;
+	while(_read_pos<(strlen(_read)-_k)){
+		char* _exon = find_mpm(_read, &_read_pos, &_exon_pos, &_mpm_len, _k, _kmer_ht, _fasta_ht);
+		if (_exon!=NULL){
+			_qptr[_i].READ_NAME = strdup(_read_name);
+			_qptr[_i].READ_POS = _read_pos - _mpm_len;
+			_qptr[_i].EXON_NAME = strdup(_exon);
+			_qptr[_i].EXON_POS = _exon_pos;
+			_qptr[_i].LENGTH = _mpm_len;
+			_i++;	
 		}
-		free(exon);
+		free(_exon);
 	}
-	return i;
+	return _i;
 }
 
 int predict_main(char *fasta_file, char *fastq_file, int k){
@@ -199,9 +200,25 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 		char * _read_name = strdup(seq->name.s);
 		struct MPM *qptr = calloc(100, sizeof(struct MPM));
 		int num = find_MPMs_on_read(qptr, _read, _read_name, k, &kmer_ht, &fasta_ht);		
+
 		if(num > 0){
+			printf("num=%d\n", num);
 			for(int i=0; i < num; i++){
-				printf("%d\t%s\t%d\t%d\n", num, qptr[0].EXON_NAME, qptr[0].READ_POS, qptr[0].LENGTH);				
+				printf("%s\t%d\t%s\t%d\t%d\n", qptr[i].READ_NAME, qptr[i].READ_POS, qptr[i].EXON_NAME, qptr[i].EXON_POS, qptr[i].LENGTH);
+				for(int j=0; j<qptr[i].LENGTH; j++){
+					struct fasta_uthash *s;
+					HASH_FIND_STR(fasta_ht, qptr[i].EXON_NAME, s);
+					if(s!=NULL){
+						int m = (qptr[i].LENGTH);
+						char tmp_fa[m+1];
+						char tmp_re[m+1];					
+						memset(tmp_fa, '\0', sizeof(tmp_fa));
+						memset(tmp_re, '\0', sizeof(tmp_re));												
+						strncpy(tmp_fa, s->seq+qptr[i].EXON_POS, m);
+						strncpy(tmp_re, _read+qptr[i].READ_POS, m);
+						printf("%s\t%s\n", tmp_fa, tmp_re);
+					}
+				}
 			}
 		}
 		free(qptr);
