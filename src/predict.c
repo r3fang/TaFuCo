@@ -2,6 +2,7 @@
 #include <stdlib.h>  /* atoi, malloc */
 #include <string.h>  /* strcpy */
 #include <zlib.h>  
+#include <setjmp.h>
 #include "uthash.h"
 #include "utlist.h"
 #include "utstring.h"
@@ -41,7 +42,6 @@ struct kmer_uthash *load_kmer_htable(char *fname){
 		/* add pos */
 		char *pos = seq->seq.s;				
 		s->pos = malloc((s->count) * sizeof(char*));
-		
 		/* split a string by delim */
 		char *token;	    
 		/* get the first token */
@@ -103,27 +103,49 @@ find_mpm(char *_read, int *pos_read, int k, struct kmer_uthash **kmer_ht, struct
 		return NULL;
 	}
 	int pos_seq;
-	char *tmp = strdup(s_kmer->pos[0]);
-	assert(tmp);
-	char* exon = pos_parser(tmp, &pos_seq);
-	/* error report*/
-	if(exon==NULL || pos_seq==NULL || pos_seq<0){
-		*pos_read += 1;
-		return NULL;
+	char *max_exon;
+	int *max_len_list = malloc(s_kmer->count * sizeof(int));
+	int max_len=0;
+	
+	/* discard current kmer if it matches too many MPM */
+	for(int i =0; i < s_kmer->count; i++){
+		char *tmp = strdup(s_kmer->pos[i]);
+		char* exon = pos_parser(tmp, &pos_seq);
+		/* error report*/
+		if(exon==NULL || pos_seq==NULL || pos_seq<0){
+			*pos_read += 1;
+			return NULL;
+		}
+		struct fasta_uthash *s_fasta;
+		HASH_FIND_STR(*fasta_ht, exon, s_fasta);
+		if(s_fasta == NULL){
+			* pos_read += 1;
+			return NULL;
+		}
+		char *_seq = strdup(s_fasta->seq);
+		int m = 0;
+		while(*(_seq + m + pos_seq) == *(_read+ *pos_read + m)){
+			m ++;
+		}
+		max_len_list[i] = m;
+		if(m > max_len){
+			max_len = m;
+			max_exon = strdup(exon);
+		}
+		free(exon);
+		free(tmp);				
 	}
-	struct fasta_uthash *s_fasta;
-	HASH_FIND_STR(*fasta_ht, exon, s_fasta);
-	if(s_fasta == NULL){
-		* pos_read += 1;
+	
+	int max_count = 0; // count how many MPM found
+	for(int i=0; i < s_kmer->count; i++)
+		if(max_len == max_len_list[i])
+			max_count ++;
+	if(max_count > 1){
 		return NULL;
+	}else{
+		*pos_read += max_len;
+		return max_exon;		
 	}
-	char *_seq = strdup(s_fasta->seq);
-	int m = 0;
-	while(*(_seq + m + pos_seq) == *(_read+ *pos_read + m)){
-		m ++;
-	}				
-	*pos_read += m;
-	return exon;
 }
 
 int find_exons_on_read(char* _exons[], char* _read, int k, struct kmer_uthash **kmer_ht, struct fasta_uthash **fasta_ht){
@@ -132,9 +154,8 @@ int find_exons_on_read(char* _exons[], char* _read, int k, struct kmer_uthash **
 	while(pos_read<(strlen(_read)-k)){
 		char* exon = find_mpm(_read, &pos_read, k, kmer_ht, fasta_ht);
 		if (exon!=NULL){
-			printf("exon=%s\n", exon);
+			//printf("exon=%s\n", exon);
 			_exons[i++] = strdup(exon);
-			//printf("i=%d\texon=%s\n", i, _exons[0]);
 		}
 		free(exon);
 	}
@@ -143,12 +164,11 @@ int find_exons_on_read(char* _exons[], char* _read, int k, struct kmer_uthash **
 
 int predict_main(char *fasta_file, char *fastq_file, int k){
 	/* load kmer hash table in the memory */
-	char *index_file = concat(fasta_file, ".index");	
+	char *index_file = concat(fasta_file, ".index");
 	/* load kmer_uthash table */
-	struct kmer_uthash *kmer_ht = load_kmer_htable(index_file);
+	struct kmer_uthash *kmer_ht = load_kmer_htable(index_file);	
 	/* load fasta_uthash table */
 	struct fasta_uthash *fasta_ht = fasta_uthash_load(fasta_file);
-
 	/* starting parsing and processing fastq file*/
 	gzFile fp;
 	kseq_t *seq;
@@ -159,7 +179,9 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 		char *_read = strdup(seq->seq.s);
 		char **exons = calloc(100, sizeof(char *));
 		assert(exons);
-		int num = find_exons_on_read(exons, _read, k, &kmer_ht, &fasta_ht);
+		int num = find_exons_on_read(exons, _read, k, &kmer_ht, &fasta_ht);		
+		if(num > 0)
+			printf("%d\n", num);
 		free(exons);
 	}
 
