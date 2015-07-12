@@ -11,6 +11,15 @@
 #include "common.h"
 KSEQ_INIT(gzFile, gzread)  
 
+/*
+ *	the MPM (Maxmum Prefix Match) structure 
+ */
+struct MPM
+{
+	int read_pos;
+	char *exon_name;
+};
+
 struct kmer_uthash *load_kmer_htable(char *fname){
 	/* load kmer_htable*/
 	struct kmer_uthash *htable = NULL;
@@ -148,14 +157,19 @@ find_mpm(char *_read, int *pos_read, int k, struct kmer_uthash **kmer_ht, struct
 	}
 }
 
-int find_exons_on_read(char* _exons[], char* _read, int k, struct kmer_uthash **kmer_ht, struct fasta_uthash **fasta_ht){
+int find_MPMs_on_read(struct MPM *_exons[], char* _read, int k, struct kmer_uthash **kmer_ht, struct fasta_uthash **fasta_ht){
 	int pos_read = 0;
 	int i = 0; 
 	while(pos_read<(strlen(_read)-k)){
 		char* exon = find_mpm(_read, &pos_read, k, kmer_ht, fasta_ht);
 		if (exon!=NULL){
 			//printf("exon=%s\n", exon);
-			_exons[i++] = strdup(exon);
+			struct MPM tmp;
+			tmp.read_pos = pos_read;	
+			tmp.exon_name = strdup(exon);	
+			//printf("%s\t%d\n", tmp.exon_name, tmp.read_pos);
+			_exons[i] = &tmp;
+			i++;	
 		}
 		free(exon);
 	}
@@ -177,14 +191,15 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 	seq = kseq_init(fp);
 	while ((l = kseq_read(seq)) >= 0) {
 		char *_read = strdup(seq->seq.s);
-		char **exons = calloc(100, sizeof(char *));
-		assert(exons);
-		int num = find_exons_on_read(exons, _read, k, &kmer_ht, &fasta_ht);		
-		if(num > 0)
-			printf("%d\n", num);
-		free(exons);
+		struct MPM **qptr = calloc(100, sizeof(struct MPM));
+		int num = find_MPMs_on_read(qptr, _read, k, &kmer_ht, &fasta_ht);		
+		if(num > 0){
+			for(int i=0; i < num; i++){
+				printf("%s\t%d\n", qptr[0]->exon_name, qptr[0]->read_pos);				
+			}
+		}
+		free(qptr);
 	}
-
 	
 	//struct kmer_uthash *s, *tmp;
 	//HASH_ITER(hh, kmer_ht, s, tmp) {
@@ -193,8 +208,7 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 	//		for(int i=0; i<s->count; i++)
 	//		printf("%s\n", s->pos[i]);						
 	//	}
-	//}
-	
+	//}	
 	kseq_destroy(seq);
 	gzclose(fp);
 	kmer_uthash_destroy(&kmer_ht);	
