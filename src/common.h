@@ -32,7 +32,6 @@ void fasta_uthash_destroy(struct fasta_uthash**);
 void kmer_uthash_destroy(struct kmer_uthash**);
 char* concat(char*, char*);
 char* strToUpper(char*);
-int write_kmer_htable(struct kmer_uthash**, char*);
 int strsplit (const char *str, size_t size, char *parts[], const char *delimiter);
 int strsplit_size (const char *str, const char *delimiter);
 char *pos_parser(char *str, int *i);
