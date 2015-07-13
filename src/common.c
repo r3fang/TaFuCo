@@ -2,12 +2,54 @@
 #include <stdlib.h>  /* atoi, malloc */
 #include <string.h>  /* strcpy */
 #include <zlib.h>  
+#include <assert.h>
 #include "uthash.h"
-#include "utlist.h"
-#include "utstring.h"
-#include "utarray.h"
 #include "kseq.h"
 #include "common.h"
+
+void 
+kmer_uthash_destroy(struct kmer_uthash *table) {
+	/*free the kmer_hash table*/
+  struct kmer_uthash *cur, *tmp;
+  HASH_ITER(hh, table, cur, tmp) {
+      HASH_DEL(table, cur);  /* delete it (users advances to next) */
+      free(cur);            /* free it */
+    }
+}
+
+void
+kmer_uthash_display(struct kmer_uthash *_kmer_ht) {	
+   	struct kmer_uthash *cur, *tmp;
+	HASH_ITER(hh, _kmer_ht, cur, tmp) {
+		if(cur == NULL)
+			exit(-1);
+		printf("kmer=%s\tcount=%d\n", cur->kmer, cur->count);
+		for(int i=0; i < cur->count; i++){
+			printf("%s\t", cur->pos[i]);
+		}
+		printf("\n");
+	}	
+}
+
+void
+fasta_uthash_display(struct fasta_uthash *_fasta_ht) {	
+   	struct fasta_uthash *cur, *tmp;
+	HASH_ITER(hh, _fasta_ht, cur, tmp) {
+		if(cur == NULL)
+			exit(-1);
+		printf(">%s\n%s\n", cur->name, cur->seq);
+	}	
+}
+
+void 
+fasta_uthash_destroy(struct fasta_uthash *table) {
+	/*free the kmer_hash table*/
+  struct fasta_uthash *cur, *tmp;
+  HASH_ITER(hh, table, cur, tmp) {
+      HASH_DEL(table, cur);  /* delete it (users advances to next) */
+      free(cur);            /* free it */
+    }
+}
 
 
 char* 
@@ -74,15 +116,6 @@ strsplit (const char *str, size_t size, char *parts[], const char *delimiter) {
   return 0;
 }
 
-void 
-kmer_uthash_destroy(struct kmer_uthash **table) {
-	/*free the kmer_hash table*/
-  struct kmer_uthash *cur, *tmp;
-  HASH_ITER(hh, *table, cur, tmp) {
-      HASH_DEL(*table, cur);  /* delete it (users advances to next) */
-      free(cur);            /* free it */
-    }
-}
 
 char* 
 concat(char *s1, char *s2)
@@ -104,14 +137,4 @@ strToUpper(char* s){
 	}
 	r[n] = '\0';
 	return r;
-}
-
-void 
-fasta_uthash_destroy(struct fasta_uthash **table) {
-	/*free the kmer_hash table*/
-  struct fasta_uthash *cur, *tmp;
-  HASH_ITER(hh, *table, cur, tmp) {
-      HASH_DEL(*table, cur);  /* delete it (users advances to next) */
-      free(cur);            /* free it */
-    }
 }

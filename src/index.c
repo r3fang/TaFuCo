@@ -9,6 +9,7 @@
 #include <string.h>  /* strcpy */
 #include <zlib.h>  
 #include <errno.h>
+#include <assert.h>
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"

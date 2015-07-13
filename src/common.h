@@ -5,11 +5,9 @@
 #include <stdio.h>   /* gets */
 #include <stdlib.h>  /* atoi, malloc */
 #include <string.h>  /* strcpy */
-#include <zlib.h>  
+#include <zlib.h> 
+#include <assert.h> 
 #include "uthash.h"
-#include "utlist.h"
-#include "utstring.h"
-#include "utarray.h"
 #include "kseq.h"
 
 #define MAX_K 100
@@ -28,8 +26,10 @@ struct fasta_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-void fasta_uthash_destroy(struct fasta_uthash**);
-void kmer_uthash_destroy(struct kmer_uthash**);
+void kmer_uthash_display(struct kmer_uthash*);	
+void fasta_uthash_display(struct fasta_uthash*);
+void fasta_uthash_destroy(struct fasta_uthash*);
+void kmer_uthash_destroy(struct kmer_uthash*);
 char* concat(char*, char*);
 char* strToUpper(char*);
 int strsplit (const char *str, size_t size, char *parts[], const char *delimiter);
