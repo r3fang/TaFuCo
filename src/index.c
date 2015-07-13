@@ -114,13 +114,11 @@ int index_main(char *fasta_file, int k){
 	seqs = kseq_init(fp);	
 	while ((l = kseq_read(seqs)) >= 0) {
 		char *seq = strToUpper(seqs->seq.s);
-		if(seq == NULL)
-			{perror(pcPgmName); exit(EXIT_FAILURE);}
-				
 		char *name = seqs->name.s;
-		if (name==NULL)
-			{perror(pcPgmName); exit(EXIT_FAILURE);}
-		
+		printf(">%s\n", name);		
+		if(seq == NULL || name == NULL || strlen(seq) <= k){
+			continue;
+		}
 		for(int i=0; i < strlen(seq)-k+1; i++){
 			char kmer[MAX_K];
 			if(kmer == NULL)

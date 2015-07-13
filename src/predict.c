@@ -209,11 +209,10 @@ construct_BAG(char *_fastq_file, int _k){
 		if(qptr == NULL)
 			return NULL;
 		int num = find_MPMs_on_read(qptr, _read, _read_name, _k);
-		//if(num > 0){
-		//	for(int j=0; j < num; j++)
-		//		MPM_display(&qptr[j]);			
-		//}
-		
+		if(num > 0){
+			for(int j=0; j < num; j++)
+				MPM_display(&qptr[j]);			
+		}
 		free(qptr);
 	}
 	return NULL;
@@ -244,7 +243,6 @@ int predict_main(char *fasta_file, char *fastq_file, int k){
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	
 	construct_BAG(fastq_file, k);
 	kmer_uthash_destroy(KMER_HT);	
 	fasta_uthash_destroy(FASTA_HT);	
