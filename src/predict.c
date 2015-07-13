@@ -125,16 +125,19 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 		char *_read_name1 = strdup(seq1->name.s);
 		char *_read_name2 = strdup(seq2->name.s);
 		if(_read1 == NULL || _read_name1 == NULL || _read2 == NULL || _read_name2 == NULL)
-			return NULL;
+			continue;
+		
 		if(strcmp(_read_name1, _read_name2) != 0){
 			fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
 			exit(-1);					
-		}				
+		}			
+			
 		char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
 		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
 		
 		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
 		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
+		printf("%d\t%d\n", num1, num2);
 		
 		free(_read1);
 		free(_read2);
@@ -147,7 +150,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 	kseq_destroy(seq2);	
 	gzclose(fp1);
 	gzclose(fp2);
-	return NULL;
 }
 
 /*--------------------------------------------------------------------*/
@@ -165,14 +167,14 @@ predict_main(char *fasta_file, char *fq_file1, char *fq_file2){
 	if(index_file == NULL)
 		return -1;
 	
-	printf("loading kmer uthash table ...\n");
+	//printf("loading kmer uthash table ...\n");
 	int k;
 	KMER_HT = kmer_uthash_load(index_file, &k);	
 	if(KMER_HT == NULL){
 		fprintf(stderr, "Fail to load kmer_uthash table\n");
 		exit(-1);		
 	}
-	printf("k=%d\n", k);
+	//printf("k=%d\n", k);
 	/* MAX_K is defined in common.h */
 	if(k > MAX_K){
 		fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
