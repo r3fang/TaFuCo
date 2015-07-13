@@ -1,20 +1,33 @@
-#include <stdio.h>   /* gets */
-#include <stdlib.h>  /* atoi, malloc */
-#include <string.h>  /* strcpy */
+/*--------------------------------------------------------------------*/
+/* predict.c                                                          */
+/* Author: Rongxin Fang                                               */
+/* E-mail: r3fang@ucsd.edu                                            */
+/* Predict Gene Fusion by given fastq files.                          */
+/*--------------------------------------------------------------------*/
+
+#include <stdio.h>  
+#include <stdlib.h>  
+#include <string.h> 
 #include <zlib.h>  
 #include <assert.h>
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"
-KSEQ_INIT(gzFile, gzread)  
+KSEQ_INIT(gzFile, gzread);
 
+/*--------------------------------------------------------------------*/
+/*Global paramters.*/
 
 static const char *pcPgmName="predict.c";
 static struct kmer_uthash *KMER_HT = NULL;
 static struct fasta_uthash *FASTA_HT = NULL;
 
+
+/*--------------------------------------------------------------------*/
+
+/* Find next Maximal Extended Kmer Match (MEKM) on _read at pos_read. */
 char* 
-find_mpm(char *_read, int pos_read, int k){
+find_next_MEKM(char *_read, int pos_read, int k){
 	/* copy a part of string */
 	char _buff[k];
 	strncpy(_buff, _read + pos_read, k);
@@ -75,13 +88,15 @@ find_mpm(char *_read, int pos_read, int k){
 
 	return NULL;
 }
+/*--------------------------------------------------------------------*/
 
-int 
-find_MPMs_on_read(char **hits, char* _read, int _k){
+/* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
+size_t 
+find_all_MEKMs(char **hits, char* _read, int _k){
 	int _read_pos = 0;
-	int _i = 0; 
+	size_t _i = 0; 
 	while(_read_pos<(strlen(_read)-_k)){
-		char* _exon = find_mpm(_read, _read_pos, _k);
+		char* _exon = find_next_MEKM(_read, _read_pos, _k);
 		_read_pos += 1;
 		if (_exon != NULL){
 			hits[_i] = strdup(_exon);
@@ -92,8 +107,11 @@ find_MPMs_on_read(char **hits, char* _read, int _k){
 	return _i;
 }
 
-char* 
-construct_BAG(char *fq_file1, char *fq_file2, int _k){	
+/*--------------------------------------------------------------------*/
+
+/* Construct breakend associated graph by given fq files.             */
+void
+construct_BAG(char *fq_file1, char *fq_file2, int _k){
 	gzFile fp1, fp2;
 	kseq_t *seq1, *seq2;
 	int l1, l2;
@@ -115,14 +133,14 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 		char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
 		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
 		
-		int num1 = find_MPMs_on_read(hits1, _read1, _k);
-		int num2 = find_MPMs_on_read(hits2, _read2, _k);
-				
+		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
+		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
+		
 		free(_read1);
-		free(_read_name1);
-		free(hits1);
 		free(_read2);
+		free(_read_name1);
 		free(_read_name2);
+		free(hits1);
 		free(hits2);
 	}
 	kseq_destroy(seq1);
@@ -132,7 +150,11 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 	return NULL;
 }
 
-int predict_main(char *fasta_file, char *fq_file1, char *fq_file2){
+/*--------------------------------------------------------------------*/
+
+/* main function. */
+int 
+predict_main(char *fasta_file, char *fq_file1, char *fq_file2){
 	/* load kmer hash table in the memory */
 	assert(fasta_file != NULL);
 	assert(fq_file1 != NULL);

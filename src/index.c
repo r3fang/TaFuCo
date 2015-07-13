@@ -2,12 +2,13 @@
 /* index.c                                                            */
 /* Author: Rongxin Fang                                               */
 /* E-mail: r3fang@ucsd.edu                                            */
+/* Indexing reference exon sequences.                                 */
 /*--------------------------------------------------------------------*/
 
-#include <stdio.h>   /* gets */
-#include <stdlib.h>  /* atoi, malloc */
-#include <string.h>  /* strcpy */
-#include <zlib.h>  
+#include <stdio.h>  
+#include <stdlib.h> 
+#include <string.h>
+#include <zlib.h> 
 #include <errno.h>
 #include <assert.h>
 #include "uthash.h"
@@ -18,7 +19,7 @@
 /* The name of the file. */
 static const char *pcPgmName="index.c";
 
-KSEQ_INIT(gzFile, gzread)  
+KSEQ_INIT(gzFile, gzread);
 /*--------------------------------------------------------------------*/
 
 /* add one kmer and its position to kmer_uthash table */
@@ -115,7 +116,6 @@ int index_main(char *fasta_file, int k){
 	while ((l = kseq_read(seqs)) >= 0) {
 		char *seq = strToUpper(seqs->seq.s);
 		char *name = seqs->name.s;		
-		printf("%s\n", name);
 		if(seq == NULL || name == NULL || strlen(seq) <= k){
 			continue;
 		}
