@@ -10,18 +10,19 @@ KSEQ_INIT(gzFile, gzread)
 
 static PyObject *foo_try(PyObject *self, PyObject *args)
 {
-	char str0[] = "CTCF.exon3_176";
+	char str0[] = "CTCFexon3_176";
 	char *str =  malloc((strlen(str0)+1) * sizeof(char));
 	strncpy(str, str0, strlen(str0));
 	/* robust strsplit */	
-	int i;
+	//int i;
 	//char* exon = pos_parser(str, &i);
-	char* exon = pos_parser(str, &i);
-	if(exon==NULL){
-		return Py_BuildValue("");
-	}
+	//char* exon = pos_parser(str, &i);
+	//if(exon==NULL){
+	//	return Py_BuildValue("");
+	//}
 	//printf("exon=%s\tpos=%d\n", exon, i);
-	int num = 10;
+	//int num = 10;
+	
 	return Py_BuildValue("");
 }
 
@@ -30,16 +31,15 @@ static PyObject *foo_predict(PyObject *self, PyObject *args)
 	/* Index the reference genome. */
 	char *fasta_file;
 	char *fastq_file;
-	int k;
 	
 	/* Parsing input paramters */
-	if (!PyArg_ParseTuple(args, "ssi", &fasta_file, &fastq_file, &k)){
+	if (!PyArg_ParseTuple(args, "ss", &fasta_file, &fastq_file)){
 			return NULL;
 	}
 	if (fasta_file == NULL){
 		return NULL;
 	}
-	predict_main(fasta_file, fastq_file, k);
+	predict_main(fasta_file, fastq_file);
 	return Py_BuildValue("");
 }
 

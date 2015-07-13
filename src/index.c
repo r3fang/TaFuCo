@@ -95,8 +95,8 @@ static void kmer_uthash_write(struct kmer_uthash *htable, char *fname){
 	}
 	fclose(ofp);
 }
-/*--------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------*/
 int index_main(char *fasta_file, int k){	
 	if(k > MAX_K)
 		{fprintf(stderr, "ERROR: input k exceeds 100\n"); exit(EXIT_FAILURE);}	
@@ -114,24 +114,22 @@ int index_main(char *fasta_file, int k){
 	seqs = kseq_init(fp);	
 	while ((l = kseq_read(seqs)) >= 0) {
 		char *seq = strToUpper(seqs->seq.s);
-		char *name = seqs->name.s;
-		printf(">%s\n", name);		
+		char *name = seqs->name.s;		
+		printf("%s\n", name);
 		if(seq == NULL || name == NULL || strlen(seq) <= k){
 			continue;
 		}
 		for(int i=0; i < strlen(seq)-k+1; i++){
 			char kmer[MAX_K];
 			if(kmer == NULL)
-				{perror(pcPgmName); exit(EXIT_FAILURE);}
-			
+				continue;
 			memset(kmer, '\0', sizeof(kmer));
 			memcpy(kmer, seq+i, k);
 			char i_str[100];
 			sprintf(i_str, "%d", i);
-			add_to_kmer_hash(&table, kmer, concat(concat(name, "_"), i_str), k); 
+			add_to_kmer_hash(&table, small_dna_str(kmer, rev_com(kmer)), concat(concat(name, "_"), i_str), k); 
 		}
-	}  
-	
+	}  	
 	char *index_file = concat(fasta_file, ".index");	
 	if(index_file == NULL)
 		{exit(EXIT_FAILURE);}
