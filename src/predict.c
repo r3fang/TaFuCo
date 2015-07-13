@@ -13,7 +13,6 @@ static const char *pcPgmName="predict.c";
 static struct kmer_uthash *KMER_HT = NULL;
 static struct fasta_uthash *FASTA_HT = NULL;
 
-
 char* 
 find_mpm(char *_read, int pos_read, int k){
 	/* copy a part of string */
@@ -78,10 +77,9 @@ find_mpm(char *_read, int pos_read, int k){
 }
 
 int 
-find_MPMs_on_read(struct MPM *_qptr, char* _read, char* _read_name, int _k){
+find_MPMs_on_read(char **hits, char* _read, int _k){
 	int _read_pos = 0;
 	int _i = 0; 
-	char** hits = malloc(strlen(_read) * sizeof(char*));  
 	while(_read_pos<(strlen(_read)-_k)){
 		char* _exon = find_mpm(_read, _read_pos, _k);
 		_read_pos += 1;
@@ -91,37 +89,54 @@ find_MPMs_on_read(struct MPM *_qptr, char* _read, char* _read_name, int _k){
 			_i ++;
 		}
 	}
-	for(int j=0; j<_i; j++)
-		printf("%s\t", hits[j]);
-	printf("\n");
 	return _i;
 }
 
 char* 
-construct_BAG(char *_fastq_file, int _k){	
-	gzFile fp;
-	kseq_t *seq;
-	int l;
-	fp = gzopen(_fastq_file, "r");
-	seq = kseq_init(fp);
-	while ((l = kseq_read(seq)) >= 0) {
-		char *_read = strdup(seq->seq.s);
-		char *_read_name = strdup(seq->name.s);
-		if(_read == NULL || _read_name == NULL)
-			return NULL; 
-		struct MPM *qptr = calloc(100, sizeof(struct MPM));
-		if(qptr == NULL)
+construct_BAG(char *fq_file1, char *fq_file2, int _k){	
+	gzFile fp1, fp2;
+	kseq_t *seq1, *seq2;
+	int l1, l2;
+	fp1 = gzopen(fq_file1, "r");
+	fp2 = gzopen(fq_file2, "r");
+	seq1 = kseq_init(fp1);
+	seq2 = kseq_init(fp2);
+	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2))) {
+		char *_read1 = strdup(seq1->seq.s);
+		char *_read2 = strdup(seq2->seq.s);
+		char *_read_name1 = strdup(seq1->name.s);
+		char *_read_name2 = strdup(seq2->name.s);
+		if(_read1 == NULL || _read_name1 == NULL || _read2 == NULL || _read_name2 == NULL)
 			return NULL;
-		int num = find_MPMs_on_read(qptr, _read, _read_name, _k);
-		free(qptr);
+		if(strcmp(_read_name1, _read_name2) != 0){
+			fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
+			exit(-1);					
+		}				
+		char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
+		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
+		
+		int num1 = find_MPMs_on_read(hits1, _read1, _k);
+		int num2 = find_MPMs_on_read(hits2, _read2, _k);
+				
+		free(_read1);
+		free(_read_name1);
+		free(hits1);
+		free(_read2);
+		free(_read_name2);
+		free(hits2);
 	}
+	kseq_destroy(seq1);
+	kseq_destroy(seq2);	
+	gzclose(fp1);
+	gzclose(fp2);
 	return NULL;
 }
 
-int predict_main(char *fasta_file, char *fastq_file){
+int predict_main(char *fasta_file, char *fq_file1, char *fq_file2){
 	/* load kmer hash table in the memory */
-	assert(fastq_file != NULL);
 	assert(fasta_file != NULL);
+	assert(fq_file1 != NULL);
+	assert(fq_file2 != NULL);
 
 	/* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
@@ -148,8 +163,8 @@ int predict_main(char *fasta_file, char *fastq_file){
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	//kmer_uthash_display(KMER_HT);
-	construct_BAG(fastq_file, k);
+	
+	construct_BAG(fq_file1, fq_file2, k);
 	
 	kmer_uthash_destroy(KMER_HT);	
 	fasta_uthash_destroy(FASTA_HT);	
