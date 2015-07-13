@@ -119,13 +119,12 @@ find_mpm(char *_read, int *pos_read, int *pos_exon, int *mpm_len, int k){
 	//	return NULL;
 	//}
 	struct kmer_uthash *s_kmer;
-	HASH_FIND_STR(KMER_HT, "CCTTCTGGGGCAAAGCGGAGAGTGGTCGGT", s_kmer);
+	HASH_FIND_STR(KMER_HT, buff, s_kmer);
 	if(s_kmer==NULL){ // kmer does not exist in the hash table
 		*pos_read += 1;
 		return NULL;
 	}
-	printf("%s\n", buff);	
-	
+
 	//int _pos_exon; /* tmp */
 	//char *max_exon;
 	//int *max_len_list = malloc(s_kmer->count * sizeof(int));
