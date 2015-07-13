@@ -7,6 +7,21 @@
 #include "kseq.h"
 #include "common.h"
 
+
+struct kmer_uthash*
+find_kmer(char* quary_kmer, struct kmer_uthash *tb) {
+    struct kmer_uthash *s;
+    HASH_FIND_STR(tb, quary_kmer, s);  /* s: output pointer */
+    return s;
+}
+
+struct fasta_uthash*
+find_fasta(char* quary_name, struct fasta_uthash *tb) {
+    struct fasta_uthash *s;
+    HASH_FIND_STR(tb, quary_name, s);  /* s: output pointer */
+    return s;
+}
+
 void 
 kmer_uthash_destroy(struct kmer_uthash *table) {
 	/*free the kmer_hash table*/

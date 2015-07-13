@@ -26,6 +26,9 @@ struct fasta_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
+
+struct kmer_uthash *find_kmer(char* , struct kmer_uthash*);
+struct fasta_uthash *find_fasta(char* , struct fasta_uthash*);
 void kmer_uthash_display(struct kmer_uthash*);	
 void fasta_uthash_display(struct fasta_uthash*);
 void fasta_uthash_destroy(struct fasta_uthash*);

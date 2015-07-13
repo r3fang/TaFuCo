@@ -64,7 +64,7 @@ static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char*
 /*--------------------------------------------------------------------*/
 
 /* Write down kmer_uthash */
-static void write_kmer_htable(struct kmer_uthash **htable, char *fname){
+static void kmer_uthash_write(struct kmer_uthash *htable, char *fname){
 	/* write htable to disk*/
 	FILE *ofp = fopen(fname, "w");
 
@@ -78,7 +78,7 @@ static void write_kmer_htable(struct kmer_uthash **htable, char *fname){
 	
 	struct kmer_uthash *s, *tmp;
 
-	HASH_ITER(hh, *htable, s, tmp) {
+	HASH_ITER(hh, htable, s, tmp) {
 
 		if(s == NULL)
 			fprintf(stderr, "Fail to write down %s!\n", fname);
@@ -133,11 +133,13 @@ int index_main(char *fasta_file, int k){
 			add_to_kmer_hash(&table, kmer, concat(concat(name, "_"), i_str), k); 
 		}
 	}  
-	char *index_file = concat(fasta_file, ".index");
-	if(index_file)
+	
+	char *index_file = concat(fasta_file, ".index");	
+	if(index_file == NULL)
 		{exit(EXIT_FAILURE);}
-	write_kmer_htable(&table, index_file);
-	kmer_uthash_destroy(&table);
+
+	kmer_uthash_write(table, index_file);
+	kmer_uthash_destroy(table);
 	kseq_destroy(seqs);
 	gzclose(fp);
 	return 0;
