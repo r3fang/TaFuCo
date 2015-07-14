@@ -85,7 +85,7 @@ find_next_MEKM(char *_read, int pos_read, int k){
 	}
 	
 	int max_count = 0; // count how many MPM found
-	int i;
+
 	for(i=0; i < s_kmer->count; i++)
 		if(max_len == max_len_list[i])
 			max_count ++;
