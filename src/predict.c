@@ -13,6 +13,8 @@
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"
+#include "kmer_uthash.h"
+#include "fasta_uthash.h"
 
 KSEQ_INIT(gzFile, gzread);
 

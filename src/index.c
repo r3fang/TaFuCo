@@ -14,6 +14,8 @@
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"
+#include "kmer_uthash.h"
+#include "fasta_uthash.h"
 
 /*--------------------------------------------------------------------*/
 /* The name of the file. */

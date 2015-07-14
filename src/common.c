@@ -6,11 +6,10 @@
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"
-KSEQ_INIT(gzFile, gzread)  
+KSEQ_INIT(gzFile, gzread); 
 
 /* Reverse complement of DNA-seq */
-char*
-rev_com(char *s){
+char *rev_com(char *s){
 	/* Reverse complement of given DNA sequence*/
 	assert(s != NULL);
 	int n, c, d;
@@ -80,66 +79,6 @@ score_DNA_str(char *s){
 	}
 	return score;
 }
-
-struct kmer_uthash*
-find_kmer(char* quary_kmer, struct kmer_uthash *tb) {
-    struct kmer_uthash *s;
-    HASH_FIND_STR(tb, quary_kmer, s);  /* s: output pointer */
-    return s;
-}
-
-struct fasta_uthash*
-find_fasta(char* quary_name, struct fasta_uthash *tb) {
-    struct fasta_uthash *s;
-    HASH_FIND_STR(tb, quary_name, s);  /* s: output pointer */
-    return s;
-}
-
-void 
-kmer_uthash_destroy(struct kmer_uthash *table) {
-	/*free the kmer_hash table*/
-  struct kmer_uthash *cur, *tmp;
-  HASH_ITER(hh, table, cur, tmp) {
-      HASH_DEL(table, cur);  /* delete it (users advances to next) */
-      free(cur);            /* free it */
-    }
-}
-
-void
-kmer_uthash_display(struct kmer_uthash *_kmer_ht) {	
-   	struct kmer_uthash *cur, *tmp;
-	HASH_ITER(hh, _kmer_ht, cur, tmp) {
-		if(cur == NULL)
-			exit(-1);
-		printf("kmer=%s\tcount=%d\n", cur->kmer, cur->count);
-		int i;
-		for(i=0; i < cur->count; i++){
-			printf("%s\t", cur->pos[i]);
-		}
-		printf("\n");
-	}	
-}
-
-void
-fasta_uthash_display(struct fasta_uthash *_fasta_ht) {	
-   	struct fasta_uthash *cur, *tmp;
-	HASH_ITER(hh, _fasta_ht, cur, tmp) {
-		if(cur == NULL)
-			exit(-1);
-		printf(">%s\n%s\n", cur->name, cur->seq);
-	}	
-}
-
-void 
-fasta_uthash_destroy(struct fasta_uthash *table) {
-	/*free the kmer_hash table*/
-  struct fasta_uthash *cur, *tmp;
-  HASH_ITER(hh, table, cur, tmp) {
-      HASH_DEL(table, cur);  /* delete it (users advances to next) */
-      free(cur);            /* free it */
-    }
-}
-
 
 char* 
 pos_parser(char *str, int *i) {
@@ -242,84 +181,4 @@ MPM_display(struct MPM *s){
 	}else{
 		printf("%s\t%d\t%s\t%d\t%d\n", s->READ_NAME, s->READ_POS, s->EXON_NAME, s->EXON_POS, s->LENGTH);		
 	}
-}
-
-struct kmer_uthash *kmer_uthash_load(char *fname, int *k){	
-	/* load kmer_htable*/
-	struct kmer_uthash *htable = NULL;
-	gzFile fp;  
-	kseq_t *seq; 
-	int l;
-	fp = gzopen(fname, "r");
-	if (fp == NULL) {
-	  fprintf(stderr, "Can't open input file %s!\n", fname);
-	  exit(1);
-	}
-	seq = kseq_init(fp); // STEP 3: initialize seq  
-	if (seq == NULL){
-		return NULL;
-	}
-	while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence 
-		/* add kmer */
-		char *kmer = seq->name.s;
-		*k = strlen(kmer);
-		struct kmer_uthash *s;
-		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
-		strncpy(s->kmer, kmer, *k);
-		s->kmer[*k] = '\0'; /* just in case*/
-		
-		/* add count */
-		int count = atoi(seq->comment.s);
-		s->count = count;
-		
-		/* add pos */
-		char *pos = seq->seq.s;				
-		s->pos = malloc((s->count) * sizeof(char*));
-		/* split a string by delim */
-		char *token;	    
-		/* get the first token */
-	    token = strtok(pos, "|");				
-		/* walk through other tokens */
-		int i = 0;
-	    while(token != NULL) 
-	    {
-			s->pos[i] = malloc((strlen(token)+1) * sizeof(char));
-			/*duplicate a string*/
-			s->pos[i] = strdup(token);
-			token = strtok(NULL, "|");
-			i ++;
-	    }		
-		HASH_ADD_STR(htable, kmer, s);
-	}	
-	gzclose(fp); // STEP 6: close the file handler  
-	kseq_destroy(seq);
-	return(htable);
-}
-
-struct fasta_uthash* fasta_uthash_load(char *fname){
-	gzFile fp;
-	kseq_t *seq;
-	int l;
-	struct fasta_uthash *res = NULL;
-	fp = gzopen(fname, "r");
-	if(fp == NULL){
-		return NULL;
-	}
-	seq = kseq_init(fp);
-	while ((l = kseq_read(seq)) >= 0){
-		struct fasta_uthash *s = malloc(sizeof(struct fasta_uthash));
-		if(s == NULL)
-			continue;
-		char *name = seq->name.s;
-		char *_seq = seq->seq.s;
-		char *_seq_upper = strToUpper(_seq);
-		if(name==NULL || _seq==NULL || _seq_upper==NULL)
-			continue;
-		s->name = strdup(name);
-		s->seq = strdup(_seq_upper);
-		HASH_ADD_STR(res, name, s);
-	}	
-	kseq_destroy(seq);
-	gzclose(fp);
-	return res;
 }
