@@ -137,6 +137,7 @@ struct BAG_uthash * construct_BAG(char *fq_file1, char *fq_file2, int _k){
 		char *_read2 = strdup(seq2->seq.s);
 		char *_read_name1 = strdup(seq1->name.s);
 		char *_read_name2 = strdup(seq2->name.s);
+		
 		if(_read1 == NULL || _read_name1 == NULL || _read2 == NULL || _read_name2 == NULL)
 			continue;    
 		
@@ -144,7 +145,9 @@ struct BAG_uthash * construct_BAG(char *fq_file1, char *fq_file2, int _k){
 			fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
 			exit(-1);					
 		}			
-    	
+    	//printf("%s\t%s\n", _read_name1, _read_name2);	
+    	//printf("%s\t%s\n", _read1, _read2);	
+		
 		char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
 		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
 		
@@ -165,16 +168,38 @@ struct BAG_uthash * construct_BAG(char *fq_file1, char *fq_file2, int _k){
 		for(i=0; i<size1; i++){
 			for(j=0; j<size2; j++){
 				char *edge_name;
-				int rc = strcmp(hits_uniq1[i], hits_uniq2[j]);
+				size_t len1 = strsplit_size(hits_uniq1[i], ".");
+				size_t len2 = strsplit_size(hits_uniq2[j], ".");
+				char **parts1 = calloc(len1, sizeof(char *));
+				char **parts2 = calloc(len2, sizeof(char *));				
+				strsplit(hits_uniq1[i], len1, parts1, ".");  
+				strsplit(hits_uniq2[j], len2, parts2, ".");  
+				 
+				if(parts1[0]==NULL || parts2[0]==NULL){
+					free(parts1);
+					free(parts2);
+					continue;
+				}
+				
+				char* gene1 = strdup(parts1[0]);
+				char* gene2 = strdup(parts2[0]);
+
+				int rc = strcmp(gene1, gene2);
 				if(rc<0)
-					edge_name = concat(concat(hits_uniq1[i], "_"), hits_uniq2[j]);
+					edge_name = concat(concat(gene1, "_"), gene2);
 				if(rc>0)
-					edge_name = concat(concat(hits_uniq2[j], "_"), hits_uniq1[i]);
+					edge_name = concat(concat(gene2, "_"), gene1);
 				if(rc==0)
 					edge_name = NULL;
-				if(edge_name!=NULL)
-					BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2));
+				if(edge_name!=NULL){
+					BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2));					
+				}
+				
 				if(edge_name!=NULL){free(edge_name);}
+				if(parts1!=NULL){free(parts1);}
+				if(parts2!=NULL){free(parts2);}
+				if(gene1!=NULL){free(gene1);}
+				if(gene2!=NULL){free(gene2);}	
 			}
 		}
 			
@@ -235,8 +260,8 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	BAG_HT = construct_BAG(fq_file1, fq_file2, k);
 	
+	BAG_HT = construct_BAG(fq_file1, fq_file2, k);
 	BAG_uthash_display(BAG_HT);	
 	kmer_uthash_destroy(&KMER_HT);	
 	fasta_uthash_destroy(&FASTA_HT);	
