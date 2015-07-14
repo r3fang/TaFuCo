@@ -8,6 +8,40 @@
 #include "common.h"
 KSEQ_INIT(gzFile, gzread); 
 
+
+size_t set_str_arr(char **arr, char **arr_uniq, size_t size){
+	if(arr == NULL) {return 0;}
+	struct str_count {
+	    char* STR;               
+		int COUNT;
+	    UT_hash_handle hh;
+	};
+	
+	struct str_count *strs = NULL;
+	
+	int i;
+	for(i=0; i<size; i++){
+		struct str_count *s;
+		HASH_FIND_STR(strs, arr[i], s);
+		/* this is a new str*/
+		if(s==NULL){
+			s = (struct str_count*)malloc(sizeof(struct str_count));
+			s->STR = strdup(arr[i]);
+			s->COUNT = 1;
+			HASH_ADD_STR(strs, STR, s);
+		}
+	}	
+	size_t num = HASH_COUNT(strs);
+	// copy to arr_uniq
+    struct str_count *s;
+	int j = 0;
+    for(s=strs; s != NULL; s=s->hh.next) {
+        arr_uniq[j] = strdup(s->STR);
+		j++;
+    }
+	return num;		
+}
+
 /* Reverse complement of DNA-seq */
 char *rev_com(char *s){
 	/* Reverse complement of given DNA sequence*/
@@ -176,16 +210,6 @@ strToUpper(char* s){
 	}
 	r[n] = '\0';
 	return r;
-}
-
-void 
-MPM_display(struct MPM *s){
-	if(s==NULL){
-		fprintf(stderr, "Error: display an empty MPM");
-		exit(-1);
-	}else{
-		printf("%s\t%d\t%s\t%d\t%d\n", s->READ_NAME, s->READ_POS, s->EXON_NAME, s->EXON_POS, s->LENGTH);		
-	}
 }
 
 int max_of_int_array(const int *arr, size_t length) {

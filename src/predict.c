@@ -115,8 +115,8 @@ find_all_MEKMs(char **hits, char* _read, int _k){
 		_read_pos += 1;
 		if (_exon != NULL){
 			hits[_i] = strdup(_exon);
-			free(_exon);
 			_i ++;
+			free(_exon);
 		}
 	}
 	return _i;
@@ -156,6 +156,8 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
 		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
 		
+		
+		
 		free(_read1);
 		free(_read2);
 		free(_read_name1);
@@ -187,32 +189,39 @@ int main(int argc, char *argv[]) {
 	assert(fq_file2 != NULL);
 
 	/* load kmer_uthash table */
-	char *index_file = concat(fasta_file, ".index");
-	if(index_file == NULL)
-		return -1;
-	
-	printf("loading kmer uthash table ...\n");
-	int k;
-	KMER_HT = kmer_uthash_load(index_file, &k);	
-	if(KMER_HT == NULL){
-		fprintf(stderr, "Fail to load kmer_uthash table\n");
-		exit(-1);		
-	}
-	printf("k=%d\n", k);
-	/* MAX_K is defined in common.h */
-	if(k > MAX_K){
-		fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
-		exit(-1);		
-	}			
-	/* load fasta_uthash table */
-	FASTA_HT = fasta_uthash_load(fasta_file);
-	if(FASTA_HT == NULL){
-		fprintf(stderr, "Fail to load fasta_uthash table\n");
-		exit(-1);		
-	}
-	construct_BAG(fq_file1, fq_file2, k);
-	kmer_uthash_destroy(KMER_HT);	
-	fasta_uthash_destroy(FASTA_HT);	
+	//char *index_file = concat(fasta_file, ".index");
+	//if(index_file == NULL)
+	//	return -1;
+	//
+	//printf("loading kmer uthash table ...\n");
+	//int k;
+	//KMER_HT = kmer_uthash_load(index_file, &k);	
+	//if(KMER_HT == NULL){
+	//	fprintf(stderr, "Fail to load kmer_uthash table\n");
+	//	exit(-1);		
+	//}
+	//printf("k=%d\n", k);
+	///* MAX_K is defined in common.h */
+	//if(k > MAX_K){
+	//	fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
+	//	exit(-1);		
+	//}			
+	///* load fasta_uthash table */
+	//FASTA_HT = fasta_uthash_load(fasta_file);
+	//if(FASTA_HT == NULL){
+	//	fprintf(stderr, "Fail to load fasta_uthash table\n");
+	//	exit(-1);		
+	//}
+	//construct_BAG(fq_file1, fq_file2, k);
+	//kmer_uthash_destroy(KMER_HT);	
+	//fasta_uthash_destroy(FASTA_HT);	
+	size_t num = 4;
+	char *strings[] = {"some", "some", "string", "string"};
+	char** str_uniq = malloc(num * sizeof(char*));  	
+	size_t size = set_str_arr(strings, str_uniq, num);
+	int i;
+	for(i=0; i<size; i++)
+		printf("%s\n", str_uniq[i]);
 	return 0;
 }
 

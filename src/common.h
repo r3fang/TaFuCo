@@ -18,7 +18,7 @@ struct MPM
 	int LENGTH;
 };
 
-void MPM_display(struct MPM *);
+size_t set_str_arr(char **, char **, size_t);
 char* rev_com(char *s);
 char* small_dna_str(char*, char*);
 int score_DNA_str(char *s);
