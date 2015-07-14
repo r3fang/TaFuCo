@@ -38,6 +38,7 @@ char *rev_com(char *s){
 	r[n] = '\0';
 	return r;
 }
+
 char*
 small_dna_str(char* s1, char* s2){
 	assert(s1 != NULL);
@@ -88,17 +89,21 @@ pos_parser(char *str, int *i) {
 		return NULL;
 	}
 	char **parts = calloc(size, sizeof(char *));
-	assert(parts);
+	assert(parts != NULL);
 	strsplit(str, size, parts, "_");   
 	if(parts[0]==NULL || parts[1]==NULL){
 		free(parts);
 		return NULL;
 	}
 	*i = atoi(parts[1]);
-	char *exon = (char*)malloc(500 * sizeof(char));
-	strncpy(exon, parts[0], strlen(parts[0]));	
-	free(parts);
-	return exon;
+	char *exon;
+	exon = strdup(parts[0]);	
+	exon[strlen(parts[0])] = '\0'; // double make sure
+	free(parts);	
+	if(exon != NULL){
+		return exon;		
+	}
+	return NULL;
 }
 
 int
@@ -181,4 +186,15 @@ MPM_display(struct MPM *s){
 	}else{
 		printf("%s\t%d\t%s\t%d\t%d\n", s->READ_NAME, s->READ_POS, s->EXON_NAME, s->EXON_POS, s->LENGTH);		
 	}
+}
+
+int max_of_int_array(const int *arr, size_t length) {
+    size_t i;
+    int minimum = arr[0];
+    for (i = 1; i < length; ++i) {
+        if (minimum > arr[i]) {
+            minimum = arr[i];
+        }
+    }
+    return minimum;
 }

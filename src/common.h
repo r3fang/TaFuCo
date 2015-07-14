@@ -27,5 +27,6 @@ char* strToUpper(char*);
 int strsplit (const char *str, size_t size, char *parts[], const char *delimiter);
 int strsplit_size (const char *str, const char *delimiter);
 char *pos_parser(char *str, int *i);
+int max_of_int_array(const int *, size_t);
 
 #endif

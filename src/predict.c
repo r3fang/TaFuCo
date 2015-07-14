@@ -50,17 +50,16 @@ find_next_MEKM(char *_read, int pos_read, int k){
 		return NULL;
 	}
 	
-	char *max_exon;
-	int *max_len_list = malloc(s_kmer->count * sizeof(int));
-	int max_len = 0;
-	printf("%s\n", buff);
-		
-	/* discard if it matches more than 1 prefix kmer */
-	int i;
+	char **matches = malloc(s_kmer->count * sizeof(char*));
+	int  matches_len[s_kmer->count];
+	char *res_exon = NULL;
+	
+	if( matches == NULL){return NULL;}
+	int i = 0;
+	int num = 0;
 	for(i=0; i<s_kmer->count; i++){		
 		int _pos_exon; // position on exon
 		char *exon = pos_parser(s_kmer->pos[i], &_pos_exon);
-		printf("%s\t%d\n", exon, _pos_exon);
 		/* error report*/
 		if(exon == NULL || _pos_exon<0){
 			return NULL;
@@ -71,37 +70,37 @@ find_next_MEKM(char *_read, int pos_read, int k){
 			return NULL;
 		}
 		char *_seq = strdup(s_fasta->seq);
-		printf("%s\n", _seq);
 		
-		size_t m = 0;
+		int m = 0;
 		/* extending kmer to find MPM */
 		while(*(_seq + m + _pos_exon) == *(_read+ pos_read + m)){
 			m ++;
 		}
-		printf("i=%d\tm=%zu\n",i, m);
-		
-		max_len_list[i] = m;
-		if(m > max_len){
-			max_len = m;
-			max_exon = strdup(exon);
+
+		if(m >= k){
+			matches_len[num] = m;
+			matches[num] = strdup(exon);
+			//printf("%s\t%s\n", exon, matches[num]);
+			num ++;			
 		}
-		printf("max_len=%d\n", max_len);
-			
-		//free(_seq);
-		//free(exon);
+		if(_seq != NULL){free(_seq);}
+		if(exon != NULL){free(exon);}		
 	}
-	
-	int max_count = 0; // count how many MPM found
-	int j;
-	for(j=0; j < s_kmer->count; j++)
-		if(max_len == max_len_list[j])
-			max_count ++;
-	
-	if(max_count == 1 && strlen(max_exon) > 0)
-		return max_exon;							
-	
-	free(max_len_list);
-	return NULL;
+	if(num > 0){
+		int max_len = max_of_int_array(matches_len, num);
+		size_t max_num = 0;
+		size_t count;
+		int max_ind;
+		for(count=0; count < num; count++){
+			if(matches_len[count] == max_len){
+				max_num ++;
+				max_ind = count;
+			}
+		}
+		res_exon = strdup(matches[max_ind]);
+	}
+	if(matches != NULL){free(matches);}
+	return(res_exon);
 }
 /*--------------------------------------------------------------------*/
 
@@ -115,7 +114,6 @@ find_all_MEKMs(char **hits, char* _read, int _k){
 		char* _exon = find_next_MEKM(_read, _read_pos, _k);
 		_read_pos += 1;
 		if (_exon != NULL){
-			printf("%s\n", _exon);
 			hits[_i] = strdup(_exon);
 			free(_exon);
 			_i ++;
@@ -136,40 +134,36 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 	fp2 = gzopen(fq_file2, "r");
 	seq1 = kseq_init(fp1);
 	seq2 = kseq_init(fp2);
-	//
-	//while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
-	//	char *_read1 = strdup(seq1->seq.s);
-	//	char *_read2 = strdup(seq2->seq.s);
-	//	char *_read_name1 = strdup(seq1->name.s);
-	//	char *_read_name2 = strdup(seq2->name.s);
-	//	if(_read1 == NULL || _read_name1 == NULL || _read2 == NULL || _read_name2 == NULL)
-	//		continue;
-    //
-	//	printf("%s\t%s\n", _read1, _read2);
-	//	
-	//	if(strcmp(_read_name1, _read_name2) != 0){
-	//		fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
-	//		exit(-1);					
-	//	}			
-    //
-	//	//char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
-	//	//char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
-	//	//
-	//	//if(hits1==NULL || hits2==NULL)//* skip 
-	//	//	continue;
-	//	//		
-	//	//break;
-	//	//size_t num1 = find_all_MEKMs(hits1, _read1, _k);
-	//	//size_t num2 = find_all_MEKMs(hits2, _read2, _k);
-	//	//printf("%zu\t%zu\n", num1, num2);
-	//	
-	//	free(_read1);
-	//	free(_read2);
-	//	free(_read_name1);
-	//	free(_read_name2);
-	//	//free(hits1);
-	//	//free(hits2);
-	//}
+	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
+		char *_read1 = strdup(seq1->seq.s);
+		char *_read2 = strdup(seq2->seq.s);
+		char *_read_name1 = strdup(seq1->name.s);
+		char *_read_name2 = strdup(seq2->name.s);
+		if(_read1 == NULL || _read_name1 == NULL || _read2 == NULL || _read_name2 == NULL)
+			continue;    
+		
+		if(strcmp(_read_name1, _read_name2) != 0){
+			fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
+			exit(-1);					
+		}			
+    
+		char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
+		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
+		//
+		if(hits1==NULL || hits2==NULL)//* skip 
+			continue;
+				
+		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
+		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
+		printf("%zu\t%zu\n", num1, num2);
+		
+		free(_read1);
+		free(_read2);
+		free(_read_name1);
+		free(_read_name2);
+		free(hits1);
+		free(hits2);
+	}
 	kseq_destroy(seq1);
 	kseq_destroy(seq2);	
 	gzclose(fp1);
@@ -217,8 +211,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	fasta_uthash_display(FASTA_HT);
-	//construct_BAG(fq_file1, fq_file2, k);
+	construct_BAG(fq_file1, fq_file2, k);
 	kmer_uthash_destroy(KMER_HT);	
 	fasta_uthash_destroy(FASTA_HT);	
 	return 0;
