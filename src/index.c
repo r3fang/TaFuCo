@@ -127,8 +127,6 @@ int index_main(char *fasta_file, int k){
 		int i;
 		for(i=0; i < strlen(seq)-k+1; i++){
 			char kmer[MAX_K];
-			if(kmer == NULL)
-				continue;
 			memset(kmer, '\0', sizeof(kmer));
 			memcpy(kmer, seq+i, k);
 			char i_str[100];

@@ -13,6 +13,7 @@
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"
+
 KSEQ_INIT(gzFile, gzread);
 
 /*--------------------------------------------------------------------*/
@@ -41,7 +42,7 @@ find_next_MEKM(char *_read, int pos_read, int k){
 	if(buff == NULL || strlen(buff) != k){
 		return NULL;
 	}
-		
+
 	struct kmer_uthash *s_kmer = find_kmer(buff, KMER_HT);
 	if(s_kmer==NULL){
 		return NULL;
@@ -50,15 +51,16 @@ find_next_MEKM(char *_read, int pos_read, int k){
 	char *max_exon;
 	int *max_len_list = malloc(s_kmer->count * sizeof(int));
 	int max_len = 0;
+	printf("%s\n", buff);
 		
 	/* discard if it matches more than 1 prefix kmer */
 	int i;
-	for(i =0; i < s_kmer->count; i++){		
+	for(i=0; i<s_kmer->count; i++){		
 		int _pos_exon; // position on exon
-		
 		char *exon = pos_parser(s_kmer->pos[i], &_pos_exon);
+		printf("%s\t%d\n", exon, _pos_exon);
 		/* error report*/
-		if(exon==NULL || _pos_exon==NULL || _pos_exon<0){
+		if(exon == NULL || _pos_exon<0){
 			return NULL;
 		}
 		
@@ -67,32 +69,36 @@ find_next_MEKM(char *_read, int pos_read, int k){
 			return NULL;
 		}
 		char *_seq = strdup(s_fasta->seq);
+		printf("%s\n", _seq);
 		
-		int m = 0;
+		size_t m = 0;
 		/* extending kmer to find MPM */
 		while(*(_seq + m + _pos_exon) == *(_read+ pos_read + m)){
 			m ++;
 		}
+		printf("i=%d\tm=%zu\n",i, m);
 		
 		max_len_list[i] = m;
 		if(m > max_len){
 			max_len = m;
 			max_exon = strdup(exon);
 		}
-		
-		free(_seq);
-		free(exon);
+		printf("max_len=%d\n", max_len);
+			
+		//free(_seq);
+		//free(exon);
 	}
 	
 	int max_count = 0; // count how many MPM found
-
-	for(i=0; i < s_kmer->count; i++)
-		if(max_len == max_len_list[i])
+	int j;
+	for(j=0; j < s_kmer->count; j++)
+		if(max_len == max_len_list[j])
 			max_count ++;
 	
-	if(max_count == 1 && strlen(max_exon) != NULL)
+	if(max_count == 1 && strlen(max_exon) > 0)
 		return max_exon;							
-
+	
+	free(max_len_list);
 	return NULL;
 }
 /*--------------------------------------------------------------------*/
@@ -100,12 +106,14 @@ find_next_MEKM(char *_read, int pos_read, int k){
 /* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
 size_t 
 find_all_MEKMs(char **hits, char* _read, int _k){
+	assert(hits != NULL);
 	int _read_pos = 0;
 	size_t _i = 0; 
 	while(_read_pos<(strlen(_read)-_k)){
 		char* _exon = find_next_MEKM(_read, _read_pos, _k);
 		_read_pos += 1;
 		if (_exon != NULL){
+			printf("%s\n", _exon);
 			hits[_i] = strdup(_exon);
 			free(_exon);
 			_i ++;
@@ -138,13 +146,18 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 			fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
 			exit(-1);					
 		}			
-			
+
+		printf("%s\t%s\n", _read1, _read2);
 		char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
 		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
 		
+		if(hits1==NULL || hits2==NULL)
+			continue;
+				
 		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
 		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
-		printf("%d\t%d\n", num1, num2);
+		
+		printf("%zu\t%zu\n", num1, num2);
 		
 		free(_read1);
 		free(_read2);
@@ -162,8 +175,15 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 /*--------------------------------------------------------------------*/
 
 /* main function. */
-int 
-predict_main(char *fasta_file, char *fq_file1, char *fq_file2){
+int main(int argc, char *argv[]) { 
+	if (argc != 4) {  
+	        fprintf(stderr, "Usage: %s <in.fa> <read1.fq> <read2.fq>\n", argv[0]);  
+	        return 1;  
+	 }  
+	char *fasta_file = argv[1];
+	char *fq_file1 = argv[2];
+	char *fq_file2 = argv[3];
+	 
 	/* load kmer hash table in the memory */
 	assert(fasta_file != NULL);
 	assert(fq_file1 != NULL);
@@ -174,14 +194,14 @@ predict_main(char *fasta_file, char *fq_file1, char *fq_file2){
 	if(index_file == NULL)
 		return -1;
 	
-	//printf("loading kmer uthash table ...\n");
+	printf("loading kmer uthash table ...\n");
 	int k;
 	KMER_HT = kmer_uthash_load(index_file, &k);	
 	if(KMER_HT == NULL){
 		fprintf(stderr, "Fail to load kmer_uthash table\n");
 		exit(-1);		
 	}
-	//printf("k=%d\n", k);
+	printf("k=%d\n", k);
 	/* MAX_K is defined in common.h */
 	if(k > MAX_K){
 		fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
