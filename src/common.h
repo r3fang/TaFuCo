@@ -21,7 +21,6 @@ struct kmer_uthash {
 struct fasta_uthash {
     char* name;                /* key */
 	char* seq;
-	char* comment;
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 

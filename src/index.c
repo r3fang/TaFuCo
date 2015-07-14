@@ -103,7 +103,15 @@ static void kmer_uthash_write(struct kmer_uthash *htable, char *fname){
 }
 
 /*--------------------------------------------------------------------*/
-int index_main(char *fasta_file, int k){	
+int main(int argc, char *argv[]) { 
+	if (argc != 3) {  
+	        fprintf(stderr, "Usage: %s <in.fa> <k>\n", argv[0]);  
+	        return 1;  
+	 }  
+	char *fasta_file = argv[1];
+	int k;
+	if (sscanf(argv[2], "%i", &k)!=1) {printf ("error - k not an integer");}
+	
 	if(k > MAX_K)
 		{fprintf(stderr, "ERROR: input k exceeds 100\n"); exit(EXIT_FAILURE);}	
 	/* index file */

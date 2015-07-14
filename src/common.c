@@ -218,10 +218,14 @@ concat(char *s1, char *s2)
 
 char* 
 strToUpper(char* s){
+	if(s == NULL)
+		return NULL;
 	int n;
 	n=strlen(s);
 	char* r;
-	r = (char*)malloc(n * sizeof(char));
+	r = (char*)malloc((n+1) * sizeof(char));
+	if(r == NULL)
+		return NULL;	
 	int i;
 	for(i=0; i < n; i++){
 		r[i] = toupper(s[i]);
@@ -303,12 +307,16 @@ struct fasta_uthash* fasta_uthash_load(char *fname){
 	}
 	seq = kseq_init(fp);
 	while ((l = kseq_read(seq)) >= 0){
-		struct fasta_uthash *s;
-		s = (struct fasta_uthash*)malloc(sizeof(struct fasta_uthash));
-		/* if we kseq_destroy(seq);, we need to duplicate the string!!!*/
-		s->name = strdup(seq->name.s);
-		s->seq = strdup(strToUpper(seq->seq.s));
-		if(seq->comment.l) s->comment = seq->comment.s;
+		struct fasta_uthash *s = malloc(sizeof(struct fasta_uthash));
+		if(s == NULL)
+			continue;
+		char *name = seq->name.s;
+		char *_seq = seq->seq.s;
+		char *_seq_upper = strToUpper(_seq);
+		if(name==NULL || _seq==NULL || _seq_upper==NULL)
+			continue;
+		s->name = strdup(name);
+		s->seq = strdup(_seq_upper);
 		HASH_ADD_STR(res, name, s);
 	}	
 	kseq_destroy(seq);

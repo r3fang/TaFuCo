@@ -134,38 +134,40 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 	fp2 = gzopen(fq_file2, "r");
 	seq1 = kseq_init(fp1);
 	seq2 = kseq_init(fp2);
-	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2))) {
-		char *_read1 = strdup(seq1->seq.s);
-		char *_read2 = strdup(seq2->seq.s);
-		char *_read_name1 = strdup(seq1->name.s);
-		char *_read_name2 = strdup(seq2->name.s);
-		if(_read1 == NULL || _read_name1 == NULL || _read2 == NULL || _read_name2 == NULL)
-			continue;
-		
-		if(strcmp(_read_name1, _read_name2) != 0){
-			fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
-			exit(-1);					
-		}			
-
-		printf("%s\t%s\n", _read1, _read2);
-		char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
-		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
-		
-		if(hits1==NULL || hits2==NULL)
-			continue;
-				
-		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
-		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
-		
-		printf("%zu\t%zu\n", num1, num2);
-		
-		free(_read1);
-		free(_read2);
-		free(_read_name1);
-		free(_read_name2);
-		free(hits1);
-		free(hits2);
-	}
+	//
+	//while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
+	//	char *_read1 = strdup(seq1->seq.s);
+	//	char *_read2 = strdup(seq2->seq.s);
+	//	char *_read_name1 = strdup(seq1->name.s);
+	//	char *_read_name2 = strdup(seq2->name.s);
+	//	if(_read1 == NULL || _read_name1 == NULL || _read2 == NULL || _read_name2 == NULL)
+	//		continue;
+    //
+	//	printf("%s\t%s\n", _read1, _read2);
+	//	
+	//	if(strcmp(_read_name1, _read_name2) != 0){
+	//		fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
+	//		exit(-1);					
+	//	}			
+    //
+	//	//char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
+	//	//char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
+	//	//
+	//	//if(hits1==NULL || hits2==NULL)//* skip 
+	//	//	continue;
+	//	//		
+	//	//break;
+	//	//size_t num1 = find_all_MEKMs(hits1, _read1, _k);
+	//	//size_t num2 = find_all_MEKMs(hits2, _read2, _k);
+	//	//printf("%zu\t%zu\n", num1, num2);
+	//	
+	//	free(_read1);
+	//	free(_read2);
+	//	free(_read_name1);
+	//	free(_read_name2);
+	//	//free(hits1);
+	//	//free(hits2);
+	//}
 	kseq_destroy(seq1);
 	kseq_destroy(seq2);	
 	gzclose(fp1);
@@ -207,16 +209,14 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
 		exit(-1);		
 	}			
-	
 	/* load fasta_uthash table */
 	FASTA_HT = fasta_uthash_load(fasta_file);
 	if(FASTA_HT == NULL){
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	
-	construct_BAG(fq_file1, fq_file2, k);
-	
+	fasta_uthash_display(FASTA_HT);
+	//construct_BAG(fq_file1, fq_file2, k);
 	kmer_uthash_destroy(KMER_HT);	
 	fasta_uthash_destroy(FASTA_HT);	
 	return 0;
