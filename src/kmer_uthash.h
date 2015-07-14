@@ -20,7 +20,7 @@ struct kmer_uthash {
 
 struct kmer_uthash *kmer_uthash_load(char*, int*);
 struct kmer_uthash *find_kmer(char* , struct kmer_uthash*);
-void kmer_uthash_display(struct kmer_uthash*);	
-void kmer_uthash_destroy(struct kmer_uthash*);
+void kmer_uthash_display(struct kmer_uthash *);	
+void kmer_uthash_destroy(struct kmer_uthash **);
 
 #endif

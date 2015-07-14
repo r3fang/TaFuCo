@@ -1,4 +1,4 @@
-gcc src/predict.c src/common.c src/fasta_uthash.c src/kmer_uthash.c -o bin/predict -lz
+gcc src/predict.c src/common.c src/fasta_uthash.c src/kmer_uthash.c src/BAG_uthash.c -o bin/predict -lz
 gcc src/index.c src/common.c src/fasta_uthash.c src/kmer_uthash.c -o bin/index -lz
 
 cd sample_data

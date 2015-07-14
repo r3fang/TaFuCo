@@ -21,11 +21,11 @@ fasta_uthash_display(struct fasta_uthash *_fasta_ht) {
 }
 
 void 
-fasta_uthash_destroy(struct fasta_uthash *table) {
+fasta_uthash_destroy(struct fasta_uthash **table) {
 	/*free the kmer_hash table*/
   struct fasta_uthash *cur, *tmp;
-  HASH_ITER(hh, table, cur, tmp) {
-      HASH_DEL(table, cur);  /* delete it (users advances to next) */
+  HASH_ITER(hh, *table, cur, tmp) {
+      HASH_DEL(*table, cur);  /* delete it (users advances to next) */
       free(cur);            /* free it */
     }
 }

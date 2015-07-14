@@ -18,6 +18,5 @@ struct fasta_uthash {
 struct fasta_uthash *fasta_uthash_load(char *);
 struct fasta_uthash *find_fasta(char* , struct fasta_uthash*);
 void fasta_uthash_display(struct fasta_uthash*);
-void fasta_uthash_destroy(struct fasta_uthash *table);
-
+void fasta_uthash_destroy(struct fasta_uthash **table);
 #endif

@@ -15,6 +15,7 @@
 #include "common.h"
 #include "kmer_uthash.h"
 #include "fasta_uthash.h"
+#include "BAG_uthash.h"
 
 KSEQ_INIT(gzFile, gzread);
 
@@ -24,12 +25,11 @@ KSEQ_INIT(gzFile, gzread);
 static const char *pcPgmName="predict.c";
 static struct kmer_uthash *KMER_HT = NULL;
 static struct fasta_uthash *FASTA_HT = NULL;
-
+static struct BAG_uthash *BAG_HT = NULL;
 
 int predict_main(char *fasta_file, char *fq_file1, char *fq_file2);
 char* find_next_MEKM(char *_read, int pos_read, int k);
 size_t find_all_MEKMs(char **hits, char* _read, int _k);
-void construct_BAG(char *fq_file1, char *fq_file2, int _k);
 
 /*--------------------------------------------------------------------*/
 
@@ -122,11 +122,9 @@ find_all_MEKMs(char **hits, char* _read, int _k){
 	return _i;
 }
 
-/*--------------------------------------------------------------------*/
-
 /* Construct breakend associated graph by given fq files.             */
-void
-construct_BAG(char *fq_file1, char *fq_file2, int _k){
+struct BAG_uthash * construct_BAG(char *fq_file1, char *fq_file2, int _k){
+	struct BAG_uthash *graph_ht = NULL;
 	gzFile fp1, fp2;
 	kseq_t *seq1, *seq2;
 	int l1, l2;
@@ -151,24 +149,49 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
 		
 		if(hits1==NULL || hits2==NULL)//* skip 
-			continue;
-				
+			continue;				
 		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
 		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
+		// get uniq elements in hits1
+		char** hits_uniq1 = malloc(num1 * sizeof(char*));  
+		char** hits_uniq2 = malloc(num2 * sizeof(char*));  
+		if(hits_uniq1==NULL || hits_uniq2==NULL)//* skip 
+			continue;	
 		
+		size_t size1 = set_str_arr(hits1, hits_uniq1, num1);
+		size_t size2 = set_str_arr(hits2, hits_uniq2, num2);
 		
-		
+		int i, j;
+		for(i=0; i<size1; i++){
+			for(j=0; j<size2; j++){
+				char *edge_name;
+				int rc = strcmp(hits_uniq1[i], hits_uniq2[j]);
+				if(rc<0)
+					edge_name = concat(concat(hits_uniq1[i], "_"), hits_uniq2[j]);
+				if(rc>0)
+					edge_name = concat(concat(hits_uniq2[j], "_"), hits_uniq1[i]);
+				if(rc==0)
+					edge_name = NULL;
+				if(edge_name!=NULL)
+					BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2));
+				if(edge_name!=NULL){free(edge_name);}
+			}
+		}
+			
 		free(_read1);
 		free(_read2);
 		free(_read_name1);
 		free(_read_name2);
 		free(hits1);
 		free(hits2);
+		free(hits_uniq1);
+		free(hits_uniq2);
 	}
 	kseq_destroy(seq1);
 	kseq_destroy(seq2);	
 	gzclose(fp1);
 	gzclose(fp2);
+	return(graph_ht);
 }
 
 /*--------------------------------------------------------------------*/
@@ -189,39 +212,35 @@ int main(int argc, char *argv[]) {
 	assert(fq_file2 != NULL);
 
 	/* load kmer_uthash table */
-	//char *index_file = concat(fasta_file, ".index");
-	//if(index_file == NULL)
-	//	return -1;
-	//
-	//printf("loading kmer uthash table ...\n");
-	//int k;
-	//KMER_HT = kmer_uthash_load(index_file, &k);	
-	//if(KMER_HT == NULL){
-	//	fprintf(stderr, "Fail to load kmer_uthash table\n");
-	//	exit(-1);		
-	//}
-	//printf("k=%d\n", k);
-	///* MAX_K is defined in common.h */
-	//if(k > MAX_K){
-	//	fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
-	//	exit(-1);		
-	//}			
-	///* load fasta_uthash table */
-	//FASTA_HT = fasta_uthash_load(fasta_file);
-	//if(FASTA_HT == NULL){
-	//	fprintf(stderr, "Fail to load fasta_uthash table\n");
-	//	exit(-1);		
-	//}
-	//construct_BAG(fq_file1, fq_file2, k);
-	//kmer_uthash_destroy(KMER_HT);	
-	//fasta_uthash_destroy(FASTA_HT);	
-	size_t num = 4;
-	char *strings[] = {"some", "some", "string", "string"};
-	char** str_uniq = malloc(num * sizeof(char*));  	
-	size_t size = set_str_arr(strings, str_uniq, num);
-	int i;
-	for(i=0; i<size; i++)
-		printf("%s\n", str_uniq[i]);
+	char *index_file = concat(fasta_file, ".index");
+	if(index_file == NULL)
+		return -1;
+	
+	printf("loading kmer uthash table ...\n");
+	int k;
+	KMER_HT = kmer_uthash_load(index_file, &k);	
+	if(KMER_HT == NULL){
+		fprintf(stderr, "Fail to load kmer_uthash table\n");
+		exit(-1);		
+	}
+	printf("k=%d\n", k);
+	/* MAX_K is defined in common.h */
+	if(k > MAX_K){
+		fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
+		exit(-1);		
+	}			
+	/* load fasta_uthash table */
+	FASTA_HT = fasta_uthash_load(fasta_file);
+	if(FASTA_HT == NULL){
+		fprintf(stderr, "Fail to load fasta_uthash table\n");
+		exit(-1);		
+	}
+	BAG_HT = construct_BAG(fq_file1, fq_file2, k);
+	
+	BAG_uthash_display(BAG_HT);	
+	kmer_uthash_destroy(&KMER_HT);	
+	fasta_uthash_destroy(&FASTA_HT);	
+	BAG_uthash_destroy(&BAG_HT);	
 	return 0;
 }
 

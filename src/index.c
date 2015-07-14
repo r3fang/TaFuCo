@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
 		{exit(EXIT_FAILURE);}
 
 	kmer_uthash_write(table, index_file);
-	kmer_uthash_destroy(table);
+	kmer_uthash_destroy(&table);
 	kseq_destroy(seqs);
 	gzclose(fp);
 	return 0;
