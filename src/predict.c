@@ -23,6 +23,11 @@ static struct kmer_uthash *KMER_HT = NULL;
 static struct fasta_uthash *FASTA_HT = NULL;
 
 
+int predict_main(char *fasta_file, char *fq_file1, char *fq_file2);
+char* find_next_MEKM(char *_read, int pos_read, int k);
+size_t find_all_MEKMs(char **hits, char* _read, int _k);
+void construct_BAG(char *fq_file1, char *fq_file2, int _k);
+
 /*--------------------------------------------------------------------*/
 
 /* Find next Maximal Extended Kmer Match (MEKM) on _read at pos_read. */
@@ -47,7 +52,8 @@ find_next_MEKM(char *_read, int pos_read, int k){
 	int max_len = 0;
 		
 	/* discard if it matches more than 1 prefix kmer */
-	for(int i =0; i < s_kmer->count; i++){		
+	int i;
+	for(i =0; i < s_kmer->count; i++){		
 		int _pos_exon; // position on exon
 		
 		char *exon = pos_parser(s_kmer->pos[i], &_pos_exon);
@@ -79,7 +85,8 @@ find_next_MEKM(char *_read, int pos_read, int k){
 	}
 	
 	int max_count = 0; // count how many MPM found
-	for(int i=0; i < s_kmer->count; i++)
+	int i;
+	for(i=0; i < s_kmer->count; i++)
 		if(max_len == max_len_list[i])
 			max_count ++;
 	

@@ -57,7 +57,8 @@ score_DNA_str(char *s){
 	assert(s != NULL);
 	int score = 0;
 	int flag;
-	for(int i = 0; i < strlen(s); i++){
+	int i;
+	for(i = 0; i < strlen(s); i++){
 		switch(toupper(s[i])){
 			case 'A':
 				flag = 0;
@@ -111,7 +112,8 @@ kmer_uthash_display(struct kmer_uthash *_kmer_ht) {
 		if(cur == NULL)
 			exit(-1);
 		printf("kmer=%s\tcount=%d\n", cur->kmer, cur->count);
-		for(int i=0; i < cur->count; i++){
+		int i;
+		for(i=0; i < cur->count; i++){
 			printf("%s\t", cur->pos[i]);
 		}
 		printf("\n");
@@ -216,10 +218,11 @@ concat(char *s1, char *s2)
 
 char* 
 strToUpper(char* s){
-	int i, n;
+	int n;
 	n=strlen(s);
 	char* r;
 	r = (char*)malloc(n * sizeof(char));
+	int i;
 	for(i=0; i < n; i++){
 		r[i] = toupper(s[i]);
 	}

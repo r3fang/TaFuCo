@@ -22,6 +22,10 @@ static const char *pcPgmName="index.c";
 KSEQ_INIT(gzFile, gzread);
 /*--------------------------------------------------------------------*/
 
+static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, int k_index);
+static void kmer_uthash_write(struct kmer_uthash *htable, char *fname);
+int index_main(char *fasta_file, int k);
+
 /* add one kmer and its position to kmer_uthash table */
 static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, int k_index) {
 	struct kmer_uthash *s;	
@@ -47,10 +51,10 @@ static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char*
 		HASH_ADD_STR(*table, kmer, s);
 	}else{
 		char **tmp;
-		int i;
 		s->count += 1;
 		/* copy s->pos */
 		tmp = malloc(s->count * sizeof(char*));
+		int i;
 		for (i = 0; i < s->count-1; i++){
 		    tmp[i] = malloc((strlen(s->pos[i])+1) * sizeof(char));
 			tmp[i] = s->pos[i];
@@ -85,7 +89,8 @@ static void kmer_uthash_write(struct kmer_uthash *htable, char *fname){
 			fprintf(stderr, "Fail to write down %s!\n", fname);
 		
 		fprintf(ofp, ">%s\t%d\n", s->kmer, s->count);		
-		for(int i=0; i < s->count; i++){
+		int i;
+		for(i=0; i < s->count; i++){
 			if(i==0){
 				fprintf(ofp, "%s", s->pos[i]);																
 			}else{
@@ -119,7 +124,8 @@ int index_main(char *fasta_file, int k){
 		if(seq == NULL || name == NULL || strlen(seq) <= k){
 			continue;
 		}
-		for(int i=0; i < strlen(seq)-k+1; i++){
+		int i;
+		for(i=0; i < strlen(seq)-k+1; i++){
 			char kmer[MAX_K];
 			if(kmer == NULL)
 				continue;
