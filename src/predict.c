@@ -37,10 +37,10 @@ void construct_BAG(char *fq_file1, char *fq_file2, int _k);
 char* 
 find_next_MEKM(char *_read, int pos_read, int k){
 	/* copy a part of string */
-	char _buff[k];
-	strncpy(_buff, _read + pos_read, k);
-	_buff[k] = '\0';
-	char *buff = small_dna_str(_buff, rev_com(_buff));
+	char* buff = malloc(k * sizeof(char));
+	strncpy(buff, _read + pos_read, k);
+	buff[k] = '\0';
+	
 	if(buff == NULL || strlen(buff) != k){
 		return NULL;
 	}
@@ -80,7 +80,6 @@ find_next_MEKM(char *_read, int pos_read, int k){
 		if(m >= k){
 			matches_len[num] = m;
 			matches[num] = strdup(exon);
-			//printf("%s\t%s\n", exon, matches[num]);
 			num ++;			
 		}
 		if(_seq != NULL){free(_seq);}
@@ -100,6 +99,7 @@ find_next_MEKM(char *_read, int pos_read, int k){
 		res_exon = strdup(matches[max_ind]);
 	}
 	if(matches != NULL){free(matches);}
+	if(buff != NULL){free(buff);}
 	return(res_exon);
 }
 /*--------------------------------------------------------------------*/
@@ -135,7 +135,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 	seq1 = kseq_init(fp1);
 	seq2 = kseq_init(fp2);
 	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
-		char *_read1 = strdup(seq1->seq.s);
+		char *_read1 = rev_com(strdup(seq1->seq.s));
 		char *_read2 = strdup(seq2->seq.s);
 		char *_read_name1 = strdup(seq1->name.s);
 		char *_read_name2 = strdup(seq2->name.s);
@@ -146,16 +146,15 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 			fprintf(stderr, "ERROR: %s and %s read name not matching\n", fq_file1, fq_file2);
 			exit(-1);					
 		}			
-    
+    	
 		char** hits1 = malloc(strlen(_read1) * sizeof(char*));  
 		char** hits2 = malloc(strlen(_read2) * sizeof(char*));  
-		//
+		
 		if(hits1==NULL || hits2==NULL)//* skip 
 			continue;
 				
 		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
 		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
-		printf("%zu\t%zu\n", num1, num2);
 		
 		free(_read1);
 		free(_read2);
@@ -175,7 +174,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 /* main function. */
 int main(int argc, char *argv[]) { 
 	if (argc != 4) {  
-	        fprintf(stderr, "Usage: %s <in.fa> <read1.fq> <read2.fq>\n", argv[0]);  
+	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq>\n", argv[0]);  
 	        return 1;  
 	 }  
 	char *fasta_file = argv[1];

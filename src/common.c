@@ -15,7 +15,7 @@ char *rev_com(char *s){
 	int n, c, d;
 	n=strlen(s);
 	char* r;
-	r = (char*)malloc(n * sizeof(char));
+	r = (char*)malloc((n+1) * sizeof(char)); // always allocate N+1
 	for (c = n - 1, d = 0; c >= 0; c--, d++){
 		switch(toupper(s[c])){
 			case 'A':

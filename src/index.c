@@ -136,12 +136,14 @@ int main(int argc, char *argv[]) {
 		}
 		int i;
 		for(i=0; i < strlen(seq)-k+1; i++){
-			char kmer[MAX_K];
+			char *kmer = malloc(k * sizeof(char));
 			memset(kmer, '\0', sizeof(kmer));
-			memcpy(kmer, seq+i, k);
+			strncpy(kmer, seq+i, k);
+			kmer[k] = '\0';
 			char i_str[100];
 			sprintf(i_str, "%d", i);
-			add_to_kmer_hash(&table, small_dna_str(kmer, rev_com(kmer)), concat(concat(name, "_"), i_str), k); 
+			add_to_kmer_hash(&table, kmer, concat(concat(name, "_"), i_str), k); 
+			free(kmer);
 		}
 	}  	
 	char *index_file = concat(fasta_file, ".index");	
