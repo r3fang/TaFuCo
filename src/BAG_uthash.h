@@ -11,7 +11,7 @@
 struct BAG_uthash {
 	char *edge;
 	int weight;
-	char **evidence;    
+	//char **evidence;    
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
