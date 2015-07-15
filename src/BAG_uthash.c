@@ -24,10 +24,10 @@ BAG_uthash_display(struct BAG_uthash *table) {
 	  if(cur == NULL)
 		  exit(-1);
 	  printf("G->edge=%s\nG->weight=%d\n", cur->edge, cur->weight);
-	  //int i;
-	  //for(i=0; i<cur->weight; i++){
-	//	  printf("%s\n", cur->evidence[i]);	
-	 // }
+	  int i;
+	  for(i=0; i<cur->weight; i++){
+	  	  printf("%s\n", cur->evidence[i]);	
+	   }
     }
 }
 
@@ -46,20 +46,20 @@ BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
 		s = (struct BAG_uthash*)malloc(sizeof(struct BAG_uthash));
 		s->edge = strdup(edge_name);
 		s->weight = 1;
-		//s->evidence = malloc(sizeof(char*));
-		//s->evidence[0] = evidence; /* first and only 1 element*/
+		s->evidence = malloc(sizeof(char*));
+		s->evidence[0] = evidence; /* first and only 1 element*/
 		HASH_ADD_STR(*graph_ht, edge, s);						
 	}else{
 		s->weight += 1;
-		//char **tmp = malloc((s->weight+1) * sizeof(char*));
-		//int n;
-		//for (n = 0; n < s->weight-1; n++){
-		//	tmp[n] = strdup(s->evidence[n]);
-		//}
-		//tmp[n] = evidence;
-		//free(s->evidence);
+		char **tmp = malloc((s->weight+1) * sizeof(char*));
+		int n;
+		for (n = 0; n < s->weight-1; n++){
+			tmp[n] = strdup(s->evidence[n]);
+		}
+		tmp[n] = evidence;
+		free(s->evidence);
 		/* assign tmp to s->pos*/
-		//s->evidence = tmp;
+		s->evidence = tmp;
 	}
 	return 0;
 }

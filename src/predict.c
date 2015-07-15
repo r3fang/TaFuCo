@@ -31,13 +31,11 @@ KSEQ_INIT(gzFile, gzread);
  * amplifying the error is saved in here; this can then be
  * printed
  */
-char qe_errbuf[256] = "no error";	/* the error message buffer */
+char pr_errbuf[256] = "no error";	/* the error message buffer */
 									/* macros to fill it */
-#define ERRBUF(str)	(void) strncpy(qe_errbuf, str, sizeof(qe_errbuf))
-#define ERRBUF2(str,n)		(void) sprintf(qe_errbuf, str, n)
-#define ERRBUF3(str,n,m)	(void) sprintf(qe_errbuf, str, n, m)
-
-
+#define ERRBUF(str)	(void) strncpy(pr_errbuf, str, sizeof(pr_errbuf))
+#define ERRBUF2(str,n)		(void) sprintf(pr_errbuf, str, n)
+#define ERRBUF3(str,n,m)	(void) sprintf(pr_errbuf, str, n, m)
 /*--------------------------------------------------------------------*/
 /*Global paramters.*/
 
@@ -47,14 +45,14 @@ static struct fasta_uthash *FASTA_HT = NULL;
 static struct BAG_uthash *BAG_HT = NULL;
 
 int predict_main(char *fasta_file, char *fq_file1, char *fq_file2);
-char* find_next_MEKM(char *_read, int pos_read, int k);
-size_t find_all_MEKMs(char **hits, char* _read, int _k);
+char* find_next_MEKM(char *, int, int, int);
+size_t find_all_MEKMs(char **, char* , int, int);
 
 /*--------------------------------------------------------------------*/
 
 /* Find next Maximal Extended Kmer Match (MEKM) on _read at pos_read. */
 char* 
-find_next_MEKM(char *_read, int pos_read, int k){
+find_next_MEKM(char *_read, int pos_read, int k, int min_match){
 	/* copy a part of string */
 	char* buff;
 	if((buff = malloc(k * sizeof(char)))==NULL){
@@ -62,33 +60,28 @@ find_next_MEKM(char *_read, int pos_read, int k){
 		return NULL;
 	}
 	strncpy(buff, _read + pos_read, k);
-	buff[k] = '\0';
-	
+	buff[k] = '\0';	
 	if(buff == NULL || strlen(buff) != k){
 		return NULL;
 	}
-
+	/*------------------------------------------------------------*/
 	struct kmer_uthash *s_kmer = find_kmer(buff, KMER_HT);
 	if(s_kmer==NULL){
 		return NULL;
-	}
-	
+	}	
 	char **matches;
 	if((matches = malloc(s_kmer->count * sizeof(char*)))==NULL){
 		ERRBUF("find_next_MEKM: malloc: no more memory");
 		return NULL;
 	}
-	
 	int  *matches_len;
 	if((matches_len = malloc(s_kmer->count * sizeof(int)))==NULL){
 		ERRBUF("find_next_MEKM: malloc: no more memory");
 		return NULL;
 	}	
-	
-	char *res_exon = NULL;
+	/*------------------------------------------------------------*/
 	int i = 0;
 	int num = 0;
-
 	for(i=0; i<s_kmer->count; i++){		
 		int _pos_exon; // position on exon
 		char *exon = pos_parser(s_kmer->pos[i], &_pos_exon);
@@ -108,23 +101,26 @@ find_next_MEKM(char *_read, int pos_read, int k){
 		}
 		if(m >= k){
 			matches_len[num] = m;
-			matches[num] = strdup(exon);
-			num ++;			
+			matches[num] = exon;
+			num ++;		
 		}
-		if(exon != NULL){free(exon);}
 	}
+	/*------------------------------------------------------------*/	
+	char *res_exon = NULL;
 	if(num > 0){
 		int max_len = max_of_int_array(matches_len, num);
-		size_t max_num = 0;
-		size_t count;
-		int max_ind;
-		for(count=0; count < num; count++){
-			if(matches_len[count] == max_len){
-				max_num ++;
-				max_ind = count;
+		if(max_len > min_match){
+			size_t max_num = 0;
+			size_t count;
+			int max_ind;
+			for(count=0; count < num; count++){
+				if(matches_len[count] == max_len){
+					max_num ++;
+					max_ind = count;
+				}
 			}
+			res_exon = matches[max_ind];
 		}
-		res_exon = strdup(matches[max_ind]);
 	}
 	if(matches_len != NULL){free(matches_len);}	
 	if(matches != NULL){free(matches);}	
@@ -135,25 +131,24 @@ find_next_MEKM(char *_read, int pos_read, int k){
 
 /* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
 size_t 
-find_all_MEKMs(char **hits, char* _read, int _k){
+find_all_MEKMs(char **hits, char* _read, int _k, int min_match){
 	assert(hits != NULL);
 	int _read_pos = 0;
 	size_t _i = 0; 
 	while(_read_pos<(strlen(_read)-_k-1)){
-		char* _exon = find_next_MEKM(_read, _read_pos, _k);
+		char* _exon = find_next_MEKM(_read, _read_pos, _k, min_match);
 		_read_pos += 1;
 		if (_exon != NULL){
 			hits[_i] = _exon;
 			_i++;
 		}
-		//if(_exon!=NULL){free(_exon);}
 	}
 	return _i;
 }
 
 /* Construct breakend associated graph by given fq files.             */
-int 
-construct_BAG(char *fq_file1, char *fq_file2, int _k){
+struct BAG_uthash * 
+construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match){
 	struct BAG_uthash *graph_ht = NULL;
 	gzFile fp1, fp2;
 	kseq_t *seq1, *seq2;
@@ -163,51 +158,50 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 	seq1 = kseq_init(fp1);
 	seq2 = kseq_init(fp2);
 	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
-		char *_read1 = rev_com(strdup(seq1->seq.s));
-		char *_read2 = strdup(seq2->seq.s);
-		char *_read_name1 = strdup(seq1->name.s);
-		char *_read_name2 = strdup(seq2->name.s);
+		char *_read1 = rev_com(seq1->seq.s);
+		char *_read2 = seq2->seq.s;
 		
-		if(_read1 == NULL || _read_name1 == NULL || _read2 == NULL || _read_name2 == NULL)
+		if(strcmp(seq1->name.s, seq2->name.s) != 0){
+			ERRBUF("construct_BAG: read pair not matched");
+			return NULL;
+		}			
+		
+		if(_read1 == NULL || _read2 == NULL)
 			continue;    
 		
-		if(strcmp(_read_name1, _read_name2) != 0){
-			ERRBUF("construct_BAG: read pair not matched");
-			return (PR_UNMATCHED_READPAIR);			
-		}			
-    	//printf("%s\t%s\n", _read_name1, _read_name2);	
-    	//printf("%s\t%s\n", _read1, _read2);	
 		char **hits1, **hits2;
 		if((hits1 = malloc(strlen(_read1) * sizeof(char*)))==NULL){
 			ERRBUF("construct_BAG: malloc: no more memory");
-			return (PR_NOROOM);
+			return NULL;
 		}
 		if((hits2 = malloc(strlen(_read2) * sizeof(char*)))==NULL){
 			ERRBUF("construct_BAG: malloc: no more memory");
-			return (PR_NOROOM);
+			return NULL;
 		}
 		
 		if(strlen(_read1) < _k || strlen(_read2) < _k){
 			continue;
 		}
-		
-		size_t num1 = find_all_MEKMs(hits1, _read1, _k);
-		size_t num2 = find_all_MEKMs(hits2, _read2, _k);
+		size_t num1, num2;		
+		num1 = find_all_MEKMs(hits1, _read1, _k, min_match);
+		num2 = find_all_MEKMs(hits2, _read2, _k, min_match);
 		//// get uniq elements in hits1
 		char** hits_uniq1 = malloc(num1 * sizeof(char*));  
 		char** hits_uniq2 = malloc(num2 * sizeof(char*));  
+
 		if((hits_uniq1 = malloc(num1 * sizeof(char*)))==NULL){
 			ERRBUF("construct_BAG: malloc: no more memory");
-			return (PR_NOROOM);
+			return NULL;
 		}
 		if((hits_uniq2 = malloc(num2 * sizeof(char*)))==NULL){
 			ERRBUF("construct_BAG: malloc: no more memory");
-			return (PR_NOROOM);
+			return NULL;
 		}
-		//
+
 		size_t size1 = set_str_arr(hits1, hits_uniq1, num1);
 		size_t size2 = set_str_arr(hits2, hits_uniq2, num2);
-		
+		free(hits1);
+		free(hits2);
 		int i, j;
 		for(i=0; i<size1; i++){
 			for(j=0; j<size2; j++){
@@ -238,7 +232,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 				
 				if(edge_name!=NULL){
 					printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
-					//BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2));					
+					BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2));					
 				}
 				if(edge_name!=NULL){free(edge_name);}
 				if(parts1!=NULL){free(parts1);}
@@ -247,12 +241,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 				if(gene2!=NULL){free(gene2);}	
 			}
 		}
-		free(_read1);
-		free(_read2);
-		free(_read_name1);
-		free(_read_name2);
-		free(hits1);
-		free(hits2);
 		free(hits_uniq1);
 		free(hits_uniq2);
 	}
@@ -260,28 +248,28 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k){
 	kseq_destroy(seq2);	
 	gzclose(fp1);
 	gzclose(fp2);
-	//return(graph_ht);
-	return 1;
+	return graph_ht;
 }
 
 /*--------------------------------------------------------------------*/
 
 /* main function. */
 int main(int argc, char *argv[]) { 
-	if (argc != 4) {  
-	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq>\n", argv[0]);  
+	if (argc != 5) {  
+	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq> <int k>\n", argv[0]);  
 	        return 1;  
 	 }
 	char *fasta_file = argv[1];
 	char *fq_file1 = argv[2];
 	char *fq_file2 = argv[3];
-	
+	int min_mtch;		
+	if (sscanf (argv[4], "%d", &min_mtch)!=1) { printf ("error - not an integer");}
 	/* load kmer hash table in the memory */
 	assert(fasta_file != NULL);
 	assert(fq_file1 != NULL);
 	assert(fq_file2 != NULL);
-
-	/* load kmer_uthash table */
+	
+	///* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
 	if(index_file == NULL)
 		return -1;
@@ -293,23 +281,22 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Fail to load kmer_uthash table\n");
 		exit(-1);		
 	}
-	//printf("k=%d\n", k);
 	/* MAX_K is defined in common.h */
 	if(k > MAX_K){
 		fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
 		exit(-1);		
-	}			
+	}		
 	/* load fasta_uthash table */
 	FASTA_HT = fasta_uthash_load(fasta_file);
 	if(FASTA_HT == NULL){
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	construct_BAG(fq_file1, fq_file2, k);
-	//BAG_uthash_display(BAG_HT);	
+	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);
+	BAG_uthash_display(BAG_HT);	
 	kmer_uthash_destroy(&KMER_HT);	
 	fasta_uthash_destroy(&FASTA_HT);	
-	//BAG_uthash_destroy(&BAG_HT);	
+	BAG_uthash_destroy(&BAG_HT);	
 	return 0;
 }
 
