@@ -1,0 +1,13 @@
+import sys
+import collections 
+
+d = collections.defaultdict(list)
+for line in sys.stdin:
+    [edge, read] = line.strip().split()
+    d[edge].append(read)
+
+i = 0
+for read in set(d["SRF_SS18"]):
+    print '>'+'SRF_SS18.'+str(i)
+    print read.split('_')[0]
+    i += 1
