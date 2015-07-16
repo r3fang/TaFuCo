@@ -11,10 +11,10 @@
 #include <assert.h>
 #include "uthash.h"
 
-#define BAG_NONE				 0 // no error
-#define BAG_BADPARAM			-1 // bad paraemter
-#define BAG_BADITER				-2 // fail to iterate uthash
-#define BAG_BADLLOC				-3 // fail to iterate uthash
+#define BA_ERR_NONE		     0 // no error
+#define BA_ERR_PARAM		-1 // bad paraemter
+#define BA_ERR_HASHITER		-2 // fail to iterate uthash
+#define BA_ERR_MALLOC		-3 // fail to malloc memory uthash
 
 /*
  * error handling
@@ -38,67 +38,82 @@ struct BAG_uthash {
 };
 
 static inline int BAG_uthash_destroy(struct BAG_uthash **table) {
-	if(*table == NULL){
-		ERRBUF("BAG_uthash_destroy: invalid NULL parameter");
-		return(BAG_BADPARAM);
-	}
+	int error;
+	if(*table == NULL) goto FAIL_MALLOC;
 	/*free the kmer_hash table*/
 	register struct BAG_uthash *cur, *tmp;
 	HASH_ITER(hh, *table, cur, tmp) {
+		if(cur==NULL) goto FAIL_HASH_ITER;
 		HASH_DEL(*table, cur);  /* delete it (users advances to next) */
 		free(cur);            /* free it */
     }
-	return BAG_NONE;
+	goto SUCCESS;
+
+	FAIL_MALLOC:
+		ERRBUF("BAG_uthash_display: invalid NULL parameter");
+		error = BA_ERR_PARAM;
+		goto EXIT;
+	FAIL_HASH_ITER:
+		ERRBUF("BAG_uthash_display: fail to iterate BAG_uthash");
+		error = BA_ERR_HASHITER;
+		goto EXIT;
+	SUCCESS:
+		error = BA_ERR_NONE;
+		goto EXIT;
+	EXIT:
+		return error;
 }
 
 static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
-	if(graph_ht == NULL){
-		ERRBUF("BAG_uthash_display: invalid NULL parameter");
-		return(BAG_BADPARAM);
-	}
+	int error;
+	if(graph_ht == NULL) goto FAIL_MALLOC;
+
 	/*free the kmer_hash table*/
 	register struct BAG_uthash *cur, *tmp;
 	HASH_ITER(hh, graph_ht, cur, tmp) {
-		if(cur == NULL){
-			ERRBUF("BAG_uthash_display: fail to iterate BAG_uthash");
-			return(BAG_BADITER);
-		}
+		if(cur == NULL) goto FAIL_HASH_ITER;
 		printf(">%s\t%zu\n", cur->edge, cur->weight);
 		int i;
 		for(i=0; i<cur->weight; i++){
 			printf("%s\n", cur->evidence[i]);	
 		}
 	}
-	return BAG_NONE;
+	goto SUCCESS;
+
+	FAIL_MALLOC:
+		ERRBUF("BAG_uthash_display: invalid NULL parameter");
+		error = BA_ERR_PARAM;
+		goto EXIT;
+	FAIL_HASH_ITER:
+		ERRBUF("BAG_uthash_display: fail to iterate BAG_uthash");
+		error = BA_ERR_HASHITER;
+		goto EXIT;
+	SUCCESS:
+		error = BA_ERR_NONE;
+		goto EXIT;
+	EXIT:
+		return error;
 }
 
 /* Add one edge to BAG.             */
 static inline int BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
+	int error;
 	/* check parameters */
-	if(*graph_ht == NULL || edge_name == NULL || evidence == NULL){
-		ERRBUF("BAG_uthash_add: invalid NULL parameter");
-		return(BAG_BADPARAM);
-	}	
+	if(*graph_ht == NULL || edge_name == NULL || evidence == NULL) goto FAIL_PARAM;
+
 	register struct BAG_uthash *s;
 	HASH_FIND_STR(*graph_ht, edge_name, s);
 	if(s==NULL){
-		s = (struct BAG_uthash*)malloc(sizeof(struct BAG_uthash));
-		if(s == NULL){
-			ERRBUF("BAG_uthash_add: fail to malloc");
-			return(BAG_BADLLOC);
-		}
+		if((s=(struct BAG_uthash*)malloc(sizeof(struct BAG_uthash))) == NULL) goto FAIL_MALLOC;
 		s->edge = edge_name;
 		s->weight = 1;
-		s->evidence = malloc(sizeof(char*));
-		if(s->evidence == NULL){
-			ERRBUF("BAG_uthash_add: fail to malloc");
-			return(BAG_BADLLOC);
-		}
+		if((s->evidence = malloc(sizeof(char*))) == NULL) goto FAIL_MALLOC;
 		s->evidence[0] = evidence; /* first and only 1 element*/
 		HASH_ADD_STR(*graph_ht, edge, s);						
 	}else{
 		s->weight ++;
-		char **tmp = malloc((s->weight+1) * sizeof(char*));
+		char **tmp;
+		if((tmp = malloc((s->weight+1) * sizeof(char*)))==NULL) goto FAIL_MALLOC;
 		int n;
 		for (n = 0; n < s->weight-1; n++){
 			tmp[n] = strdup(s->evidence[n]);
@@ -107,6 +122,25 @@ static inline int BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, 
 		free(s->evidence);
 		s->evidence = tmp;
 	}
-	return BAG_NONE;
+	goto SUCCESS;
+	
+	FAIL_PARAM:
+		ERRBUF("BAG_uthash_add: invalid NULL parameter");
+		error = BA_ERR_PARAM;
+		goto EXIT;		
+	FAIL_MALLOC:
+		ERRBUF("BAG_uthash_display: fail to malloc memory");
+		error = BA_ERR_MALLOC;
+		goto EXIT;
+	FAIL_HASH_ITER:
+		ERRBUF("BAG_uthash_display: fail to iterate BAG_uthash");
+		error = BA_ERR_HASHITER;
+		goto EXIT;
+	SUCCESS:
+		error = BA_ERR_NONE;
+		goto EXIT;
+	EXIT:
+		return error;
+	
 }
 #endif

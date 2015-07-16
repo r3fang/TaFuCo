@@ -247,10 +247,8 @@ int main(int argc, char *argv[]) {
 	int min_mtch;		
 	if (sscanf (argv[4], "%d", &min_mtch)!=1) { printf ("error - not an integer");}
 	/* load kmer hash table in the memory */
-	assert(fasta_file != NULL);
-	assert(fq_file1 != NULL);
-	assert(fq_file2 != NULL);
 	
+	int error;
 	///* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
 	if(index_file == NULL)
@@ -274,17 +272,18 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
+	//BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
 	kmer_uthash_destroy(&KMER_HT);	
 	fasta_uthash_destroy(&FASTA_HT);	
 
-	if(BAG_uthash_display(BAG_HT)!=0){
-		fprintf(stderr, "fails to display BAG_uthahs\n");
+	if((error=BAG_uthash_display(BAG_HT))!=0){
+		fprintf(stderr, "fails to display BAG_uthahs; error=%d\n", error);
 		exit(-1);				
 	};	
 	
-	if(BAG_uthash_destroy(&BAG_HT)!=0){
-		fprintf(stderr, "fails to destory BAG_uthahs\n");
+	
+	if((error=BAG_uthash_destroy(&BAG_HT))!=0){
+		fprintf(stderr, "fails to destory BAG_uthahs with error=%d\n", error);
 		exit(-1);		
 	}	
 	return 0;
