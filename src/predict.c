@@ -18,24 +18,6 @@
 #include "BAG_uthash.h"
 KSEQ_INIT(gzFile, gzread);
 
-/*
- * various macros
- */
-#define PR_NOROOM					-1 /*no memory to allocate new queue*/
-#define PR_SHORTREAD				-2 /*read shorter than k*/
-#define PR_UNMATCHED_READPAIR		-3 /*read shorter than k*/
-
-/*
- * error handling
- * all errors are returned as an integer code, and a string
- * amplifying the error is saved in here; this can then be
- * printed
- */
-char pr_errbuf[256] = "no error";	/* the error message buffer */
-									/* macros to fill it */
-#define ERRBUF(str)	(void) strncpy(pr_errbuf, str, sizeof(pr_errbuf))
-#define ERRBUF2(str,n)		(void) sprintf(pr_errbuf, str, n)
-#define ERRBUF3(str,n,m)	(void) sprintf(pr_errbuf, str, n, m)
 /*--------------------------------------------------------------------*/
 /*Global paramters.*/
 
@@ -293,10 +275,18 @@ int main(int argc, char *argv[]) {
 		exit(-1);		
 	}
 	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
-	//BAG_uthash_display(BAG_HT);	
 	kmer_uthash_destroy(&KMER_HT);	
 	fasta_uthash_destroy(&FASTA_HT);	
-	BAG_uthash_destroy(&BAG_HT);	
+
+	if(BAG_uthash_display(BAG_HT)!=0){
+		fprintf(stderr, "fails to display BAG_uthahs\n");
+		exit(-1);				
+	};	
+	
+	if(BAG_uthash_destroy(&BAG_HT)!=0){
+		fprintf(stderr, "fails to destory BAG_uthahs\n");
+		exit(-1);		
+	}	
 	return 0;
 }
 
