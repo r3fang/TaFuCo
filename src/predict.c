@@ -26,9 +26,9 @@ static struct kmer_uthash *KMER_HT = NULL;
 static struct fasta_uthash *FASTA_HT = NULL;
 static struct BAG_uthash *BAG_HT = NULL;
 
-int predict_main(char *fasta_file, char *fq_file1, char *fq_file2);
-char* find_next_MEKM(char *, int, int, int);
-size_t find_all_MEKMs(char **, char* , int, int);
+//int predict_main(char *fasta_file, char *fq_file1, char *fq_file2);
+//char* find_next_MEKM(char *, int, int, int);
+//size_t find_all_MEKMs(char **, char* , int, int);
 
 /*--------------------------------------------------------------------*/
 

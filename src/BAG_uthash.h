@@ -14,6 +14,7 @@
 #define BAG_NONE				 0 // no error
 #define BAG_BADPARAM			-1 // bad paraemter
 #define BAG_BADITER				-2 // fail to iterate uthash
+#define BAG_BADLLOC				-3 // fail to iterate uthash
 
 /*
  * error handling
@@ -50,14 +51,14 @@ static inline int BAG_uthash_destroy(struct BAG_uthash **table) {
 	return BAG_NONE;
 }
 
-static inline int BAG_uthash_display(struct BAG_uthash *table) {
-	if(table == NULL){
+static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
+	if(graph_ht == NULL){
 		ERRBUF("BAG_uthash_display: invalid NULL parameter");
 		return(BAG_BADPARAM);
 	}
 	/*free the kmer_hash table*/
 	register struct BAG_uthash *cur, *tmp;
-	HASH_ITER(hh, table, cur, tmp) {
+	HASH_ITER(hh, graph_ht, cur, tmp) {
 		if(cur == NULL){
 			ERRBUF("BAG_uthash_display: fail to iterate BAG_uthash");
 			return(BAG_BADITER);
@@ -73,23 +74,30 @@ static inline int BAG_uthash_display(struct BAG_uthash *table) {
 
 /* Add one edge to BAG.             */
 static inline int BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
-	assert(graph_ht != NULL);
-	assert(edge_name != NULL);
-	assert(evidence != NULL);
-	if(edge_name == NULL){
-		return 0;
-	}
-	struct BAG_uthash *s;
+	/* check parameters */
+	if(*graph_ht == NULL || edge_name == NULL || evidence == NULL){
+		ERRBUF("BAG_uthash_add: invalid NULL parameter");
+		return(BAG_BADPARAM);
+	}	
+	register struct BAG_uthash *s;
 	HASH_FIND_STR(*graph_ht, edge_name, s);
 	if(s==NULL){
 		s = (struct BAG_uthash*)malloc(sizeof(struct BAG_uthash));
-		s->edge = strdup(edge_name);
+		if(s == NULL){
+			ERRBUF("BAG_uthash_add: fail to malloc");
+			return(BAG_BADLLOC);
+		}
+		s->edge = edge_name;
 		s->weight = 1;
 		s->evidence = malloc(sizeof(char*));
+		if(s->evidence == NULL){
+			ERRBUF("BAG_uthash_add: fail to malloc");
+			return(BAG_BADLLOC);
+		}
 		s->evidence[0] = evidence; /* first and only 1 element*/
 		HASH_ADD_STR(*graph_ht, edge, s);						
 	}else{
-		s->weight += 1;
+		s->weight ++;
 		char **tmp = malloc((s->weight+1) * sizeof(char*));
 		int n;
 		for (n = 0; n < s->weight-1; n++){
@@ -97,10 +105,8 @@ static inline int BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, 
 		}
 		tmp[n] = evidence;
 		free(s->evidence);
-		/* assign tmp to s->pos*/
 		s->evidence = tmp;
 	}
-	return 0;
+	return BAG_NONE;
 }
-
 #endif
