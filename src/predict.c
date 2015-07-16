@@ -18,107 +18,169 @@
 #include "BAG_uthash.h"
 KSEQ_INIT(gzFile, gzread);
 
+
+/* error code */
+#define PR_ERR_NONE		     	 0 // no error
+#define PR_ERR_PARAM			-1 // bad paraemter
+#define PR_ERR_MALLOC			-2 // fail to malloc memory uthash
+#define PR_ERR_POSPARSE			-3
+#define PR_ERR_FINDHASH			-4
+#define PR_ERR_UNDEFINED		-100 // fail to malloc memory uthash
+
+/*
+ * error handling
+ * all errors are returned as an integer code, and a string
+ * amplifying the error is saved in here; this can then be
+ * printed
+ */
+char pr_errbuf[256] = "no error\n";	/* the error message buffer */
+#define ERRBUF(str)			(void) strncpy(qe_errbuf, str, sizeof(qe_errbuf))
+#define ERRBUF2(str,n)		(void) sprintf(qe_errbuf, str, n)
+#define ERRBUF3(str,n,m)	(void) sprintf(qe_errbuf, str, n, m)
+
 /*--------------------------------------------------------------------*/
 /*Global paramters.*/
-
 static const char *pcPgmName="predict.c";
 static struct kmer_uthash *KMER_HT = NULL;
 static struct fasta_uthash *FASTA_HT = NULL;
 static struct BAG_uthash *BAG_HT = NULL;
 
-//int predict_main(char *fasta_file, char *fq_file1, char *fq_file2);
-//char* find_next_MEKM(char *, int, int, int);
-//size_t find_all_MEKMs(char **, char* , int, int);
-
 /*--------------------------------------------------------------------*/
 
 /* Find next Maximal Extended Kmer Match (MEKM) on _read at pos_read. */
-char* 
+int
 find_next_MEKM(char *_read, int pos_read, int k, int min_match){
-	/* copy a part of string */
-	char* buff;
-	if((buff = malloc(k * sizeof(char)))==NULL){
-		ERRBUF("find_next_MEKM: malloc: no more memory");
-		return NULL;
-	}
-	strncpy(buff, _read + pos_read, k);
-	buff[k] = '\0';	
-	if(buff == NULL || strlen(buff) != k){
-		return NULL;
-	}
 	/*------------------------------------------------------------*/
-	struct kmer_uthash *s_kmer = find_kmer(buff, KMER_HT);
-	if(s_kmer==NULL){
-		return NULL;
-	}	
-	char **matches;
-	if((matches = malloc(s_kmer->count * sizeof(char*)))==NULL){
-		ERRBUF("find_next_MEKM: malloc: no more memory");
-		return NULL;
-	}
-	int  *matches_len;
-	if((matches_len = malloc(s_kmer->count * sizeof(int)))==NULL){
-		ERRBUF("find_next_MEKM: malloc: no more memory");
-		return NULL;
-	}	
-	/*------------------------------------------------------------*/
+	// parameters decleration
+	typedef struct freq{
+		int LEN;
+		size_t SIZE;
+	    UT_hash_handle hh;         /* makes this structure hashable */
+	} freq; 
+	freq* match_lens = NULL;
+	char* buff = NULL;	
+	char **matches = NULL;
 	int i = 0;
 	int num = 0;
+	char *exon_tmp = NULL;
+	char *exon_max = NULL;
+	int max_len = -10;
+	freq *s_freq = NULL;
+	freq *tmp = NULL;
+	int error;
+	/*------------------------------------------------------------*/
+	/* check parameters */
+	if(read == NULL) goto FAIL_PARAM;
+	
+	/*------------------------------------------------------------*/
+	/* copy a kmer of string */
+	if((buff = malloc((k+1) * sizeof(char)))==NULL) goto FAIL_MALLOC;
+	strncpy(buff, _read + pos_read, k);
+	buff[k] = '\0';	
+	if(buff == NULL || strlen(buff) != k) goto FAIL_OTHER;
+	/*------------------------------------------------------------*/
+	struct kmer_uthash *s_kmer;
+	if((s_kmer = find_kmer(buff, KMER_HT)) == NULL) goto SUCCESS;
+	/*------------------------------------------------------------*/
+	if((matches = malloc(s_kmer->count * sizeof(char*)))==NULL) goto FAIL_MALLOC;	
+	/*------------------------------------------------------------*/
+	/*
+	 * iterate all kmer matches and extend to max length
+	 */
 	for(i=0; i<s_kmer->count; i++){		
 		int _pos_exon; // position on exon
-		char *exon = pos_parser(s_kmer->pos[i], &_pos_exon);
+		exon_tmp = pos_parser(s_kmer->pos[i], &_pos_exon);
 		/* error report*/
-		if(exon == NULL || _pos_exon<0){
-			return NULL;
-		}
+		if(exon_tmp == NULL || _pos_exon < 0) goto FAIL_POSPARSE;
 		
-		struct fasta_uthash *s_fasta = find_fasta(exon, FASTA_HT);
-		if(s_fasta == NULL){
-			return NULL;
-		}		
+		struct fasta_uthash *s_fasta;
+		if((s_fasta = find_fasta(exon_tmp, FASTA_HT)) == NULL) goto SUCCESS;
 		int m = 0;
 		/* extending kmer to find MPM */
 		while(*(s_fasta->seq + m + _pos_exon) == *(_read+ pos_read + m)){
 			m ++;
 		}
-		if(m >= k){
-			matches_len[num] = m;
-			matches[num] = exon;
-			num ++;		
+		if(m >= min_match){
+			if(m>max_len){
+				max_len=m;
+				exon_max = strdup(exon_tmp);
+			}
+			HASH_FIND_INT(match_lens, &m, s_freq);	
+			if(s_freq==NULL){
+				if((s_freq=(freq*)malloc(sizeof(freq))) == NULL) goto FAIL_MALLOC;
+				s_freq->LEN  = m;
+				s_freq->SIZE = 1;				
+				HASH_ADD_INT(match_lens, LEN, s_freq);
+			}else{
+				s_freq->SIZE++;
+			}
 		}
 	}
 	/*------------------------------------------------------------*/	
-	char *res_exon = NULL;
-	if(num > 0){
-		int max_len = max_of_int_array(matches_len, num);
-		if(max_len > min_match){
-			size_t max_num = 0;
-			size_t count;
-			int max_ind;
-			for(count=0; count < num; count++){
-				if(matches_len[count] == max_len){
-					max_num ++;
-					max_ind = count;
-				}
-			}
-			res_exon = matches[max_ind];
-		}
+	HASH_FIND_INT(match_lens, &max_len, s_freq);	
+	if(s_freq == NULL) goto NO_MATCH; 
+	if(s_freq->SIZE==1){
+		printf("%s\n", exon_max);
 	}
-	if(matches_len != NULL){free(matches_len);}	
-	if(matches != NULL){free(matches);}	
-	if(buff != NULL){free(buff);}
-	return(res_exon);
+	goto SUCCESS;
+	
+	FAIL_PARAM:
+		ERRBUF("find_next_MEKM: invalid NULL parameter");
+		error = PR_ERR_PARAM;
+		goto EXIT;
+	FAIL_MALLOC:
+		ERRBUF("find_next_MEKM: fail to malloc memory");
+		error = PR_ERR_MALLOC;
+		goto EXIT;
+	FAIL_POSPARSE:
+		ERRBUF("find_next_MEKM: fail to parse kmer match postion e.g. gene.exon19_101 ");
+		error = PR_ERR_POSPARSE;
+		goto EXIT;
+	FAIL_HASH_FIND:
+		ERRBUF("find_next_MEKM: fail to find element in uthahs");
+		error = PR_ERR_FINDHASH;
+		goto EXIT;	
+	FAIL_OTHER:
+		ERRBUF("find_next_MEKM: undefined error");
+		error = PR_ERR_UNDEFINED;
+		goto EXIT;	
+
+	NO_MATCH:
+		error = PR_ERR_NONE;
+		goto EXIT;
+		
+	SUCCESS:
+		error = PR_ERR_NONE;
+		goto EXIT;
+
+	EXIT:		
+		if(buff) 		free(buff);
+		if(matches) 	free(matches);		
+		if(exon_max) 	free(exon_max);	
+		if(exon_tmp) 	free(exon_tmp);	
+		HASH_ITER(hh, match_lens, s_freq, tmp) {
+			HASH_DEL(match_lens, s_freq);
+      		free(s_freq);
+		}
+		return error;
 }
 /*--------------------------------------------------------------------*/
 
 /* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
 size_t 
 find_all_MEKMs(char **hits, char* _read, int _k, int min_match){
-	assert(hits != NULL);
+	int error;
 	int _read_pos = 0;
 	size_t _i = 0; 
 	while(_read_pos<(strlen(_read)-_k-1)){
-		char* _exon = find_next_MEKM(_read, _read_pos, _k, min_match);
+		char* _exon = NULL;
+		find_next_MEKM(_read, _read_pos, _k, min_match);
+		//if((error=find_next_MEKM(_read, _read_pos, _k, min_match)) < 0){
+		//    fprintf(stderr, "find_all_MEKMs: error=%d\n", error);  
+		//	exit(-1);
+		//}
+		//printf("%d\t_exon=%s\n", _read_pos, _exon);
+		//if(_exon) free(_exon);
 		_read_pos += 1;
 		if (_exon != NULL){
 			hits[_i] = _exon;
@@ -272,15 +334,14 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	//BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
+	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
 	kmer_uthash_destroy(&KMER_HT);	
 	fasta_uthash_destroy(&FASTA_HT);	
 
 	if((error=BAG_uthash_display(BAG_HT))!=0){
-		fprintf(stderr, "fails to display BAG_uthahs; error=%d\n", error);
+		fprintf(stderr, "fails to display BAG_uthash; error=%d\n", error);
 		exit(-1);				
 	};	
-	
 	
 	if((error=BAG_uthash_destroy(&BAG_HT))!=0){
 		fprintf(stderr, "fails to destory BAG_uthahs with error=%d\n", error);

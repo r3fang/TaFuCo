@@ -11,6 +11,7 @@
 #include <assert.h>
 #include "uthash.h"
 
+/* error code */
 #define BA_ERR_NONE		     0 // no error
 #define BA_ERR_PARAM		-1 // bad paraemter
 #define BA_ERR_HASHITER		-2 // fail to iterate uthash
@@ -22,7 +23,7 @@
  * amplifying the error is saved in here; this can then be
  * printed
  */
-char qe_errbuf[256] = "no error";	/* the error message buffer */
+char qe_errbuf[256] = "no error\n";	/* the error message buffer */
 #define ERRBUF(str)			(void) strncpy(qe_errbuf, str, sizeof(qe_errbuf))
 #define ERRBUF2(str,n)		(void) sprintf(qe_errbuf, str, n)
 #define ERRBUF3(str,n,m)	(void) sprintf(qe_errbuf, str, n, m)
@@ -37,9 +38,16 @@ struct BAG_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
+/*
+ * free BAG_uthash table
+ *
+ * PARAMETERS:	struct BAG_uthash **
+ * RETURN:	error code
+ */
+
 static inline int BAG_uthash_destroy(struct BAG_uthash **table) {
 	int error;
-	if(*table == NULL) goto FAIL_MALLOC;
+	if(*table == NULL) goto FAIL_PARAM;
 	/*free the kmer_hash table*/
 	register struct BAG_uthash *cur, *tmp;
 	HASH_ITER(hh, *table, cur, tmp) {
@@ -49,9 +57,14 @@ static inline int BAG_uthash_destroy(struct BAG_uthash **table) {
     }
 	goto SUCCESS;
 
-	FAIL_MALLOC:
-		ERRBUF("BAG_uthash_display: invalid NULL parameter");
+
+	FAIL_PARAM:
+		ERRBUF("BAG_uthash_add: invalid NULL parameter");
 		error = BA_ERR_PARAM;
+		goto EXIT;		
+	FAIL_MALLOC:
+		ERRBUF("BAG_uthash_display: fail to malloc memory");
+		error = BA_ERR_MALLOC;
 		goto EXIT;
 	FAIL_HASH_ITER:
 		ERRBUF("BAG_uthash_display: fail to iterate BAG_uthash");
@@ -62,11 +75,18 @@ static inline int BAG_uthash_destroy(struct BAG_uthash **table) {
 		goto EXIT;
 	EXIT:
 		return error;
+
 }
 
+/*
+ * display BAG_uthash table on the screen
+ *
+ * PARAMETERS:	struct BAG_uthash *
+ * RETURN:	error code
+ */
 static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 	int error;
-	if(graph_ht == NULL) goto FAIL_MALLOC;
+	if(graph_ht == NULL) goto FAIL_PARAM;
 
 	/*free the kmer_hash table*/
 	register struct BAG_uthash *cur, *tmp;
@@ -80,9 +100,13 @@ static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 	}
 	goto SUCCESS;
 
-	FAIL_MALLOC:
-		ERRBUF("BAG_uthash_display: invalid NULL parameter");
+	FAIL_PARAM:
+		ERRBUF("BAG_uthash_add: invalid NULL parameter");
 		error = BA_ERR_PARAM;
+		goto EXIT;		
+	FAIL_MALLOC:
+		ERRBUF("BAG_uthash_display: fail to malloc memory");
+		error = BA_ERR_MALLOC;
 		goto EXIT;
 	FAIL_HASH_ITER:
 		ERRBUF("BAG_uthash_display: fail to iterate BAG_uthash");
@@ -93,9 +117,12 @@ static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 		goto EXIT;
 	EXIT:
 		return error;
+
 }
 
-/* Add one edge to BAG.             */
+/*
+ * add one edge to graph
+ */
 static inline int BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
 	int error;
 	/* check parameters */
@@ -103,6 +130,7 @@ static inline int BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, 
 
 	register struct BAG_uthash *s;
 	HASH_FIND_STR(*graph_ht, edge_name, s);
+
 	if(s==NULL){
 		if((s=(struct BAG_uthash*)malloc(sizeof(struct BAG_uthash))) == NULL) goto FAIL_MALLOC;
 		s->edge = edge_name;
@@ -118,8 +146,8 @@ static inline int BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, 
 		for (n = 0; n < s->weight-1; n++){
 			tmp[n] = strdup(s->evidence[n]);
 		}
-		tmp[n] = evidence;
 		free(s->evidence);
+		tmp[n] = evidence;
 		s->evidence = tmp;
 	}
 	goto SUCCESS;
@@ -143,4 +171,5 @@ static inline int BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, 
 		return error;
 	
 }
+
 #endif
