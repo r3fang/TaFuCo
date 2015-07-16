@@ -49,7 +49,7 @@ static struct BAG_uthash *BAG_HT = NULL;
 
 /* Find next Maximal Extended Kmer Match (MEKM) on _read at pos_read. */
 int
-find_next_MEKM(char *_read, int pos_read, int k, int min_match){
+find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 	/*------------------------------------------------------------*/
 	// parameters decleration
 	typedef struct freq{
@@ -120,7 +120,7 @@ find_next_MEKM(char *_read, int pos_read, int k, int min_match){
 	HASH_FIND_INT(match_lens, &max_len, s_freq);	
 	if(s_freq == NULL) goto NO_MATCH; 
 	if(s_freq->SIZE==1){
-		printf("%s\n", exon_max);
+		*exon = strdup(exon_max);
 	}
 	goto SUCCESS;
 	
@@ -167,32 +167,49 @@ find_next_MEKM(char *_read, int pos_read, int k, int min_match){
 /*--------------------------------------------------------------------*/
 
 /* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
-size_t 
-find_all_MEKMs(char **hits, char* _read, int _k, int min_match){
+int
+find_all_MEKMs(char **hits, int *num, char* _read, int _k, int min_match){
+/*--------------------------------------------------------------------*/
+	/* declare vaiables */
 	int error;
 	int _read_pos = 0;
-	size_t _i = 0; 
+	*num = 0; 
+	char* _exon = NULL;
+/*--------------------------------------------------------------------*/
+	/* check parameters */
+	if(_read == NULL || hits == NULL || _k < 0 || min_match < 0) goto FAIL_PARAM;
+
+/*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k-1)){
-		char* _exon = NULL;
-		find_next_MEKM(_read, _read_pos, _k, min_match);
-		//if((error=find_next_MEKM(_read, _read_pos, _k, min_match)) < 0){
-		//    fprintf(stderr, "find_all_MEKMs: error=%d\n", error);  
-		//	exit(-1);
-		//}
-		//printf("%d\t_exon=%s\n", _read_pos, _exon);
-		//if(_exon) free(_exon);
-		_read_pos += 1;
+		if((error=find_next_MEKM(&_exon, _read, _read_pos++, _k, min_match)) < 0){
+		    fprintf(stderr, "find_all_MEKMs: error=%d\n", error);  
+			exit(-1);
+		}
 		if (_exon != NULL){
-			hits[_i] = _exon;
-			_i++;
+			hits[*num] = strdup(_exon);
+			(*num)++;
 		}
 	}
-	return _i;
+	goto SUCCESS;
+/*--------------------------------------------------------------------*/	
+	FAIL_PARAM:
+		ERRBUF("find_all_MEKMs: invalid NULL parameter");
+		error = PR_ERR_PARAM;
+		goto EXIT;
+
+	SUCCESS:
+		error = PR_ERR_NONE;
+		goto EXIT;
+
+	EXIT:
+		if(_exon) 	free(_exon);	
+		return error;
 }
 
 /* Construct breakend associated graph by given fq files.             */
 struct BAG_uthash * 
 construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match){
+	int error;
 	struct BAG_uthash *graph_ht = NULL;
 	gzFile fp1, fp2;
 	kseq_t *seq1, *seq2;
@@ -226,9 +243,16 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match){
 		if(strlen(_read1) < _k || strlen(_read2) < _k){
 			continue;
 		}
-		size_t num1, num2;		
-		num1 = find_all_MEKMs(hits1, _read1, _k, min_match);
-		num2 = find_all_MEKMs(hits2, _read2, _k, min_match);
+		int num1=0;
+		int num2=0;		
+		if((error=find_all_MEKMs(hits1, &num1, _read1, _k, min_match))<0){
+		    fprintf(stderr, "construct_BAG: fail to call find_all_MEKMs with error=%d\n", error);  
+			exit(-1);			
+		}
+		if((error=find_all_MEKMs(hits2, &num2, _read2, _k, min_match))<0){
+		    fprintf(stderr, "construct_BAG: fail to call find_all_MEKMs with error=%d\n", error);  
+			exit(-1);			
+		}
 		//// get uniq elements in hits1
 		char** hits_uniq1 = malloc(num1 * sizeof(char*));  
 		char** hits_uniq2 = malloc(num2 * sizeof(char*));  
@@ -262,7 +286,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match){
 					free(parts2);
 					continue;
 				}
-				
 				char* gene1 = strdup(parts1[0]);
 				char* gene2 = strdup(parts2[0]);
 				
