@@ -292,8 +292,8 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Fail to load fasta_uthash table\n");
 		exit(-1);		
 	}
-	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);
-	BAG_uthash_display(BAG_HT);	
+	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
+	//BAG_uthash_display(BAG_HT);	
 	kmer_uthash_destroy(&KMER_HT);	
 	fasta_uthash_destroy(&FASTA_HT);	
 	BAG_uthash_destroy(&BAG_HT);	

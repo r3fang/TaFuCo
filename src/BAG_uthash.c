@@ -23,7 +23,7 @@ BAG_uthash_display(struct BAG_uthash *table) {
   HASH_ITER(hh, table, cur, tmp) {
 	  if(cur == NULL)
 		  exit(-1);
-	  printf("G->edge=%s\nG->weight=%d\n", cur->edge, cur->weight);
+	  printf(">%s\t%d\n", cur->edge, cur->weight);
 	  int i;
 	  for(i=0; i<cur->weight; i++){
 	  	  printf("%s\n", cur->evidence[i]);	
