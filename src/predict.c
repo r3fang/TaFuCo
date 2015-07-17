@@ -108,8 +108,6 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 			HASH_DEL(match_lens, s_freq);
   			free(s_freq);
 		}
-		if(s_freq)		free(s_freq);
-		if(tmp)			free(tmp);
 		if(buff) 		free(buff);
 		if(exon_max) 	free(exon_max);	
 		if(exon_tmp) 	free(exon_tmp);	
@@ -148,6 +146,9 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 	int l1, l2;
 	char** hits_uniq1, **hits_uniq2, **hits1, **hits2, **parts1, **parts2;
 	char *_read1, *_read2, *edge_name, *gene1, *gene2;
+	hits_uniq1 = hits_uniq2 = hits1 = hits2 = parts1 = parts2 = NULL;
+	_read1 = _read2 = edge_name = gene1 = gene2 = NULL;
+	
 	if((hits1 = malloc(MAX_READ_LEN * sizeof(char*))) == NULL) die("construct_BAG: malloc error\n");
 	if((hits2 = malloc(MAX_READ_LEN * sizeof(char*))) == NULL) die("construct_BAG: malloc error\n");
 	if((hits_uniq1 = malloc(MAX_READ_LEN * sizeof(char*)))==NULL) die("construct_BAG: malloc error\n");
@@ -201,19 +202,26 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		//		//}
 		//}}
 	}
+	printf("fsFSDFASDFASDF\n");
 	if(hits1) 		free(hits1);
 	if(hits2) 		free(hits2);
+
+	printf("fsFSDFASDFASDF\n");
 	if(hits_uniq1)  free(hits_uniq1);
 	if(hits_uniq2)  free(hits_uniq2);
+	printf("fsFSDFASDFASDF\n");
 	if(parts1)		free(parts1);
 	if(parts2)		free(parts2);
+	printf("fsFSDFASDFASDF\n");
 	if(gene1)		free(gene1);
 	if(gene2)		free(gene2);
-	if(edge_name)	free(edge_name);
+	printf("fsFSDFASDFASDF\n");
+	printf("fsFSDFASDFASDF\n");
 	kseq_destroy(seq1);
 	kseq_destroy(seq2);	
 	gzclose(fp1);
 	gzclose(fp2);
+	printf("fsFSDFASDFASDF\n");
 	return PR_ERR_NONE;
 }
 
@@ -237,8 +245,7 @@ int main(int argc, char *argv[]) {
 	char *index_file = concat(fasta_file, ".index");
 	if(index_file == NULL) die("Fail to concate index_file\n");
 	
-	int k;
-	if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE) die("main: kmer_uthash_load fails\n");	
+	int k; if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE) die("main: kmer_uthash_load fails\n");	
 	if(KMER_HT == NULL) die("Fail to load the index\n");
 	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);	
 	/* load fasta_uthash table */
@@ -246,7 +253,7 @@ int main(int argc, char *argv[]) {
 	if((error=construct_BAG(fq_file1, fq_file2, k, min_mtch, &BAG_HT)) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
 	
 	if((error=kmer_uthash_destroy(&KMER_HT))   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
-	//if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
+	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
 	
 	//if((error=BAG_uthash_destroy(&BAG_HT))     != PR_ERR_NONE) 						   die("main: BAG_uthash_destroy\n");	
 	if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_display fails\n");	
