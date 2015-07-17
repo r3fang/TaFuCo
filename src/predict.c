@@ -278,7 +278,8 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match){
 				
 				if(edge_name!=NULL){
 					printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
-					BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2));					
+					if((error = BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2))) != PR_ERR_NONE)
+						die("BAG_uthash_add fails\n");					
 				}
 				if(edge_name!=NULL){free(edge_name);}
 				if(parts1!=NULL){free(parts1);}
@@ -325,13 +326,13 @@ int main(int argc, char *argv[]) {
 	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);
 	
 	/* load fasta_uthash table */
-	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) die("Fail to load the fasta uthash\n");	
-	if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) die("Fails to display fasta uthash");	
-	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) die("Fail to destory the fasta uthash\n");		
-	if((error=BAG_uthash_display(BAG_HT)) != PR_ERR_NONE) die("fails to display BAG_uthash; error=%d\n", error);	
-	if((error=BAG_uthash_destroy(&BAG_HT))!= PR_ERR_NONE) die("fails to destory BAG_uthahs with error=%d\n", error);
-	
-	//BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
+	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
+	if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_display fails\n");	
+	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_destroy fails\n");		
+	if((error=BAG_uthash_display(BAG_HT)) != PR_ERR_NONE) 				die("main: BAG_uthash_display fails\n");	
+	if((error=BAG_uthash_destroy(&BAG_HT))!= PR_ERR_NONE) 				die("main: BAG_uthash_destroy\n");	
+
+	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
 	kmer_uthash_destroy(&KMER_HT);	
 	
 	return 0;
