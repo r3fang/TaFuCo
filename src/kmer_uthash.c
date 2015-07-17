@@ -8,8 +8,6 @@
 #include "common.h"
 #include "kmer_uthash.h"
 
-KSEQ_INIT(gzFile, gzread);
-
 struct kmer_uthash*
 find_kmer(char* quary_kmer, struct kmer_uthash *tb) {
     struct kmer_uthash *s;

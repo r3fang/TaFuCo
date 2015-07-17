@@ -8,6 +8,8 @@
 #include <assert.h>
 #include "kseq.h" 
 #include "uthash.h"
+/*!!!!!!!! this must be defined in just one .h file **!!!!!*/
+KSEQ_INIT(gzFile, gzread);
 
 struct MPM
 {

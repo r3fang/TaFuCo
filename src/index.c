@@ -21,7 +21,6 @@
 /* The name of the file. */
 static const char *pcPgmName="index.c";
 
-KSEQ_INIT(gzFile, gzread);
 /*--------------------------------------------------------------------*/
 
 static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, int k_index);

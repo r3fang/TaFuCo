@@ -11,12 +11,12 @@
 #include <assert.h>
 #include <math.h>
 #include "uthash.h"
+#include "fasta_uthash.h"
 #include "kseq.h"
 #include "common.h"
 #include "kmer_uthash.h"
-#include "fasta_uthash.h"
 #include "BAG_uthash.h"
-KSEQ_INIT(gzFile, gzread);
+
 
 
 /* error code */
@@ -70,7 +70,7 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 	int error;
 	/*------------------------------------------------------------*/
 	/* check parameters */
-	if(read == NULL) goto FAIL_PARAM;
+	if(_read == NULL) goto FAIL_PARAM;
 	
 	/*------------------------------------------------------------*/
 	/* copy a kmer of string */

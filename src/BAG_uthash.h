@@ -1,15 +1,14 @@
 /* Contact: Rongxin Fang <r3fang@ucsd.edu> */
 /* Last Modified: 15JULY2015 */
 
-#ifndef BAG_UTHASH_H
-#define BAG_UTHASH_H
+#ifndef _BAG_UTHASH_H
+#define _BAG_UTHASH_H
 
 #include <stdio.h>   /* gets */
 #include <stdlib.h>  /* atoi, malloc */
 #include <string.h>  /* strcpy */
 #include <zlib.h> 
 #include <assert.h>
-#include "uthash.h"
 
 /* error code */
 #define BA_ERR_NONE		     0 // no error

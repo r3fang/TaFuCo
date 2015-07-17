@@ -6,7 +6,6 @@
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"
-KSEQ_INIT(gzFile, gzread); 
 
 
 size_t set_str_arr(char **arr, char **arr_uniq, size_t size){
