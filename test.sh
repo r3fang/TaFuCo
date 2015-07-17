@@ -1,5 +1,5 @@
 # qsub -pe threaded 20 -N predict_1 -m abe test.sh
-gcc src/predict.c src/common.c src/kmer_uthash.c src/utils.c -o bin/predict -lz
+gcc src/predict.c src/common.c src/utils.c -o bin/predict -lz
 #gcc src/index.c src/common.c src/fasta_uthash.c src/kmer_uthash.c -o bin/index -lz
 
 cd sample_data

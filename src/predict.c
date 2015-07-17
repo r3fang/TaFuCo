@@ -10,12 +10,12 @@
 #include <zlib.h>  
 #include <assert.h>
 #include <math.h>
-#include "uthash.h"
-#include "fasta_uthash.h"
 #include "kseq.h"
 #include "common.h"
+#include "uthash.h"
 #include "kmer_uthash.h"
 #include "BAG_uthash.h"
+#include "fasta_uthash.h"
 #include "utils.h"
 
 
@@ -59,17 +59,18 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 	int error;
 	/*------------------------------------------------------------*/
 	/* check parameters */
-	if(_read == NULL) goto FAIL_PARAM;
+	if(_read == NULL || *exon != NULL) die("find_next_MEKM: parameter error\n");
 	
 	/*------------------------------------------------------------*/
 	/* copy a kmer of string */
-	if((buff = malloc((k+1) * sizeof(char)))==NULL) goto FAIL_MALLOC;
+	if((buff = malloc((k+1) * sizeof(char)))==NULL) die("find_next_MEKM: malloc fails\n");
 	strncpy(buff, _read + pos_read, k);
 	buff[k] = '\0';	
-	if(buff == NULL || strlen(buff) != k) goto FAIL_OTHER;
+	if(buff == NULL || strlen(buff) != k) die("find_next_MEKM: buff strncpy fails\n");
 	/*------------------------------------------------------------*/
 	struct kmer_uthash *s_kmer;
-	if((s_kmer = find_kmer(buff, KMER_HT)) == NULL) goto SUCCESS;
+	if((error = find_kmer(KMER_HT, buff, &s_kmer)) != PR_ERR_NONE) die("find_next_MEKM: find_kmer fails\n");
+	if(s_kmer == NULL) goto SUCCESS;
 	/*------------------------------------------------------------*/
 	if((matches = malloc(s_kmer->count * sizeof(char*)))==NULL) goto FAIL_MALLOC;	
 	/*------------------------------------------------------------*/
@@ -319,21 +320,20 @@ int main(int argc, char *argv[]) {
 	if(index_file == NULL) die("Fail to concate index_file\n");
 	
 	int k;
-	KMER_HT = kmer_uthash_load(index_file, &k);	
+	if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE) die("main: kmer_uthash_load fails\n");	
 	if(KMER_HT == NULL) die("Fail to load the index\n");
 
-	/* MAX_K is defined in common.h */
-	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);
-	
+	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);	
 	/* load fasta_uthash table */
 	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
-	if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_display fails\n");	
-	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_destroy fails\n");		
-	if((error=BAG_uthash_display(BAG_HT)) != PR_ERR_NONE) 				die("main: BAG_uthash_display fails\n");	
-	if((error=BAG_uthash_destroy(&BAG_HT))!= PR_ERR_NONE) 				die("main: BAG_uthash_destroy\n");	
+	//if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_display fails\n");	
+	//if((error=BAG_uthash_display(BAG_HT)) != PR_ERR_NONE) 				die("main: BAG_uthash_display fails\n");	
+	if((error=kmer_uthash_destroy(&KMER_HT))!= PR_ERR_NONE) 			die("main: kmer_uthash_destroy\n");	
 
 	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
-	kmer_uthash_destroy(&KMER_HT);	
+
+	if((error=BAG_uthash_destroy(&BAG_HT))!= PR_ERR_NONE) 				die("main: BAG_uthash_destroy\n");	
+	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_destroy fails\n");		
 	
 	return 0;
 }
