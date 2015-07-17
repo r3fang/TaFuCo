@@ -32,7 +32,6 @@ static const char *pcPgmName			="predict.c";
 static struct kmer_uthash *KMER_HT  	= NULL;
 static struct fasta_uthash *FASTA_HT 	= NULL;
 static struct BAG_uthash *BAG_HT 		= NULL;
-
 /*--------------------------------------------------------------------*/
 
 /* Find next Maximal Extended Kmer Match (MEKM) on _read at pos_read. */
@@ -68,30 +67,31 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 	/*
 	 * iterate all kmer matches and extend to max length
 	 */
-	int i; for(i=0; i<s_kmer->count; i++){		
-		int _pos_exon; exon_tmp = pos_parser(s_kmer->pos[i], &_pos_exon);
-		if(exon_tmp == NULL || _pos_exon < 0) die("find_next_MEKM: pos_parser fails\n");
-		if((error = find_fasta(FASTA_HT, exon_tmp, &s_fasta)) != PR_ERR_NONE) die("find_next_MEKM: find_fasta fails\n");
-		if(s_fasta == NULL || s_fasta->seq == NULL || strlen(s_fasta->seq) < min_match) continue; //skip this match
-		int m = 0; while(*(s_fasta->seq + m + _pos_exon) == *(_read+ pos_read + m)){m ++;}
-		if(m >= min_match){
-			if(m>max_len){max_len=m; exon_max = strdup(exon_tmp);} // update max exon
-			HASH_FIND_INT(match_lens, &m, s_freq);	
-			// a new element
-			if(s_freq==NULL){
-				if((s_freq=(freq*)malloc(sizeof(freq))) == NULL) die("find_next_MEKM: malloc fails\n");
-				s_freq->LEN  = m;
-				s_freq->SIZE = 1;				
-				HASH_ADD_INT(match_lens, LEN, s_freq);
-			}else{
-				s_freq->SIZE++;
-			}
-		}
-	}
+	//int i; for(i=0; i<s_kmer->count; i++){		
+	//	int _pos_exon; exon_tmp = pos_parser(s_kmer->pos[i], &_pos_exon);
+	//	if(exon_tmp == NULL || _pos_exon < 0) die("find_next_MEKM: pos_parser fails\n");
+	//	if((error = find_fasta(FASTA_HT, exon_tmp, &s_fasta)) != PR_ERR_NONE) die("find_next_MEKM: find_fasta fails\n");
+	//	if(s_fasta == NULL || s_fasta->seq == NULL || strlen(s_fasta->seq) < min_match) continue; //skip this match
+	//	int m = 0; while(*(s_fasta->seq + m + _pos_exon) == *(_read+ pos_read + m)){m ++;}
+	//	if(m >= min_match){
+	//		if(m>max_len){max_len=m; exon_max = strdup(exon_tmp);} // update max exon
+	//		HASH_FIND_INT(match_lens, &m, s_freq);	
+	//		// a new element
+	//		if(s_freq==NULL){
+	//			if((s_freq=(freq*)malloc(sizeof(freq))) == NULL) die("find_next_MEKM: malloc fails\n");
+	//			s_freq->LEN  = m;
+	//			s_freq->SIZE = 1;				
+	//			HASH_ADD_INT(match_lens, LEN, s_freq);
+	//		}else{
+	//			s_freq->SIZE++;
+	//		}
+	//	}
+	//}
 	/*------------------------------------------------------------*/	
 	HASH_FIND_INT(match_lens, &max_len, s_freq);	
 	if(s_freq == NULL) goto NO_MATCH; 
-	if(s_freq->SIZE==1){(*exon) = strdup(exon_max); goto SUCCESS;}
+	//if(s_freq->SIZE==1){(*exon) = strdup(exon_max); goto SUCCESS;}
+	if(s_freq->SIZE==1){(*exon) = NULL; goto SUCCESS;}
 	if(s_freq->SIZE>1){(*exon) = NULL; goto MANY_MATCH;}	
 	SUCCESS:
 		error = PR_ERR_NONE;
@@ -154,7 +154,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 	if((hits_uniq1 = malloc(MAX_READ_LEN * sizeof(char*)))==NULL) die("construct_BAG: malloc error\n");
 	if((hits_uniq2 = malloc(MAX_READ_LEN * sizeof(char*)))==NULL) die("construct_BAG: malloc error\n");
 	if((parts1 = calloc(3, sizeof(char *))) == NULL) die("construct_BAG: malloc error\n");
-	if((parts2 = calloc(3, sizeof(char *))) == NULL) die("construct_BAG: malloc error\n");				
+	if((parts2 = calloc(3, sizeof(char *))) == NULL) die("construct_BAG: malloc error\n");					
 	
 	fp1 = gzopen(fq_file1, "r");
 	fp2 = gzopen(fq_file2, "r");
@@ -202,26 +202,18 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		//		//}
 		//}}
 	}
-	printf("fsFSDFASDFASDF\n");
 	if(hits1) 		free(hits1);
 	if(hits2) 		free(hits2);
-
-	printf("fsFSDFASDFASDF\n");
 	if(hits_uniq1)  free(hits_uniq1);
 	if(hits_uniq2)  free(hits_uniq2);
-	printf("fsFSDFASDFASDF\n");
 	if(parts1)		free(parts1);
 	if(parts2)		free(parts2);
-	printf("fsFSDFASDFASDF\n");
 	if(gene1)		free(gene1);
 	if(gene2)		free(gene2);
-	printf("fsFSDFASDFASDF\n");
-	printf("fsFSDFASDFASDF\n");
 	kseq_destroy(seq1);
 	kseq_destroy(seq2);	
 	gzclose(fp1);
 	gzclose(fp2);
-	printf("fsFSDFASDFASDF\n");
 	return PR_ERR_NONE;
 }
 
