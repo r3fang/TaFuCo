@@ -16,7 +16,7 @@
 #include "common.h"
 #include "kmer_uthash.h"
 #include "BAG_uthash.h"
-
+#include "utils.h"
 
 
 /* error code */
@@ -26,17 +26,6 @@
 #define PR_ERR_POSPARSE			-3
 #define PR_ERR_FINDHASH			-4
 #define PR_ERR_UNDEFINED		-100 // fail to malloc memory uthash
-
-/*
- * error handling
- * all errors are returned as an integer code, and a string
- * amplifying the error is saved in here; this can then be
- * printed
- */
-char pr_errbuf[256] = "no error\n";	/* the error message buffer */
-#define ERRBUF(str)			(void) strncpy(qe_errbuf, str, sizeof(qe_errbuf))
-#define ERRBUF2(str,n)		(void) sprintf(qe_errbuf, str, n)
-#define ERRBUF3(str,n,m)	(void) sprintf(qe_errbuf, str, n, m)
 
 /*--------------------------------------------------------------------*/
 /*Global paramters.*/
@@ -125,25 +114,15 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 	goto SUCCESS;
 	
 	FAIL_PARAM:
-		ERRBUF("find_next_MEKM: invalid NULL parameter");
-		error = PR_ERR_PARAM;
-		goto EXIT;
+    	die ("find_next_MEKM: invalid NULL parameter");
 	FAIL_MALLOC:
-		ERRBUF("find_next_MEKM: fail to malloc memory");
-		error = PR_ERR_MALLOC;
-		goto EXIT;
+		die("find_next_MEKM: fail to malloc memory");
 	FAIL_POSPARSE:
-		ERRBUF("find_next_MEKM: fail to parse kmer match postion e.g. gene.exon19_101 ");
-		error = PR_ERR_POSPARSE;
-		goto EXIT;
+		die("find_next_MEKM: fail to parse kmer match postion");
 	FAIL_HASH_FIND:
-		ERRBUF("find_next_MEKM: fail to find element in uthahs");
-		error = PR_ERR_FINDHASH;
-		goto EXIT;	
+		die("find_next_MEKM: fail to find element in uthahs");	
 	FAIL_OTHER:
-		ERRBUF("find_next_MEKM: undefined error");
-		error = PR_ERR_UNDEFINED;
-		goto EXIT;	
+		die("find_next_MEKM: undefined error");	
 
 	NO_MATCH:
 		error = PR_ERR_NONE;
@@ -193,7 +172,7 @@ find_all_MEKMs(char **hits, int *num, char* _read, int _k, int min_match){
 	goto SUCCESS;
 /*--------------------------------------------------------------------*/	
 	FAIL_PARAM:
-		ERRBUF("find_all_MEKMs: invalid NULL parameter");
+		die("find_all_MEKMs: invalid NULL parameter");
 		error = PR_ERR_PARAM;
 		goto EXIT;
 
@@ -223,7 +202,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match){
 		char *_read2 = seq2->seq.s;
 		
 		if(strcmp(seq1->name.s, seq2->name.s) != 0){
-			ERRBUF("construct_BAG: read pair not matched");
+			die("construct_BAG: read pair not matched");
 			return NULL;
 		}			
 		
@@ -232,11 +211,11 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match){
 		
 		char **hits1, **hits2;
 		if((hits1 = malloc(strlen(_read1) * sizeof(char*)))==NULL){
-			ERRBUF("construct_BAG: malloc: no more memory");
+			die("construct_BAG: malloc: no more memory");
 			return NULL;
 		}
 		if((hits2 = malloc(strlen(_read2) * sizeof(char*)))==NULL){
-			ERRBUF("construct_BAG: malloc: no more memory");
+			die("construct_BAG: malloc: no more memory");
 			return NULL;
 		}
 		
@@ -258,11 +237,11 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match){
 		char** hits_uniq2 = malloc(num2 * sizeof(char*));  
 
 		if((hits_uniq1 = malloc(num1 * sizeof(char*)))==NULL){
-			ERRBUF("construct_BAG: malloc: no more memory");
+			die("construct_BAG: malloc: no more memory");
 			return NULL;
 		}
 		if((hits_uniq2 = malloc(num2 * sizeof(char*)))==NULL){
-			ERRBUF("construct_BAG: malloc: no more memory");
+			die("construct_BAG: malloc: no more memory");
 			return NULL;
 		}
 

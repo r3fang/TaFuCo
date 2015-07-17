@@ -40,10 +40,6 @@ typedef char BOOL ;
 #define FALSE 0
 #endif
 
-#include "array.h"
-#include "dict.h"
-#include "hash.h"
-
 void die (char *format, ...) ;
 void warn (char *format, ...) ;
 #define myalloc(n,type)	(type*)_myalloc((n)*sizeof(type))

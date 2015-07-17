@@ -8,6 +8,7 @@
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"
+#include "utils.h"
 
 /* error code */
 #define FA_ERR_NONE		     0 // no error
