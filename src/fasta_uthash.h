@@ -70,6 +70,7 @@ fasta_uthash_destroy(struct fasta_uthash **tb) {
 
 static inline int 
 find_fasta(struct fasta_uthash *tb, char* quary_name, struct fasta_uthash** s) {
+	*s = NULL;
 	if(*s != NULL || tb == NULL || quary_name == NULL) die("find_fasta: parameter error");
     HASH_FIND_STR(tb, quary_name, *s);  /* s: output pointer */
 	return FA_ERR_NONE;

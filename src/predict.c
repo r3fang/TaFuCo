@@ -39,66 +39,47 @@ static struct BAG_uthash *BAG_HT 		= NULL;
 int
 find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 	/*------------------------------------------------------------*/
+	/* check parameters */
+	*exon = NULL;
+	if(*exon != NULL || _read == NULL) die("find_next_MEKM: parameter error\n");	
+	/*------------------------------------------------------------*/
 	// parameters decleration
 	typedef struct freq{
 		int LEN;
 		size_t SIZE;
 	    UT_hash_handle hh;         /* makes this structure hashable */
 	} freq; 
-	freq* match_lens = NULL;
-	char* buff = NULL;	
-	char **matches = NULL;
-	int i = 0;
-	int num = 0;
-	char *exon_tmp = NULL;
-	char *exon_max = NULL;
-	int max_len = -10;
-	freq *s_freq = NULL;
-	freq *tmp = NULL;
-	int error;
-	/*------------------------------------------------------------*/
-	/* check parameters */
-	//if(_read == NULL || *exon != NULL) die("find_next_MEKM: parameter error\n");
-	if(_read == NULL) die("find_next_MEKM: parameter error\n");
-	*exon = NULL;
+	freq* match_lens = NULL; freq *s_freq = NULL; freq *tmp = NULL;	
+	char* buff = NULL; char *exon_tmp = NULL; char *exon_max = NULL; char **matches = NULL;
+	int num = 0; int max_len = -10; int error;
+	struct fasta_uthash *s_fasta = NULL;
+	struct kmer_uthash *s_kmer = NULL;
 	/*------------------------------------------------------------*/
 	/* copy a kmer of string */
 	if((buff = malloc((k+1) * sizeof(char)))==NULL) die("find_next_MEKM: malloc fails\n");
-	strncpy(buff, _read + pos_read, k);
-	buff[k] = '\0';	
+	strncpy(buff, _read + pos_read, k); buff[k] = '\0';	
 	if(buff == NULL || strlen(buff) != k) die("find_next_MEKM: buff strncpy fails\n");
 	/*------------------------------------------------------------*/
-	struct kmer_uthash *s_kmer;
 	if((error = find_kmer(KMER_HT, buff, &s_kmer)) != PR_ERR_NONE) die("find_next_MEKM: find_kmer fails\n");
-	if(s_kmer == NULL) goto SUCCESS;
+	if(s_kmer == NULL) goto SUCCESS; // kmer not in table
 	/*------------------------------------------------------------*/
-	if((matches = malloc(s_kmer->count * sizeof(char*)))==NULL) goto FAIL_MALLOC;	
+	if((matches = malloc(s_kmer->count * sizeof(char*)))==NULL) die("find_next_MEKM: malloc fails\n");	
 	/*------------------------------------------------------------*/
 	/*
 	 * iterate all kmer matches and extend to max length
 	 */
-	for(i=0; i<s_kmer->count; i++){		
-		int _pos_exon; // position on exon
-		exon_tmp = pos_parser(s_kmer->pos[i], &_pos_exon);
-		/* error report*/
-		if(exon_tmp == NULL || _pos_exon < 0) goto FAIL_POSPARSE;
-		
-		struct fasta_uthash *s_fasta = NULL;
+	int i; for(i=0; i<s_kmer->count; i++){		
+		int _pos_exon; exon_tmp = pos_parser(s_kmer->pos[i], &_pos_exon);
+		if(exon_tmp == NULL || _pos_exon < 0) die("find_next_MEKM: pos_parser fails\n");
 		if((error = find_fasta(FASTA_HT, exon_tmp, &s_fasta)) != PR_ERR_NONE) die("find_next_MEKM: find_fasta fails\n");
-		if(s_fasta == NULL) continue;
-		int m = 0;
-		/* extending kmer to find MPM */
-		while(*(s_fasta->seq + m + _pos_exon) == *(_read+ pos_read + m)){
-			m ++;
-		}
+		if(s_fasta == NULL || s_fasta->seq == NULL || strlen(s_fasta->seq) < min_match) continue; //skip this match
+		int m = 0; while(*(s_fasta->seq + m + _pos_exon) == *(_read+ pos_read + m)){m ++;}
 		if(m >= min_match){
-			if(m>max_len){
-				max_len=m;
-				exon_max = strdup(exon_tmp);
-			}
+			if(m>max_len){max_len=m; exon_max = strdup(exon_tmp);} // update max exon
 			HASH_FIND_INT(match_lens, &m, s_freq);	
+			// a new element
 			if(s_freq==NULL){
-				if((s_freq=(freq*)malloc(sizeof(freq))) == NULL) goto FAIL_MALLOC;
+				if((s_freq=(freq*)malloc(sizeof(freq))) == NULL) die("find_next_MEKM: malloc fails\n");
 				s_freq->LEN  = m;
 				s_freq->SIZE = 1;				
 				HASH_ADD_INT(match_lens, LEN, s_freq);
@@ -110,38 +91,29 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 	/*------------------------------------------------------------*/	
 	HASH_FIND_INT(match_lens, &max_len, s_freq);	
 	if(s_freq == NULL) goto NO_MATCH; 
-	if(s_freq->SIZE==1){
-		*exon = strdup(exon_max);
-	}
-	goto SUCCESS;
-	
-	FAIL_PARAM:
-    	die("find_next_MEKM: invalid NULL parameter");
-	FAIL_MALLOC:
-		die("find_next_MEKM: fail to malloc memory");
-	FAIL_POSPARSE:
-		die("find_next_MEKM: fail to parse kmer match postion");
-	FAIL_HASH_FIND:
-		die("find_next_MEKM: fail to find element in uthahs");	
-	FAIL_OTHER:
-		die("find_next_MEKM: undefined error");	
-	NO_MATCH:
-		error = PR_ERR_NONE;
-		goto EXIT;
-		
+	if(s_freq->SIZE==1){(*exon) = strdup(exon_max); goto SUCCESS;}
+	if(s_freq->SIZE>1){(*exon) = NULL; goto MANY_MATCH;}	
 	SUCCESS:
 		error = PR_ERR_NONE;
 		goto EXIT;
-
+	NO_MATCH:
+		error = PR_ERR_NONE;
+		goto EXIT;
+	MANY_MATCH:
+		error = PR_ERR_NONE;
+		goto EXIT;
+		
 	EXIT:		
-		if(buff) 		free(buff);
-		if(matches) 	free(matches);		
-		if(exon_max) 	free(exon_max);	
-		if(exon_tmp) 	free(exon_tmp);	
 		HASH_ITER(hh, match_lens, s_freq, tmp) {
 			HASH_DEL(match_lens, s_freq);
-      		free(s_freq);
+  			free(s_freq);
 		}
+		if(s_freq)		free(s_freq);
+		if(tmp)			free(tmp);
+		if(buff) 		free(buff);
+		if(exon_max) 	free(exon_max);	
+		if(exon_tmp) 	free(exon_tmp);	
+		if(matches)		free(matches);
 		return error;
 }
 /*--------------------------------------------------------------------*/
@@ -203,7 +175,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		int num2=0;
 		if((error=find_all_MEKMs(hits1, &num1, _read1, _k, min_match)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
 		if((error=find_all_MEKMs(hits2, &num2, _read2, _k, min_match)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
-		
+		printf("%d\t%d\n", num1, num2);
 		
 		//printf("%d\t%d\n", num1, num2);
 		//size_t size1 = set_str_arr(hits1, hits_uniq1, num1);
@@ -272,10 +244,12 @@ int main(int argc, char *argv[]) {
 	/* load fasta_uthash table */
 	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) 			   die("main: fasta_uthash_load fails\n");	
 	if((error=construct_BAG(fq_file1, fq_file2, k, min_mtch, &BAG_HT)) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
+	
 	if((error=kmer_uthash_destroy(&KMER_HT))   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
+	//if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
+	
 	//if((error=BAG_uthash_destroy(&BAG_HT))     != PR_ERR_NONE) 						   die("main: BAG_uthash_destroy\n");	
-	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
-	//if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_display fails\n");	
+	if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_display fails\n");	
 	//if((error=BAG_uthash_display(BAG_HT)) != PR_ERR_NONE) 				die("main: BAG_uthash_display fails\n");		
 	return 0;
 }
