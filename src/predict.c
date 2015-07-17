@@ -352,12 +352,14 @@ int main(int argc, char *argv[]) {
 		exit(-1);		
 	}		
 	/* load fasta_uthash table */
-	FASTA_HT = fasta_uthash_load(fasta_file);
-	if(FASTA_HT == NULL){
-		fprintf(stderr, "Fail to load fasta_uthash table\n");
-		exit(-1);		
+	if((error=fasta_uthash_load(fasta_file, &FASTA_HT))<0){
+		fprintf(stderr, "Fail to load fasta_uthash table: error=%d\n", error);
+		exit(-1);				
 	}
-	BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
+	
+	fasta_uthash_display(FASTA_HT);	
+	
+	//BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
 	kmer_uthash_destroy(&KMER_HT);	
 	fasta_uthash_destroy(&FASTA_HT);	
 

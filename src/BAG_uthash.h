@@ -9,6 +9,7 @@
 #include <string.h>  /* strcpy */
 #include <zlib.h> 
 #include <assert.h>
+#include "common.h"
 
 /* error code */
 #define BA_ERR_NONE		     0 // no error

@@ -5,12 +5,16 @@
 #include <stdlib.h>  /* atoi, malloc */
 #include <string.h>  /* strcpy */
 #include <zlib.h>  
-#include <assert.h>
 #include "uthash.h"
-#include "common.h"
 #include "kseq.h"
+#include "common.h"
 
-//KSEQ_INIT(gzFile, gzread);
+/* error code */
+#define FA_ERR_NONE		     0 // no error
+#define FA_ERR_PARAM		-1 // bad paraemter
+#define FA_ERR_HASHITER		-2 // fail to iterate uthash
+#define FA_ERR_MALLOC		-3 // fail to malloc memory uthash
+#define FA_ERR_FILE 		-4 // fail to malloc memory uthash
 
 struct fasta_uthash {
     char* name;                /* key */
@@ -18,32 +22,44 @@ struct fasta_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-static inline struct fasta_uthash* fasta_uthash_load(char *fname){
+static inline int 
+fasta_uthash_load(char *fname, struct fasta_uthash **tb){
 	gzFile fp;
 	kseq_t *seq;
 	int l;
-	struct fasta_uthash *res = NULL;
+	int error;
+	if(*tb != NULL || fname == NULL) goto FAIL_PARAM; 
 	fp = gzopen(fname, "r");
-	if(fp == NULL){
-		return NULL;
-	}
-	seq = kseq_init(fp);
+	if(fp == NULL) goto FAIL_FILE;		
+	struct fasta_uthash *s;	
+	if((seq = kseq_init(fp))==NULL) goto FAIL_MALLOC;
+
 	while ((l = kseq_read(seq)) >= 0){
-		struct fasta_uthash *s = malloc(sizeof(struct fasta_uthash));
-		if(s == NULL)
+		if((s = malloc(sizeof(struct fasta_uthash))) == NULL) goto FAIL_MALLOC;
+		if(seq->name.s == NULL || seq->seq.s==NULL)
 			continue;
-		char *name = seq->name.s;
-		char *_seq = seq->seq.s;
-		char *_seq_upper = strToUpper(_seq);
-		if(name==NULL || _seq==NULL || _seq_upper==NULL)
-			continue;
-		s->name = strdup(name);
-		s->seq = strdup(_seq_upper);
-		HASH_ADD_STR(res, name, s);
+		s->name = strdup(seq->name.s);
+		s->seq = strToUpper(seq->seq.s);
+		HASH_ADD_STR(*tb, name, s);
 	}	
-	kseq_destroy(seq);
-	gzclose(fp);
-	return res;
+	goto SUCCESS;
+	
+	FAIL_PARAM:
+		error = FA_ERR_PARAM;
+		return error;
+	FAIL_FILE:
+		error = FA_ERR_FILE;
+		return error;
+	FAIL_MALLOC:
+		error = FA_ERR_MALLOC;
+		goto EXIT;
+	SUCCESS:
+		error = FA_ERR_NONE;
+		goto EXIT;
+	EXIT:
+		if(seq) kseq_destroy(seq);
+		gzclose(fp);
+		return error;
 }
 
 static inline void
