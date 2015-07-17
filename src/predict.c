@@ -114,7 +114,7 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 	goto SUCCESS;
 	
 	FAIL_PARAM:
-    	die ("find_next_MEKM: invalid NULL parameter");
+    	die("find_next_MEKM: invalid NULL parameter");
 	FAIL_MALLOC:
 		die("find_next_MEKM: fail to malloc memory");
 	FAIL_POSPARSE:
@@ -309,48 +309,31 @@ int main(int argc, char *argv[]) {
 	char *fq_file1 = argv[2];
 	char *fq_file2 = argv[3];
 	int min_mtch;		
-	if (sscanf (argv[4], "%d", &min_mtch)!=1) { printf ("error - not an integer");}
+	if (sscanf (argv[4], "%d", &min_mtch)!=1) die("Input error: wrong type for k\n");
 	/* load kmer hash table in the memory */
 	
 	int error;
 	///* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
-	if(index_file == NULL)
-		return -1;
+	if(index_file == NULL) die("Fail to concate index_file\n");
 	
-	//printf("loading kmer uthash table ...\n");
 	int k;
 	KMER_HT = kmer_uthash_load(index_file, &k);	
-	if(KMER_HT == NULL){
-		fprintf(stderr, "Fail to load kmer_uthash table\n");
-		exit(-1);		
-	}
+	if(KMER_HT == NULL) die("Fail to load the index\n");
+
 	/* MAX_K is defined in common.h */
-	if(k > MAX_K){
-		fprintf(stderr, "input k(%d) greater than allowed lenght - 100\n", k);
-		exit(-1);		
-	}		
-	/* load fasta_uthash table */
-	if((error=fasta_uthash_load(fasta_file, &FASTA_HT))<0){
-		fprintf(stderr, "Fail to load fasta_uthash table: error=%d\n", error);
-		exit(-1);				
-	}
+	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);
 	
-	fasta_uthash_display(FASTA_HT);	
+	/* load fasta_uthash table */
+	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) die("Fail to load the fasta uthash\n");	
+	if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) die("Fails to display fasta uthash");	
+	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) die("Fail to destory the fasta uthash\n");		
+	if((error=BAG_uthash_display(BAG_HT)) != PR_ERR_NONE) die("fails to display BAG_uthash; error=%d\n", error);	
+	if((error=BAG_uthash_destroy(&BAG_HT))!= PR_ERR_NONE) die("fails to destory BAG_uthahs with error=%d\n", error);
 	
 	//BAG_HT = construct_BAG(fq_file1, fq_file2, k, min_mtch);	
 	kmer_uthash_destroy(&KMER_HT);	
-	fasta_uthash_destroy(&FASTA_HT);	
-
-	if((error=BAG_uthash_display(BAG_HT))!=0){
-		fprintf(stderr, "fails to display BAG_uthash; error=%d\n", error);
-		exit(-1);				
-	};	
 	
-	if((error=BAG_uthash_destroy(&BAG_HT))!=0){
-		fprintf(stderr, "fails to destory BAG_uthahs with error=%d\n", error);
-		exit(-1);		
-	}	
 	return 0;
 }
 
