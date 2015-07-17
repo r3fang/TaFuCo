@@ -23,6 +23,7 @@ struct kmer_uthash {
 
 static inline int
 find_kmer(struct kmer_uthash *tb, char* quary_kmer, struct kmer_uthash **s) {
+	*s = NULL;
     if(tb == NULL || quary_kmer == NULL || *s != NULL) die("find_kmer: parameter error\n");
 	HASH_FIND_STR(tb, quary_kmer, *s);  /* s: output pointer */
     return KM_ERR_NONE;
@@ -63,7 +64,7 @@ kmer_uthash_load(char *fname, int *k, struct kmer_uthash** htable){
 	gzFile fp;  kseq_t *seq; int l;
 	
 	if ((fp = gzopen(fname, "r")) == NULL) die("Can't open input file %s!\n", fname);
-	if ((seq = kseq_init(fp))) die("kmer_uthash_load: kseq_init fails\n"); // STEP 3: initialize seq  
+	if ((seq = kseq_init(fp)) == NULL) die("kmer_uthash_load: kseq_init fails\n"); // STEP 3: initialize seq  
 	
 	while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence 
 		/* add kmer */

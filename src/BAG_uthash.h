@@ -61,7 +61,6 @@ BAG_uthash_destroy(struct BAG_uthash **table) {
 static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 	int error;
 	if(graph_ht == NULL) die("BAG_uthash_display: parameter error\n");
-
 	/*free the kmer_hash table*/
 	register struct BAG_uthash *cur, *tmp;
 	HASH_ITER(hh, graph_ht, cur, tmp) {
@@ -80,9 +79,8 @@ static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
  */
 static inline int 
 BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
-
 	/* check parameters */
-	if(*graph_ht == NULL || edge_name == NULL || evidence == NULL) die("BAG_uthash_add: parameter error\n");
+	if(edge_name == NULL || evidence == NULL) die("BAG_uthash_add: parameter error\n");
 	register struct BAG_uthash *s;
 	HASH_FIND_STR(*graph_ht, edge_name, s);
 	if(s==NULL){
