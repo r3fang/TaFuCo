@@ -62,6 +62,7 @@ fasta_uthash_destroy(struct fasta_uthash **tb) {
 	if(*tb == NULL) die("fasta_uthash_destroy: parameter error\n");
 	struct fasta_uthash *cur, *tmp;
 	HASH_ITER(hh, *tb, cur, tmp) {
+		if(cur == NULL) die("fasta_uthash_destroy: HASH_ITER fails\n");
 		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
 		free(cur);            /* free it */
 	}
