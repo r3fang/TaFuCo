@@ -30,25 +30,25 @@ static struct BAG_uthash *BAG_HT 		= NULL;
 
 /* Find next Maximal Extended Kmer Match (MEKM) on _read at pos_read. */
 int
-find_next_MEKM(char **exon, char *_read, int pos_read, int k){
+find_next_match(char **exon, char *_read, int pos_read, int k){
 	/*------------------------------------------------------------*/
 	/* check parameters and force *exon be NULL */
-	*exon = NULL; if(*exon != NULL || _read == NULL) die("find_next_MEKM: parameter error\n");	
+	*exon = NULL; if(*exon != NULL || _read == NULL) die("find_next_match: parameter error\n");	
 	/*------------------------------------------------------------*/
 	char* buff = NULL; int error;
 	struct kmer_uthash *s_kmer = NULL;   //CAN'T BE FREED !!
 	/*------------------------------------------------------------*/
 	/* copy a kmer of string */
-	if((buff = malloc((k+1) * sizeof(char)))==NULL) die("find_next_MEKM: malloc fails\n");
+	if((buff = malloc((k+1) * sizeof(char)))==NULL) die("find_next_match: malloc fails\n");
 	strncpy(buff, _read + pos_read, k); buff[k] = '\0';	
-	if(buff == NULL || strlen(buff) != k) die("find_next_MEKM: buff strncpy fails\n");
+	if(buff == NULL || strlen(buff) != k) die("find_next_match: buff strncpy fails\n");
 	/*------------------------------------------------------------*/
-	if((error = find_kmer(KMER_HT, buff, &s_kmer)) != PR_ERR_NONE) die("find_next_MEKM: find_kmer fails\n");
+	if((error = find_kmer(KMER_HT, buff, &s_kmer)) != PR_ERR_NONE) die("find_next_match: find_kmer fails\n");
 	if(s_kmer == NULL) {(*exon)=NULL; goto NO_MATCH;} // kmer not in table but not an error
 	/*------------------------------------------------------------*/
 	if(s_kmer->count == 1){
 		int _pos_exon; (*exon) = pos_parser(s_kmer->pos[0], &_pos_exon);
-		if((*exon) == NULL || _pos_exon < 0) die("find_next_MEKM: pos_parser fails\n");
+		if((*exon) == NULL || _pos_exon < 0) die("find_next_match: pos_parser fails\n");
 		goto SUCCESS;
 	}else{(*exon) = NULL; goto MANY_MATCH;}	
 	/*------------------------------------------------------------*/	
@@ -80,7 +80,7 @@ find_all_MEKMs(char **hits, int *num, char* _read, int _k, int min_match){
 	char* _exon = NULL;
 /*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k-1)){
-		if((error=find_next_MEKM(&_exon, _read, _read_pos++, _k)) != PR_ERR_NONE) die("find_all_MEKMs: find_next_MEKM fails\n");
+		if((error=find_next_match(&_exon, _read, _read_pos++, _k)) != PR_ERR_NONE) die("find_all_MEKMs: find_next_MEKM fails\n");
 		if (_exon != NULL){hits[*num] = strdup(_exon); (*num)++;}
 	}
 	if(_exon) free(_exon);
