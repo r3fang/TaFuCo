@@ -150,39 +150,20 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 int
 find_all_MEKMs(char **hits, int *num, char* _read, int _k, int min_match){
 /*--------------------------------------------------------------------*/
+	/* check parameters */
+	if(_read == NULL || hits == NULL || _k < 0 || min_match < 0) die("find_all_MEKMs: parameter error\n");
+/*--------------------------------------------------------------------*/
 	/* declare vaiables */
-	int error;
-	int _read_pos = 0;
+	int error, _read_pos = 0;
 	*num = 0; 
 	char* _exon = NULL;
 /*--------------------------------------------------------------------*/
-	/* check parameters */
-	if(_read == NULL || hits == NULL || _k < 0 || min_match < 0) goto FAIL_PARAM;
-/*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k-1)){
-		if((error=find_next_MEKM(&_exon, _read, _read_pos++, _k, min_match)) < 0){
-		    fprintf(stderr, "find_all_MEKMs: error=%d\n", error);  
-			exit(-1);
-		}
-		if (_exon != NULL){
-			hits[*num] = strdup(_exon);
-			(*num)++;
-		}
+		if((error=find_next_MEKM(&_exon, _read, _read_pos++, _k, min_match)) != PR_ERR_NONE) die("find_all_MEKMs: find_next_MEKM fails\n");
+		if (_exon != NULL){hits[*num] = strdup(_exon); (*num)++;}
 	}
-	goto SUCCESS;
-/*--------------------------------------------------------------------*/	
-	FAIL_PARAM:
-		die("find_all_MEKMs: invalid NULL parameter");
-		error = PR_ERR_PARAM;
-		goto EXIT;
-
-	SUCCESS:
-		error = PR_ERR_NONE;
-		goto EXIT;
-
-	EXIT:
-		if(_exon) 	free(_exon);	
-		return error;
+	if(_exon) free(_exon);
+	return PR_ERR_NONE;
 }
 
 /* Construct breakend associated graph by given fq files.             */
@@ -222,36 +203,31 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		int num2=0;
 		if((error=find_all_MEKMs(hits1, &num1, _read1, _k, min_match)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
 		if((error=find_all_MEKMs(hits2, &num2, _read2, _k, min_match)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
-		printf("%d\t%d\n", num1, num2);
-		size_t size1 = set_str_arr(hits1, hits_uniq1, num1);
-		size_t size2 = set_str_arr(hits2, hits_uniq2, num2);
-		int i, j;
-		for(i=0; i<size1; i++){
-			for(j=0; j<size2; j++){
-				size_t len1 = strsplit_size(hits_uniq1[i], ".");
-				size_t len2 = strsplit_size(hits_uniq2[j], ".");
-				strsplit(hits_uniq1[i], len1, parts1, ".");  
-				strsplit(hits_uniq2[j], len2, parts2, ".");  
-				if(parts1[0] == NULL || parts2[0] == NULL){
-					continue;
-				}
-				gene1 = strdup(parts1[0]);
-				gene2 = strdup(parts2[0]);
-				//printf("%s\t%s\n", gene1, gene2);
-				int rc = strcmp(gene1, gene2);
-				if(rc<0)
-					edge_name = concat(concat(gene1, "_"), gene2);
-				if(rc>0)
-					edge_name = concat(concat(gene2, "_"), gene1);
-				if(rc==0)
-					edge_name = NULL;
-				if(edge_name!=NULL){
-					//printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
-					//if((error = BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2))) != PR_ERR_NONE)
-					//	die("BAG_uthash_add fails\n");					
-				}
-			}
-		}
+		
+		
+		//printf("%d\t%d\n", num1, num2);
+		//size_t size1 = set_str_arr(hits1, hits_uniq1, num1);
+		//size_t size2 = set_str_arr(hits2, hits_uniq2, num2);
+		//int i, j; for(i=0; i<size1; i++){ for(j=0; j<size2; j++){
+		//		size_t len1 = strsplit_size(hits_uniq1[i], ".");
+		//		size_t len2 = strsplit_size(hits_uniq2[j], ".");
+		//		strsplit(hits_uniq1[i], len1, parts1, ".");  
+		//		strsplit(hits_uniq2[j], len2, parts2, ".");  
+		//		printf("%s\t%s\n", hits_uniq1[i], hits_uniq1[j]);
+		//		if(parts1[0] == NULL || parts2[0] == NULL) continue;
+		//		gene1 = strdup(parts1[0]);
+		//		gene2 = strdup(parts2[0]);
+		//		//printf("%s\t%s\n", gene1, gene2);
+		//		int rc = strcmp(gene1, gene2);
+		//		if(rc<0)  edge_name = concat(concat(gene1, "_"), gene2);
+		//		if(rc>0)  edge_name = concat(concat(gene2, "_"), gene1);
+		//		if(rc==0) edge_name = NULL;
+		//		//if(edge_name!=NULL){
+		//		//	printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
+		//			//if((error = BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2))) != PR_ERR_NONE)
+		//			//	die("BAG_uthash_add fails\n");					
+		//		//}
+		//}}
 	}
 	if(hits1) 		free(hits1);
 	if(hits2) 		free(hits2);
