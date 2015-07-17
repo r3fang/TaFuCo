@@ -83,7 +83,7 @@ find_next_MEKM(char **exon, char *_read, int pos_read, int k, int min_match){
 		if(exon_tmp == NULL || _pos_exon < 0) goto FAIL_POSPARSE;
 		
 		struct fasta_uthash *s_fasta;
-		if((s_fasta = find_fasta(exon_tmp, FASTA_HT)) == NULL) goto SUCCESS;
+		if((error = find_fasta(FASTA_HT, exon_tmp, &s_fasta)) != PR_ERR_NONE) die("find_next_MEKM: find_fasta fails\n");
 		int m = 0;
 		/* extending kmer to find MPM */
 		while(*(s_fasta->seq + m + _pos_exon) == *(_read+ pos_read + m)){
