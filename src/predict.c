@@ -28,8 +28,35 @@ static struct kmer_uthash *KMER_HT  	= NULL;
 static struct fasta_uthash *FASTA_HT 	= NULL;
 static struct BAG_uthash *BAG_HT 		= NULL;
 /*--------------------------------------------------------------------*/
+
+typedef struct
+{
+	char 	*KEY;
+	size_t  SIZE;
+	UT_hash_handle hh;
+} str_ctr;
+
+int str_ctr_add(str_ctr** tb, char* key){
+	if(key == NULL) die("str_ctr_add: prameter error\n");
+	str_ctr *s;
+	HASH_FIND_STR(*tb, key, s);
+	if(s == NULL){
+		s = mycalloc(1, str_ctr);
+		s->KEY = key;
+		s->SIZE = 1;
+		HASH_ADD_STR(*tb, KEY, s);
+	}else{
+		s->SIZE++;
+	}
+	return PR_ERR_NONE;
+}
+
+int str_ctr_sort(str_ctr *a, str_ctr *b) {
+    return (a->SIZE >= b->SIZE);
+}
+
 char* 
-get_exon_name(char* s){
+get_gene_name(char* s){
 	if(s == NULL) die("get_exon_name: parameter error\n");
 	const char delim[2] = ".";
 	char *token;
@@ -40,34 +67,39 @@ get_exon_name(char* s){
 }
 /* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
 int
-find_all_MEKMs(char **hits, int *num, char* _read, int _k){
+find_all_MEKMs(int *num, char* _read, int _k){
 /*--------------------------------------------------------------------*/
 	/* check parameters */
-	if(_read == NULL || hits == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
+	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
 /*--------------------------------------------------------------------*/
 	/* declare vaiables */
+	str_ctr *hash = NULL;
+	str_ctr *s, *tmp;
+	
 	int error, _read_pos = 0;
 	*num = 0; 
-	char* _exon = NULL;
+	char* gene = NULL;
 	struct kmer_uthash *s_kmer = NULL; 
 	char buff[_k];
 /*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k-1)){
 		/* copy a kmer of string */
 		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
-		if(buff == NULL || strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
+		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
 		/*------------------------------------------------------------*/
-		if((error = find_kmer(KMER_HT, buff, &s_kmer)) != PR_ERR_NONE) die("find_next_match: find_kmer fails\n");
+		if(find_kmer(KMER_HT, buff, &s_kmer) != PR_ERR_NONE) die("find_next_match: find_kmer fails\n");
 		if(s_kmer == NULL){_read_pos++; continue;} // kmer not in table but not an error
 		if(s_kmer->count == 1){
-			_exon = get_exon_name(strdup(s_kmer->pos[0]));
-			if(_exon == NULL) die("find_next_match: get_exon_name fails\n");
-			hits[*num] = _exon;
-			_read_pos++;
 			(*num)++;
-		}else{
-			_read_pos++; continue;
-		}			
+			gene = get_gene_name(strdup(s_kmer->pos[0]));
+			if(gene == NULL) die("find_next_match: get_exon_name fails\n");
+			if(str_ctr_add(&hash, gene) != PR_ERR_NONE) die("find_all_MEKMs: str_ctr_add fails\n");
+		}
+		_read_pos++;
+	}
+	HASH_SORT(hash, str_ctr_sort);
+	HASH_ITER(hh, hash, s, tmp) {
+	    printf("KEY=%s: %zu\n", s->KEY, s->SIZE);
 	}
 	return PR_ERR_NONE;
 }
@@ -81,15 +113,10 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 	kseq_t *seq1, *seq2;
 	int l1, l2;
 	char** hits_uniq1, **hits_uniq2, **hits1, **hits2, **parts1, **parts2;
-	char *_read1, *_read2, *edge_name, *gene1, *gene2;
+	char *_read1, *_read2, *edge_name, *gene1, *gene2;	
 	hits_uniq1 = hits_uniq2 = hits1 = hits2 = parts1 = parts2 = NULL;
 	_read1 = _read2 = edge_name = gene1 = gene2 = NULL;
-	
-	//if((hits_uniq1 = malloc(MAX_READ_LEN * sizeof(char*)))==NULL) die("construct_BAG: malloc error\n");
-	//if((hits_uniq2 = malloc(MAX_READ_LEN * sizeof(char*)))==NULL) die("construct_BAG: malloc error\n");
-	//if((parts1 = calloc(3, sizeof(char *))) == NULL) die("construct_BAG: malloc error\n");
-	//if((parts2 = calloc(3, sizeof(char *))) == NULL) die("construct_BAG: malloc error\n");					
-	
+		
 	fp1 = gzopen(fq_file1, "r");
 	fp2 = gzopen(fq_file2, "r");
 	seq1 = kseq_init(fp1);
@@ -98,22 +125,22 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 	if(fp1 == NULL || fp2 == NULL || seq1 == NULL || seq2 == NULL) die("construct_BAG: fail to read fastq files\n");
 	
 	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
-		
-		_read1 = rev_com(seq1->seq.s);
-		_read2 = seq2->seq.s;
-		if((hits1 = malloc(strlen(_read1) * sizeof(char*))) == NULL) die("construct_BAG: malloc error\n");
-		if((hits2 = malloc(strlen(_read2) * sizeof(char*))) == NULL) die("construct_BAG: malloc error\n");
-		
+		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
+		_read2 = seq2->seq.s;		
 		if(_read1 == NULL || _read2 == NULL) die("construct_BAG: fail to get _read1 and _read2\n");
-		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("construct_BAG: read pair not matched\n");
-				
-		if(strlen(_read1) < _k || strlen(_read2) < _k){
-			continue;
-		}
-		int num1=0;
-		int num2=0;
-		if((error=find_all_MEKMs(hits1, &num1, _read1, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
-		if((error=find_all_MEKMs(hits2, &num2, _read2, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
+		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("construct_BAG: read pair not matched\n");		
+		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
+		int num1, num2;
+		printf("%s\t%s\n", seq1->name.s, seq2->name.s);
+		str_ctr* gene_counter = NULL;
+		find_all_MEKMs(&num1, _read1, _k);
+		find_all_MEKMs(&num2, _read2, _k);
+		
+		//hits1 = mycalloc(strlen(_read1), char*);
+		//hits2 = mycalloc(strlen(_read2), char*);
+		//int num1=0;if((error=find_all_MEKMs(hits1, &num1, _read1, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
+		//int num2=0;if((error=find_all_MEKMs(hits2, &num2, _read2, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");				
+		
 		if(hits1) 		free(hits1);
 		if(hits2) 		free(hits2);
 		
@@ -172,15 +199,18 @@ int main(int argc, char *argv[]) {
 	///* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
 	if(index_file == NULL) die("Fail to concate index_file\n");	
+	
+	
+	
 	int k; if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE) die("main: kmer_uthash_load fails\n");	
 	timeUpdate();
-
+    
 	if(KMER_HT == NULL) die("Fail to load the index\n");
 	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);	
 	/* load fasta_uthash table */
 	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) 			   die("main: fasta_uthash_load fails\n");	
 	timeUpdate();
-
+    
 	if((error=construct_BAG(fq_file1, fq_file2, k, min_mtch, &BAG_HT)) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
 	timeUpdate();
 	

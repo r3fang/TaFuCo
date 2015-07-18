@@ -65,7 +65,7 @@ static int hashString (char *cp, int n, int isDiff)
 
 DICT *dictCreate (int size)
 {
-  DICT *dict = mycalloc (1,DICT) ;
+  DICT *dict = mycalloc (1, DICT) ;
 
   for (dict->dim = 10, dict->size = 1024 ; dict->size < size ; ++dict->dim, dict->size *= 2) ;
   dict->table = mycalloc (dict->size, int) ;
@@ -124,7 +124,7 @@ int dictFind (DICT *dict, char *s, int *ip)
 
 int dictAdd (DICT *dict, char *s, int *ip)
 {
-  int i, x ;
+  int i, x;
 
   if (dictFind (dict, s, ip)) return 0 ;
 
