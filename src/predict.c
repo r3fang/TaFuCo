@@ -114,7 +114,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		int num2=0;
 		if((error=find_all_MEKMs(hits1, &num1, _read1, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
 		if((error=find_all_MEKMs(hits2, &num2, _read2, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
-		printf("%d\t%d\n", num1, num2);
 		if(hits1) 		free(hits1);
 		if(hits2) 		free(hits2);
 		
@@ -169,18 +168,21 @@ int main(int argc, char *argv[]) {
 	int min_mtch;		
 	if (sscanf (argv[4], "%d", &min_mtch)!=1) die("Input error: wrong type for k\n");
 	/* load kmer hash table in the memory */
-	
 	int error;
 	///* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
-	if(index_file == NULL) die("Fail to concate index_file\n");
-	
+	if(index_file == NULL) die("Fail to concate index_file\n");	
 	int k; if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE) die("main: kmer_uthash_load fails\n");	
+	timeUpdate();
+
 	if(KMER_HT == NULL) die("Fail to load the index\n");
 	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);	
 	/* load fasta_uthash table */
 	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) 			   die("main: fasta_uthash_load fails\n");	
+	timeUpdate();
+
 	if((error=construct_BAG(fq_file1, fq_file2, k, min_mtch, &BAG_HT)) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
+	timeUpdate();
 	
 	if((error=kmer_uthash_destroy(&KMER_HT))   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
 	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
