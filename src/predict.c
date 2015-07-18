@@ -67,17 +67,14 @@ get_gene_name(char* s){
 }
 /* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
 int
-find_all_MEKMs(int *num, char* _read, int _k){
+find_all_MEKMs(str_ctr **hash, char* _read, int _k){
 /*--------------------------------------------------------------------*/
 	/* check parameters */
 	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
 /*--------------------------------------------------------------------*/
 	/* declare vaiables */
-	str_ctr *hash = NULL;
-	str_ctr *s, *tmp;
-	
-	int error, _read_pos = 0;
-	*num = 0; 
+	str_ctr *s;
+	int _read_pos = 0;
 	char* gene = NULL;
 	struct kmer_uthash *s_kmer = NULL; 
 	char buff[_k];
@@ -90,16 +87,11 @@ find_all_MEKMs(int *num, char* _read, int _k){
 		if(find_kmer(KMER_HT, buff, &s_kmer) != PR_ERR_NONE) die("find_next_match: find_kmer fails\n");
 		if(s_kmer == NULL){_read_pos++; continue;} // kmer not in table but not an error
 		if(s_kmer->count == 1){
-			(*num)++;
 			gene = get_gene_name(strdup(s_kmer->pos[0]));
 			if(gene == NULL) die("find_next_match: get_exon_name fails\n");
-			if(str_ctr_add(&hash, gene) != PR_ERR_NONE) die("find_all_MEKMs: str_ctr_add fails\n");
+			if(str_ctr_add(hash, gene) != PR_ERR_NONE) die("find_all_MEKMs: str_ctr_add fails\n");
 		}
 		_read_pos++;
-	}
-	HASH_SORT(hash, str_ctr_sort);
-	HASH_ITER(hh, hash, s, tmp) {
-	    printf("KEY=%s: %zu\n", s->KEY, s->SIZE);
 	}
 	return PR_ERR_NONE;
 }
@@ -112,9 +104,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 	gzFile fp1, fp2;
 	kseq_t *seq1, *seq2;
 	int l1, l2;
-	char** hits_uniq1, **hits_uniq2, **hits1, **hits2, **parts1, **parts2;
 	char *_read1, *_read2, *edge_name, *gene1, *gene2;	
-	hits_uniq1 = hits_uniq2 = hits1 = hits2 = parts1 = parts2 = NULL;
 	_read1 = _read2 = edge_name = gene1 = gene2 = NULL;
 		
 	fp1 = gzopen(fq_file1, "r");
@@ -130,20 +120,21 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		if(_read1 == NULL || _read2 == NULL) die("construct_BAG: fail to get _read1 and _read2\n");
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("construct_BAG: read pair not matched\n");		
 		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
-		int num1, num2;
-		printf("%s\t%s\n", seq1->name.s, seq2->name.s);
+		//printf("%s\t%s\n", seq1->name.s, seq2->name.s);
 		str_ctr* gene_counter = NULL;
-		find_all_MEKMs(&num1, _read1, _k);
-		find_all_MEKMs(&num2, _read2, _k);
+		str_ctr *s, *tmp;
+		find_all_MEKMs(&gene_counter, _read1, _k);
+		find_all_MEKMs(&gene_counter, _read2, _k);
 		
-		//hits1 = mycalloc(strlen(_read1), char*);
-		//hits2 = mycalloc(strlen(_read2), char*);
-		//int num1=0;if((error=find_all_MEKMs(hits1, &num1, _read1, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
-		//int num2=0;if((error=find_all_MEKMs(hits2, &num2, _read2, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");				
-		
-		if(hits1) 		free(hits1);
-		if(hits2) 		free(hits2);
-		
+		HASH_SORT(gene_counter, str_ctr_sort);
+		unsigned int num;
+		num = HASH_COUNT(gene_counter);
+		if(num > 1){
+			HASH_ITER(hh, gene_counter, s, tmp) {
+			    printf("KEY=%s: SIZE=%zu\n", s->KEY, s->SIZE);
+			}			
+		}		
+		if(gene_counter) free(gene_counter);
 		//printf("%d\t%d\n", num1, num2);
 		//size_t size1 = set_str_arr(hits1, hits_uniq1, num1);
 		//size_t size2 = set_str_arr(hits2, hits_uniq2, num2);
@@ -168,10 +159,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		//		//}
 		//}}
 	}
-	if(hits_uniq1)  free(hits_uniq1);
-	if(hits_uniq2)  free(hits_uniq2);
-	if(parts1)		free(parts1);
-	if(parts2)		free(parts2);
 	if(gene1)		free(gene1);
 	if(gene2)		free(gene2);
 	kseq_destroy(seq1);
