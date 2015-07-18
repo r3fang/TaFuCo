@@ -10,6 +10,7 @@
 #include <zlib.h>  
 #include <assert.h>
 #include <math.h>
+#include <regex.h>
 #include "kseq.h"
 #include "common.h"
 #include "uthash.h"
@@ -27,7 +28,16 @@ static struct kmer_uthash *KMER_HT  	= NULL;
 static struct fasta_uthash *FASTA_HT 	= NULL;
 static struct BAG_uthash *BAG_HT 		= NULL;
 /*--------------------------------------------------------------------*/
-
+char* 
+get_exon_name(char* s){
+	if(s == NULL) die("get_exon_name: parameter error\n");
+	const char delim[2] = ".";
+	char *token;
+	token = strdup(strtok(s, delim));
+	if(token == NULL) die("get_exon_name: strtok fails\n");
+	free(s);
+	return token;
+}
 /* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
 int
 find_all_MEKMs(char **hits, int *num, char* _read, int _k){
@@ -50,12 +60,9 @@ find_all_MEKMs(char **hits, int *num, char* _read, int _k){
 		if((error = find_kmer(KMER_HT, buff, &s_kmer)) != PR_ERR_NONE) die("find_next_match: find_kmer fails\n");
 		if(s_kmer == NULL){_read_pos++; continue;} // kmer not in table but not an error
 		if(s_kmer->count == 1){
-			//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			int _pos_exon; _exon = pos_parser(s_kmer->pos[0], &_pos_exon);
-			//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			if(_exon == NULL || _pos_exon < 0) die("find_next_match: pos_parser fails\n");
-			hits[*num] = strdup(_exon);
-			free(_exon);
+			_exon = get_exon_name(strdup(s_kmer->pos[0]));
+			if(_exon == NULL) die("find_next_match: get_exon_name fails\n");
+			hits[*num] = _exon;
 			_read_pos++;
 			(*num)++;
 		}else{
