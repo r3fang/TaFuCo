@@ -160,7 +160,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff, struct BAG_uth
 /* main function. */
 int main(int argc, char *argv[]) {
 	
-	if (argc != 5) {  
+	if (argc != 6) {  
 	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq> <int min_match> <int min_weight>\n", argv[0]);  
 	        return 1;  
 	 }
@@ -168,8 +168,9 @@ int main(int argc, char *argv[]) {
 	char *fasta_file = argv[1];
 	char *fq_file1 = argv[2];
 	char *fq_file2 = argv[3];
-	int min_match;		
+	int min_match, min_weight;
 	if (sscanf (argv[4], "%d", &min_match)!=1) die("Input error: wrong type for k\n");
+	if (sscanf (argv[5], "%d", &min_weight)!=1) die("Input error: wrong type for k\n");
 	/* load kmer hash table in the memory */
 	int error;
 	///* load kmer_uthash table */
@@ -185,7 +186,7 @@ int main(int argc, char *argv[]) {
 	timeUpdate();    
 	if(construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
 	timeUpdate();
-	if(BAG_uthash_tim(&BAG_HT), min_weight) != PR_ERR_NONE) 				   die("main: BAG_uthash_tim\n");		
+	if(BAG_uthash_tim(&BAG_HT, min_weight) != PR_ERR_NONE) 				   die("main: BAG_uthash_tim\n");		
 	// destory
 	/*--------------------------------------------------------------------*/	
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
