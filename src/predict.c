@@ -28,48 +28,9 @@ static struct fasta_uthash *FASTA_HT 	= NULL;
 static struct BAG_uthash *BAG_HT 		= NULL;
 /*--------------------------------------------------------------------*/
 
-/* Find next Maximal Extended Kmer Match (MEKM) on _read at pos_read. */
-int
-find_next_match(char **exon, char *_read, int pos_read, int k){
-	/*------------------------------------------------------------*/
-	/* check parameters and force *exon be NULL */
-	*exon = NULL; if(*exon != NULL || _read == NULL) die("find_next_match: parameter error\n");	
-	/*------------------------------------------------------------*/
-	char* buff = NULL; int error;
-	struct kmer_uthash *s_kmer = NULL;   //CAN'T BE FREED !!
-	/*------------------------------------------------------------*/
-	/* copy a kmer of string */
-	if((buff = malloc((k+1) * sizeof(char)))==NULL) die("find_next_match: malloc fails\n");
-	strncpy(buff, _read + pos_read, k); buff[k] = '\0';	
-	if(buff == NULL || strlen(buff) != k) die("find_next_match: buff strncpy fails\n");
-	/*------------------------------------------------------------*/
-	if((error = find_kmer(KMER_HT, buff, &s_kmer)) != PR_ERR_NONE) die("find_next_match: find_kmer fails\n");
-	if(s_kmer == NULL) {(*exon)=NULL; goto NO_MATCH;} // kmer not in table but not an error
-	/*------------------------------------------------------------*/
-	if(s_kmer->count == 1){
-		int _pos_exon; (*exon) = pos_parser(s_kmer->pos[0], &_pos_exon);
-		if((*exon) == NULL || _pos_exon < 0) die("find_next_match: pos_parser fails\n");
-		goto SUCCESS;
-	}else{(*exon) = NULL; goto MANY_MATCH;}	
-	/*------------------------------------------------------------*/	
-	SUCCESS:
-		error = PR_ERR_NONE;
-		goto EXIT;
-	NO_MATCH:
-		error = PR_ERR_NONE;
-		goto EXIT;
-	MANY_MATCH:
-		error = PR_ERR_NONE;
-		goto EXIT;
-	EXIT:		
-		if(buff) 		free(buff);
-		return error;
-}
-/*--------------------------------------------------------------------*/
-
 /* Find all Maximal Extended Kmer Matchs (MEKMs) on _read.            */
 int
-find_all_MEKMs(char **hits, int *num, char* _read, int _k, int min_match){
+find_all_MEKMs(char **hits, int *num, char* _read, int _k){
 /*--------------------------------------------------------------------*/
 	/* check parameters */
 	if(_read == NULL || hits == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
@@ -78,12 +39,29 @@ find_all_MEKMs(char **hits, int *num, char* _read, int _k, int min_match){
 	int error, _read_pos = 0;
 	*num = 0; 
 	char* _exon = NULL;
+	struct kmer_uthash *s_kmer = NULL; 
+	char buff[_k];
 /*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k-1)){
-		if((error=find_next_match(&_exon, _read, _read_pos++, _k)) != PR_ERR_NONE) die("find_all_MEKMs: find_next_MEKM fails\n");
-		if (_exon != NULL){hits[*num] = strdup(_exon); (*num)++;}
+		/* copy a kmer of string */
+		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
+		if(buff == NULL || strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
+		/*------------------------------------------------------------*/
+		if((error = find_kmer(KMER_HT, buff, &s_kmer)) != PR_ERR_NONE) die("find_next_match: find_kmer fails\n");
+		if(s_kmer == NULL){_read_pos++; continue;} // kmer not in table but not an error
+		if(s_kmer->count == 1){
+			//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			int _pos_exon; _exon = pos_parser(s_kmer->pos[0], &_pos_exon);
+			//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			if(_exon == NULL || _pos_exon < 0) die("find_next_match: pos_parser fails\n");
+			hits[*num] = strdup(_exon);
+			free(_exon);
+			_read_pos++;
+			(*num)++;
+		}else{
+			_read_pos++; continue;
+		}			
 	}
-	if(_exon) free(_exon);
 	return PR_ERR_NONE;
 }
 
@@ -127,9 +105,11 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		}
 		int num1=0;
 		int num2=0;
-		if((error=find_all_MEKMs(hits1, &num1, _read1, _k, min_match)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
-		if((error=find_all_MEKMs(hits2, &num2, _read2, _k, min_match)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
+		if((error=find_all_MEKMs(hits1, &num1, _read1, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
+		if((error=find_all_MEKMs(hits2, &num2, _read2, _k)) != PR_ERR_NONE) die("construct_BAG: find_all_MEKMs fails\n");
 		printf("%d\t%d\n", num1, num2);
+		if(hits1) 		free(hits1);
+		if(hits2) 		free(hits2);
 		
 		//printf("%d\t%d\n", num1, num2);
 		//size_t size1 = set_str_arr(hits1, hits_uniq1, num1);
@@ -154,8 +134,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		//			//	die("BAG_uthash_add fails\n");					
 		//		//}
 		//}}
-		if(hits1) 		free(hits1);
-		if(hits2) 		free(hits2);
 	}
 	if(hits_uniq1)  free(hits_uniq1);
 	if(hits_uniq2)  free(hits_uniq2);
