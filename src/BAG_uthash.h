@@ -88,4 +88,15 @@ BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
 	return BA_ERR_NONE;
 }
 
+static inline int 
+BAG_uthash_tim(struct BAG_uthash** tb, int min_weight){
+	if(*tb == NULL || min_weight < 0) die("BAG_uthash_tim: wrong parameters\n");
+	
+	register struct BAG_uthash *cur, *tmp;
+	HASH_ITER(hh, *tb, cur, tmp) {
+		if(cur==NULL) die("BAG_uthash_tim: HASH_ITER fails\n");
+		if(cur->weight < min_weight) {HASH_DEL(*tb, cur); free(cur);}
+    }
+	return BA_ERR_NONE;
+}
 #endif

@@ -185,13 +185,11 @@ int main(int argc, char *argv[]) {
 	timeUpdate();    
 	if(construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
 	timeUpdate();
-	
-	
+	if(BAG_uthash_tim(&BAG_HT), min_weight) != PR_ERR_NONE) 				   die("main: BAG_uthash_tim\n");		
 	// destory
 	/*--------------------------------------------------------------------*/	
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
 	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
 	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE) 						   die("main: BAG_uthash_destroy\n");	
-
 	return 0;
 }
