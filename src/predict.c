@@ -98,14 +98,15 @@ find_all_MEKMs(str_ctr **hash, char* _read, int _k){
 
 /* Construct breakend associated graph by given fq files.             */
 int
-construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_uthash **graph_ht){
-	if(fq_file1 == NULL || fq_file2 == NULL || *graph_ht != NULL) die("construct_BAG: parameter error\n");
+construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff){
+
+	if(fq_file1 == NULL || fq_file2 == NULL) die("construct_BAG: parameter error\n");
 	int error;
 	gzFile fp1, fp2;
 	kseq_t *seq1, *seq2;
 	int l1, l2;
-	char *_read1, *_read2, *edge_name, *gene1, *gene2;	
-	_read1 = _read2 = edge_name = gene1 = gene2 = NULL;
+	char *_read1, *_read2, *edge_name;
+	_read1 = _read2 = edge_name = NULL;
 		
 	fp1 = gzopen(fq_file1, "r");
 	fp2 = gzopen(fq_file2, "r");
@@ -113,7 +114,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 	seq2 = kseq_init(fp2);
 	
 	if(fp1 == NULL || fp2 == NULL || seq1 == NULL || seq2 == NULL) die("construct_BAG: fail to read fastq files\n");
-	
+
 	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
 		_read2 = seq2->seq.s;		
@@ -127,40 +128,28 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 		find_all_MEKMs(&gene_counter, _read2, _k);
 		
 		HASH_SORT(gene_counter, str_ctr_sort);
-		unsigned int num;
-		num = HASH_COUNT(gene_counter);
-		if(num > 1){
-			HASH_ITER(hh, gene_counter, s, tmp) {
-			    printf("KEY=%s: SIZE=%zu\n", s->KEY, s->SIZE);
+		unsigned int num = HASH_COUNT(gene_counter);
+		
+		char** hits = mycalloc(num, char*);
+		int i=0; if(num > 1){
+			HASH_ITER(hh, gene_counter, s, tmp) { 
+				if(s->SIZE >= cutoff){hits[i++] = strdup(s->KEY);}
 			}			
-		}		
+		}
+		int m, n; for(m=0; m < i; m++){for(n=m+1; n < i; n++){
+				int rc = strcmp(hits[m], hits[n]);
+				if(rc<0)  edge_name = concat(concat(hits[m], "_"), hits[n]);
+				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
+				if(rc==0) edge_name = NULL;
+				if(edge_name!=NULL){
+					printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
+					if(BAG_uthash_add(&BAG_HT, edge_name, concat(concat(_read1, "_"), _read2)) != PR_ERR_NONE) die("BAG_uthash_add fails\n");							
+				}
+		}}
+		if(hits)		 free(hits);
 		if(gene_counter) free(gene_counter);
-		//printf("%d\t%d\n", num1, num2);
-		//size_t size1 = set_str_arr(hits1, hits_uniq1, num1);
-		//size_t size2 = set_str_arr(hits2, hits_uniq2, num2);
-		//int i, j; for(i=0; i<size1; i++){ for(j=0; j<size2; j++){
-		//		size_t len1 = strsplit_size(hits_uniq1[i], ".");
-		//		size_t len2 = strsplit_size(hits_uniq2[j], ".");
-		//		strsplit(hits_uniq1[i], len1, parts1, ".");  
-		//		strsplit(hits_uniq2[j], len2, parts2, ".");  
-		//		printf("%s\t%s\n", hits_uniq1[i], hits_uniq1[j]);
-		//		if(parts1[0] == NULL || parts2[0] == NULL) continue;
-		//		gene1 = strdup(parts1[0]);
-		//		gene2 = strdup(parts2[0]);
-		//		//printf("%s\t%s\n", gene1, gene2);
-		//		int rc = strcmp(gene1, gene2);
-		//		if(rc<0)  edge_name = concat(concat(gene1, "_"), gene2);
-		//		if(rc>0)  edge_name = concat(concat(gene2, "_"), gene1);
-		//		if(rc==0) edge_name = NULL;
-		//		//if(edge_name!=NULL){
-		//		//	printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
-		//			//if((error = BAG_uthash_add(&graph_ht, edge_name, concat(concat(_read1, "_"), _read2))) != PR_ERR_NONE)
-		//			//	die("BAG_uthash_add fails\n");					
-		//		//}
-		//}}
 	}
-	if(gene1)		free(gene1);
-	if(gene2)		free(gene2);
+	if(edge_name)   free(edge_name);
 	kseq_destroy(seq1);
 	kseq_destroy(seq2);	
 	gzclose(fp1);
@@ -171,23 +160,23 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int min_match, struct BAG_
 /*--------------------------------------------------------------------*/
 
 /* main function. */
-int main(int argc, char *argv[]) { 
+int main(int argc, char *argv[]) {
+	
 	if (argc != 5) {  
 	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq> <int k>\n", argv[0]);  
 	        return 1;  
 	 }
+	 
 	char *fasta_file = argv[1];
 	char *fq_file1 = argv[2];
 	char *fq_file2 = argv[3];
-	int min_mtch;		
-	if (sscanf (argv[4], "%d", &min_mtch)!=1) die("Input error: wrong type for k\n");
+	int cutoff;		
+	if (sscanf (argv[4], "%d", &cutoff)!=1) die("Input error: wrong type for k\n");
 	/* load kmer hash table in the memory */
 	int error;
 	///* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
 	if(index_file == NULL) die("Fail to concate index_file\n");	
-	
-	
 	
 	int k; if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE) die("main: kmer_uthash_load fails\n");	
 	timeUpdate();
@@ -198,15 +187,13 @@ int main(int argc, char *argv[]) {
 	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) 			   die("main: fasta_uthash_load fails\n");	
 	timeUpdate();
     
-	if((error=construct_BAG(fq_file1, fq_file2, k, min_mtch, &BAG_HT)) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
+	if(construct_BAG(fq_file1, fq_file2, k, cutoff) != PR_ERR_NONE) 		  die("main: construct_BAG fails\n");	
 	timeUpdate();
 	
-	if((error=kmer_uthash_destroy(&KMER_HT))   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
-	if((error=fasta_uthash_destroy(&FASTA_HT)) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
-	
-	//if((error=BAG_uthash_destroy(&BAG_HT))     != PR_ERR_NONE) 						   die("main: BAG_uthash_destroy\n");	
-	if((error=fasta_uthash_display(FASTA_HT)) != PR_ERR_NONE) 			die("main: fasta_uthash_display fails\n");	
-	//if((error=BAG_uthash_display(BAG_HT)) != PR_ERR_NONE) 				die("main: BAG_uthash_display fails\n");		
+	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
+	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
+	if(BAG_uthash_display(BAG_HT) 	   != PR_ERR_NONE) 				die("main: BAG_uthash_display fails\n");		
+	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE) 						   die("main: BAG_uthash_destroy\n");	
+
 	return 0;
 }
-

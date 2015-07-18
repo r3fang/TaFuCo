@@ -19,17 +19,6 @@
 #define BA_ERR_MALLOC		-3 // fail to malloc memory uthash
 
 /*
- * error handling
- * all errors are returned as an integer code, and a string
- * amplifying the error is saved in here; this can then be
- * printed
- */
-char qe_errbuf[256] = "no error\n";	/* the error message buffer */
-#define ERRBUF(str)			(void) strncpy(qe_errbuf, str, sizeof(qe_errbuf))
-#define ERRBUF2(str,n)		(void) sprintf(qe_errbuf, str, n)
-#define ERRBUF3(str,n,m)	(void) sprintf(qe_errbuf, str, n, m)
-
-/*
  * the BAG_uthash structure
  */
 struct BAG_uthash {
@@ -66,8 +55,7 @@ static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 	HASH_ITER(hh, graph_ht, cur, tmp) {
 		if(cur == NULL) die("BAG_uthash_display: HASH_ITER fails\n");
 		printf(">%s\t%zu\n", cur->edge, cur->weight);
-		int i;
-		for(i=0; i<cur->weight; i++){
+		int i; for(i=0; i<cur->weight; i++){
 			printf("%s\n", cur->evidence[i]);	
 		}
 	}
