@@ -14,9 +14,6 @@
 
 /* error code */
 #define BA_ERR_NONE		     0 // no error
-#define BA_ERR_PARAM		-1 // bad paraemter
-#define BA_ERR_HASHITER		-2 // fail to iterate uthash
-#define BA_ERR_MALLOC		-3 // fail to malloc memory uthash
 
 /*
  * the BAG_uthash structure
@@ -40,7 +37,6 @@ BAG_uthash_destroy(struct BAG_uthash **table) {
     }
 	return BA_ERR_NONE;
 }
-
 /*
  * display BAG_uthash table on the screen
  *
@@ -48,7 +44,6 @@ BAG_uthash_destroy(struct BAG_uthash **table) {
  * RETURN:	error code
  */
 static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
-	int error;
 	if(graph_ht == NULL) die("BAG_uthash_display: parameter error\n");
 	/*free the kmer_hash table*/
 	register struct BAG_uthash *cur, *tmp;

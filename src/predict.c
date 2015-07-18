@@ -98,7 +98,7 @@ find_all_MEKMs(str_ctr **hash, char* _read, int _k){
 
 /* Construct breakend associated graph by given fq files.             */
 int
-construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff){
+construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff, struct BAG_uthash **bag){
 
 	if(fq_file1 == NULL || fq_file2 == NULL) die("construct_BAG: parameter error\n");
 	int error;
@@ -121,7 +121,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff){
 		if(_read1 == NULL || _read2 == NULL) die("construct_BAG: fail to get _read1 and _read2\n");
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("construct_BAG: read pair not matched\n");		
 		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
-		//printf("%s\t%s\n", seq1->name.s, seq2->name.s);
 		str_ctr* gene_counter = NULL;
 		str_ctr *s, *tmp;
 		find_all_MEKMs(&gene_counter, _read1, _k);
@@ -142,8 +141,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff){
 				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
 				if(rc==0) edge_name = NULL;
 				if(edge_name!=NULL){
-					printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
-					if(BAG_uthash_add(&BAG_HT, edge_name, concat(concat(_read1, "_"), _read2)) != PR_ERR_NONE) die("BAG_uthash_add fails\n");							
+					if(BAG_uthash_add(bag, edge_name, concat(concat(_read1, "_"), _read2)) != PR_ERR_NONE) die("BAG_uthash_add fails\n");							
 				}
 		}}
 		if(hits)		 free(hits);
@@ -163,36 +161,36 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff){
 int main(int argc, char *argv[]) {
 	
 	if (argc != 5) {  
-	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq> <int k>\n", argv[0]);  
+	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq> <int min_match> <int min_weight>\n", argv[0]);  
 	        return 1;  
 	 }
 	 
 	char *fasta_file = argv[1];
 	char *fq_file1 = argv[2];
 	char *fq_file2 = argv[3];
-	int cutoff;		
-	if (sscanf (argv[4], "%d", &cutoff)!=1) die("Input error: wrong type for k\n");
+	int min_match;		
+	if (sscanf (argv[4], "%d", &min_match)!=1) die("Input error: wrong type for k\n");
 	/* load kmer hash table in the memory */
 	int error;
 	///* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
-	if(index_file == NULL) die("Fail to concate index_file\n");	
-	
+	if(index_file == NULL) die("Fail to concate index_file\n");		
 	int k; if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE) die("main: kmer_uthash_load fails\n");	
 	timeUpdate();
     
 	if(KMER_HT == NULL) die("Fail to load the index\n");
 	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);	
 	/* load fasta_uthash table */
-	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) 			   die("main: fasta_uthash_load fails\n");	
-	timeUpdate();
-    
-	if(construct_BAG(fq_file1, fq_file2, k, cutoff) != PR_ERR_NONE) 		  die("main: construct_BAG fails\n");	
+	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
+	timeUpdate();    
+	if(construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
 	timeUpdate();
 	
+	
+	// destory
+	/*--------------------------------------------------------------------*/	
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
 	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
-	if(BAG_uthash_display(BAG_HT) 	   != PR_ERR_NONE) 				die("main: BAG_uthash_display fails\n");		
 	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE) 						   die("main: BAG_uthash_destroy\n");	
 
 	return 0;
