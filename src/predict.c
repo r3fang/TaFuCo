@@ -164,33 +164,33 @@ int main(int argc, char *argv[]) {
 	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq> <int min_match> <int min_weight>\n", argv[0]);  
 	        return 1;  
 	 }
-	 
 	char *fasta_file = argv[1];
 	char *fq_file1 = argv[2];
 	char *fq_file2 = argv[3];
 	int min_match, min_weight;
-	if (sscanf (argv[4], "%d", &min_match)!=1) die("Input error: wrong type for k\n");
-	if (sscanf (argv[5], "%d", &min_weight)!=1) die("Input error: wrong type for k\n");
+	if (sscanf (argv[4], "%d", &min_match)!=1)	die("Input error: wrong type for k\n");
+	if (sscanf (argv[5], "%d", &min_weight)!=1)	die("Input error: wrong type for k\n");
 	/* load kmer hash table in the memory */
 	int error;
 	///* load kmer_uthash table */
 	char *index_file = concat(fasta_file, ".index");
 	if(index_file == NULL) die("Fail to concate index_file\n");		
-	int k; if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE) die("main: kmer_uthash_load fails\n");	
+	int k; if((kmer_uthash_load(index_file, &k, &KMER_HT)) != PR_ERR_NONE)	die("main: kmer_uthash_load fails\n");	
 	timeUpdate();
     
 	if(KMER_HT == NULL) die("Fail to load the index\n");
 	if(k > MAX_K) die("input k(%d) greater than allowed lenght - 100\n", k);	
 	/* load fasta_uthash table */
-	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
+	if((error=fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE)	die("main: fasta_uthash_load fails\n");	
 	timeUpdate();    
-	if(construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT) != PR_ERR_NONE) die("main: construct_BAG fails\n");	
+	if(construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT) != PR_ERR_NONE)	die("main: construct_BAG fails\n");	
 	timeUpdate();
-	if(BAG_uthash_tim(&BAG_HT, min_weight) != PR_ERR_NONE) 				   die("main: BAG_uthash_tim\n");		
+	if(BAG_uthash_tim(&BAG_HT, min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_tim\n");		
+	timeUpdate();
 	// destory
 	/*--------------------------------------------------------------------*/	
-	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE) 						   die("main: kmer_uthash_destroy\n");	
-	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE) 						   die("main: fasta_uthash_destroy fails\n");		
-	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE) 						   die("main: BAG_uthash_destroy\n");	
+	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
+	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE)	die("main: fasta_uthash_destroy fails\n");		
+	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE)	die("main: BAG_uthash_destroy\n");	
 	return 0;
 }
