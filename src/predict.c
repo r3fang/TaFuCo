@@ -20,7 +20,7 @@
 #include "utils.h"
 
 /* error code */
-#define PR_ERR_NONE		     	 0 		// no error
+#define PR_ERR_NONE		     	 		0 		// no error
 /*--------------------------------------------------------------------*/
 /*Global paramters.*/
 static const char *pcPgmName			="predict.c";
