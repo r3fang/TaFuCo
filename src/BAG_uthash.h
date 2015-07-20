@@ -89,9 +89,45 @@ BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
 }
 
 static inline int 
-BAG_uthash_tim(struct BAG_uthash** tb, int min_weight){
+cmpstr(void const *a, void const *b) { 
+    char const *aa = (char const *)a;
+    char const *bb = (char const *)b;
+    return strcmp(aa, bb);
+}
+
+static inline int 
+BAG_uthash_rmdup(struct BAG_uthash** tb){
+	if(*tb == NULL) die("BAG_uthash_rmdup: wrong parameters\n");
+	register struct BAG_uthash *cur, *tmp;
+	HASH_ITER(hh, *tb, cur, tmp) {
+		if(cur==NULL) die("BAG_uthash_tim: HASH_ITER fails\n");
+		if(cur->weight >= 2){
+			qsort(cur->evidence, cur->weight, sizeof(cur->evidence[0]), cmpstr);	
+			int i; for(i=1; i < cur->weight; i ++){
+				if(strcmp(cur->evidence[i], cur->evidence[i-1])){
+					free(cur->evidence[i-1]);
+					cur->evidence[i-1] = "\0";
+				}
+			}
+			char **tmp = myalloc(cur->weight, char*);
+			int j =0;
+			for(i=0; i < cur->weight; i++){
+				if(strlen(cur->evidence[i]) > 0){
+					tmp[j] = strdup(cur->evidence[i]);
+					j++;
+				}
+			}
+			free(cur->evidence);
+			cur->evidence = tmp;
+			cur->weight = j;			
+		}
+	}
+	return BA_ERR_NONE;
+}
+
+static inline int 
+BAG_uthash_trim(struct BAG_uthash** tb, int min_weight){
 	if(*tb == NULL || min_weight < 0) die("BAG_uthash_tim: wrong parameters\n");
-	
 	register struct BAG_uthash *cur, *tmp;
 	HASH_ITER(hh, *tb, cur, tmp) {
 		if(cur==NULL) die("BAG_uthash_tim: HASH_ITER fails\n");
@@ -99,4 +135,5 @@ BAG_uthash_tim(struct BAG_uthash** tb, int min_weight){
     }
 	return BA_ERR_NONE;
 }
+
 #endif
