@@ -12,7 +12,6 @@
 #include <math.h>
 #include <regex.h>
 #include "htslib/kseq.h"
-#include "htslib/kstring.h"
 #include "common.h"
 #include "uthash.h"
 #include "kmer_uthash.h"
