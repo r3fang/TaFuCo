@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <assert.h>
 #include "uthash.h"
-#include "kseq.h"
+#include "htslib/kseq.h"
 #include "common.h"
 #include "kmer_uthash.h"
 #include "fasta_uthash.h"

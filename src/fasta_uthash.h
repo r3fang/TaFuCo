@@ -6,7 +6,7 @@
 #include <string.h>  /* strcpy */
 #include <zlib.h>  
 #include "uthash.h"
-#include "kseq.h"
+#include "htslib/kseq.h"
 #include "common.h"
 #include "utils.h"
 

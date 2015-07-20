@@ -11,7 +11,7 @@
 #include <assert.h>
 #include <math.h>
 #include <regex.h>
-#include "kseq.h"
+#include "htslib/kseq.h"
 #include "common.h"
 #include "uthash.h"
 #include "kmer_uthash.h"

@@ -6,7 +6,7 @@
 #include <string.h>  /* strcpy */
 #include <zlib.h> 
 #include <assert.h>
-#include "kseq.h" 
+#include "htslib/kseq.h"
 #include "uthash.h"
 
 /*!!!!!!!! this must be defined in just one .h file **!!!!!*/
