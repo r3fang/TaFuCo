@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
 	if(construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT) != PR_ERR_NONE)	die("main: construct_BAG fails\n");	
 	timeUpdate();
 	if(BAG_uthash_rmdup(&BAG_HT) != PR_ERR_NONE)	die("main: BAG_uthash_rmdup\n");
-	//if(BAG_uthash_trim(&BAG_HT, min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
+	if(BAG_uthash_trim(&BAG_HT, min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
 	if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
 	
 	timeUpdate();
