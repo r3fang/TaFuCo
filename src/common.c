@@ -4,7 +4,7 @@
 #include <zlib.h>  
 #include <assert.h>
 #include "uthash.h"
-#include "htslib/kseq.h"
+#include "kseq.h"
 #include "common.h"
 
 
