@@ -20,6 +20,10 @@
 
 KSEQ_INIT(gzFile, gzread);
 
+int S1[6] = {130, 131, 132, 407, 408, 409};
+int S2[6] = {761, 762, 763, 844, 845, 846};
+int JUNCTION = 612;
+
 typedef enum { true, false } bool;
 
 #define GAP 					-3.0
@@ -30,10 +34,6 @@ typedef enum { true, false } bool;
 #define JUMP_EXON               -10.0
 
 // POINTER STATE
-#define LEFT 					100
-#define DIAGONAL 				200
-#define RIGHT	 				300
-#define HOME                    400
 #define LOW                     500
 #define MID                     600
 #define UPP                     700
@@ -191,23 +191,6 @@ static inline char
 }
 
 /*
- * change string to upper case
- */
-static inline char 
-*str_toupper(char* s){
-	char *r = mycalloc(strlen(s), char);
-	int i = 0;
-	char c;
-	while(s[i])
-	{
-		r[i] = toupper(s[i]);
-		i++;
-	}
-	r[strlen(s)] = '\0';
-	return r;
-}
-
-/*
  * destory kstring
  */
 static inline void 
@@ -215,57 +198,6 @@ kstring_destory(kstring_t *ks){
 	free(ks->s);
 	free(ks);
 }
-
-/*
- * read two sequences as str1 and str2 from the fasta file;
- * read junctions sites to opt->sites;
- * 
- */
-//static inline void 
-//kstring_read(char* fname, kstring_t *str1, kstring_t *str2, opt_t *opt){
-//	// input check
-//	if(fname == NULL || str1 == NULL || str2 == NULL || opt == NULL) 
-//		die("kstring_read: input error");
-//	
-//	// variables declarision
-//	int i, l; gzFile fp; kseq_t *seq;
-//	char **tmp_seq = mycalloc(3, char*);
-//	char **tmp_comment = mycalloc(3, char*);	
-//	// parser fasta
-//	fp = gzopen(fname, "r");
-//	seq = kseq_init(fp);
-//	if(fp == NULL || seq == NULL) die("Can't open %s\n", fname);
-//	
-//	i = 0; while((l=kseq_read(seq)) >= 0){
-//		if(i >= 2) die("input fasta file has more than 2 sequences");
-//		tmp_seq[i] = strdup(seq->seq.s);
-//		if(seq->comment.s) tmp_comment[i] = strdup(seq->comment.s);
-//		i++;
-//	}
-//	// read sequence
-//	if(tmp_seq[0] == NULL || tmp_seq[1] == NULL) die("read_kstring: fail to read sequence");
-//	(str1)->s = strdup(tmp_seq[0]); (str1)->l = strlen((str1)->s);
-//	(str2)->s = strdup(tmp_seq[1]); (str2)->l = strlen((str2)->s);
-//	// read the junctions sites if opt != NULL and opt->s==ture
-//	if(opt != NULL && opt->s == true){
-//		if(tmp_comment[1] == NULL) die("fail to read junction sites");
-//		kstring_t *tmp = mycalloc(1, kstring_t);
-//		tmp->s = strdup(tmp_comment[1]);
-//		tmp->l = strlen(tmp->s);
-//		int *fields, i, n;
-//		fields = ksplit(tmp, '|', &n);
-//		opt->sites.size = n;
-//		opt->sites.pos = mycalloc(n, int);
-//		for (i = 0; i < n; ++i) opt->sites.pos[i] = atoi(tmp->s + fields[i]);
-//		if(tmp) kstring_destory(tmp);
-//		if(fields) free(fields);
-//	}
-//	for(; i >=0; i--) if(tmp_seq[i]) free(tmp_seq[i]);	
-//	free(tmp_seq);
-//	if(tmp_comment) free(tmp_comment);
-//	if(seq) kseq_destroy(seq);
-//	gzclose(fp);
-//}
 
 static inline bool 
 isvalueinarray(int val, int *arr, int size){
@@ -302,6 +234,16 @@ trace_back(matrix_t *S, kstring_t *s1, kstring_t *s2, kstring_t *res_ks1, kstrin
 				state = S->pointerJ[i][j];
 				res_ks1->s[cur] = '-';
 	           	res_ks2->s[cur++] = s2->s[--j];
+				break;
+			case GENE1:
+				state = S->pointerG1[i][j];
+				res_ks1->s[cur] = '-';
+		        res_ks2->s[cur++] = s2->s[--j];
+				break;
+			case GENE2:
+				state = S->pointerG2[i][j];
+				res_ks1->s[cur] = '-';
+			    res_ks2->s[cur++] = s2->s[--j];
 				break;
 			default:
 				break;
