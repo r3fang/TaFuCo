@@ -6,8 +6,8 @@ for line in sys.stdin:
     [edge, read] = line.strip().split()
     d[edge].append(read)
 
-i = 0
-for read in set(d["SRF_SS18"]):
-    print '>'+'SRF_SS18.'+str(i)
-    print read.split('_')[0]
-    i += 1
+for name in d:
+    d_set = set(d[name])
+    print '>'+name+'\t'+str(len(d_set))
+    for read in d_set:
+        print read

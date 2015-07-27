@@ -26,7 +26,8 @@ typedef enum { true, false } bool;
 #define MATCH 					 2.0
 #define MISMATCH 				-0.5
 #define EXTENSION               -1.0
-#define JUMP_PENALITY           -10.0
+#define JUMP_GENE               -15.0
+#define JUMP_EXON               -10.0
 
 // POINTER STATE
 #define LEFT 					100
@@ -37,6 +38,8 @@ typedef enum { true, false } bool;
 #define MID                     600
 #define UPP                     700
 #define JUMP                    800
+#define GENE1                   900
+#define GENE2                   1000
 
 typedef struct {
   unsigned int m;
@@ -45,17 +48,15 @@ typedef struct {
   double **M;
   double **U;
   double **J;
+  double **G1;
+  double **G2;
   int  **pointerL;
   int  **pointerM;
   int  **pointerU;
   int  **pointerJ;
+  int  **pointerG1;
+  int  **pointerG2;
 } matrix_t;
-
-typedef struct {
-  unsigned int m;
-  double **score;
-  char* bases;
-} scoring_matrix_t;
 
 //for alignment allows jump state with junctions
 typedef struct {
@@ -71,7 +72,9 @@ typedef struct {
 	int u; // unmatch
 	int j; // jump penality
 	bool s;
-	junction_t sites;
+	junction_t G1;
+	junction_t G2;
+	int mid;
 } opt_t;
 
 static inline opt_t 
@@ -83,14 +86,15 @@ static inline opt_t
 	opt->u = -2.0;
 	opt->j = -10.0;
 	opt->s = false;
-	opt->sites.size = 0;	
-	opt->sites.pos = NULL;	
+	opt->G1.size = opt->G2.size = 0;	
+	opt->G1.pos =  opt->G2.pos = NULL;	
+	opt->mid = 0;
 	return opt;
 }
 
 /* max of fix values */
 static inline int 
-max5(double *res, double a1, double a2, double a3, double a4, double a5){
+max6(double *res, double a1, double a2, double a3, double a4, double a5, double a6){
 	*res = -INFINITY;
 	int state;
 	if(a1 > *res){*res = a1; state = 0;}
@@ -98,21 +102,8 @@ max5(double *res, double a1, double a2, double a3, double a4, double a5){
 	if(a3 > *res){*res = a3; state = 2;}	
 	if(a4 > *res){*res = a4; state = 3;}	
 	if(a5 > *res){*res = a5; state = 4;}	
+	if(a6 > *res){*res = a6; state = 5;}	
 	return state;
-}
-
-/* scoring */
-static inline double 
-match(char a, char b, scoring_matrix_t *S){
-	if(S==NULL) die("scoring: input error");
-	char *s_a, *s_b;
-	int a_i, b_i;
-	s_a = strchr (S->bases, a);
-	s_b = strchr (S->bases, b);
-	if(s_a == NULL || s_b == NULL) return -INFINITY;
-	a_i = s_a - S->bases;
-	b_i = s_b - S->bases;	
-	return S->score[a_i][b_i];
 }
 
 /*
@@ -128,23 +119,33 @@ static inline matrix_t
 	S->M = mycalloc(m, double*);
 	S->U = mycalloc(m, double*);
 	S->J = mycalloc(m, double*);
+	S->G1 = mycalloc(m, double*);
+	S->G2 = mycalloc(m, double*);
 	
 	for (i = 0; i < m; i++) {
       S->M[i] = mycalloc(n, double);
       S->L[i] = mycalloc(n, double);
       S->U[i] = mycalloc(n, double);
       S->J[i] = mycalloc(n, double);
+      S->G1[i] = mycalloc(n, double);
+      S->G2[i] = mycalloc(n, double);
+	  
     }	
 	
 	S->pointerM = mycalloc(m, int*);
 	S->pointerU = mycalloc(m, int*);
 	S->pointerL = mycalloc(m, int*);
 	S->pointerJ = mycalloc(m, int*);
+	S->pointerG1 = mycalloc(m, int*);
+	S->pointerG2 = mycalloc(m, int*);
+	
 	for (i = 0; i < m; i++) {
        	S->pointerU[i] = mycalloc(n, int);
         S->pointerM[i] = mycalloc(n, int);
         S->pointerL[i] = mycalloc(n, int);
 		S->pointerJ[i] = mycalloc(n, int);
+		S->pointerG1[i] = mycalloc(n, int);
+		S->pointerG2[i] = mycalloc(n, int);		
     }
 	return S;
 }
@@ -161,49 +162,18 @@ destory_matrix(matrix_t *S){
 		if(S->M[i]) free(S->M[i]);
 		if(S->U[i]) free(S->U[i]);
 		if(S->J[i]) free(S->J[i]);
+		if(S->G1[i]) free(S->G1[i]);
+		if(S->G2[i]) free(S->G2[i]);
 	}
 	for(i = 0; i < S->m; i++){
 		if(S->pointerL[i]) free(S->pointerL[i]);
 		if(S->pointerM[i]) free(S->pointerM[i]);
 		if(S->pointerU[i]) free(S->pointerU[i]);
 		if(S->pointerJ[i]) free(S->pointerJ[i]);
+		if(S->pointerG1[i]) free(S->pointerG1[i]);
+		if(S->pointerG2[i]) free(S->pointerG2[i]);	
 	}
 	free(S);
-}
-
-
-/*
- * load the scoring matrix, can be BLOSUM62 or PAM250
- */
-static inline scoring_matrix_t 
-*load_BLOSUM62(char* fname){
-	if(fname == NULL) die("load_BLOSUM62: input error");
-	int i, j, n;
-	int *fields;
-	FILE *fp;
-	scoring_matrix_t *S = mycalloc(1, scoring_matrix_t);
-	kstring_t *buffer = mycalloc(1, kstring_t);
-	buffer->s = mycalloc(4096, char);		
-	if((fp=fopen(fname, "r")) == NULL) die("load_score_mat: %s not exists", fname);
-	getline(&(buffer->s), &(buffer->l), fp);
-	fields = ksplit(buffer, 0, &n);
-	/* initilize the S*/
-	S->m = n;
-	S->score = mycalloc(n, double*);
-	for(i=0; i<S->m; i++) S->score[i] = mycalloc(n, double);
-	S->bases = mycalloc(n, char);
-	for (j = 0; j < n; j++){S->bases[j] = *(buffer->s + fields[j]);}
-	
-	i=0;
-	while ((getline(&(buffer->s), &(buffer->l), fp)) != -1) {
-		fields = ksplit(buffer, 0, &n);
-		for (j = 0; j < n; j++){
-			S->score[i][j] = atof(buffer->s + fields[j]);			
-		}
-		i ++;
-	}
-	fclose(fp);
-   	return S;
 }
 
 static inline char 
@@ -236,6 +206,7 @@ static inline char
 	r[strlen(s)] = '\0';
 	return r;
 }
+
 /*
  * destory kstring
  */
@@ -250,51 +221,51 @@ kstring_destory(kstring_t *ks){
  * read junctions sites to opt->sites;
  * 
  */
-static inline void 
-kstring_read(char* fname, kstring_t *str1, kstring_t *str2, opt_t *opt){
-	// input check
-	if(fname == NULL || str1 == NULL || str2 == NULL || opt == NULL) 
-		die("kstring_read: input error");
-	
-	// variables declarision
-	int i, l; gzFile fp; kseq_t *seq;
-	char **tmp_seq = mycalloc(3, char*);
-	char **tmp_comment = mycalloc(3, char*);	
-	// parser fasta
-	fp = gzopen(fname, "r");
-	seq = kseq_init(fp);
-	if(fp == NULL || seq == NULL) die("Can't open %s\n", fname);
-	
-	i = 0; while((l=kseq_read(seq)) >= 0){
-		if(i >= 2) die("input fasta file has more than 2 sequences");
-		tmp_seq[i] = strdup(seq->seq.s);
-		if(seq->comment.s) tmp_comment[i] = strdup(seq->comment.s);
-		i++;
-	}
-	// read sequence
-	if(tmp_seq[0] == NULL || tmp_seq[1] == NULL) die("read_kstring: fail to read sequence");
-	(str1)->s = strdup(tmp_seq[0]); (str1)->l = strlen((str1)->s);
-	(str2)->s = strdup(tmp_seq[1]); (str2)->l = strlen((str2)->s);
-	// read the junctions sites if opt != NULL and opt->s==ture
-	if(opt != NULL && opt->s == true){
-		if(tmp_comment[1] == NULL) die("fail to read junction sites");
-		kstring_t *tmp = mycalloc(1, kstring_t);
-		tmp->s = strdup(tmp_comment[1]);
-		tmp->l = strlen(tmp->s);
-		int *fields, i, n;
-		fields = ksplit(tmp, '|', &n);
-		opt->sites.size = n;
-		opt->sites.pos = mycalloc(n, int);
-		for (i = 0; i < n; ++i) opt->sites.pos[i] = atoi(tmp->s + fields[i]);
-		if(tmp) kstring_destory(tmp);
-		if(fields) free(fields);
-	}
-	for(; i >=0; i--) if(tmp_seq[i]) free(tmp_seq[i]);	
-	free(tmp_seq);
-	if(tmp_comment) free(tmp_comment);
-	if(seq) kseq_destroy(seq);
-	gzclose(fp);
-}
+//static inline void 
+//kstring_read(char* fname, kstring_t *str1, kstring_t *str2, opt_t *opt){
+//	// input check
+//	if(fname == NULL || str1 == NULL || str2 == NULL || opt == NULL) 
+//		die("kstring_read: input error");
+//	
+//	// variables declarision
+//	int i, l; gzFile fp; kseq_t *seq;
+//	char **tmp_seq = mycalloc(3, char*);
+//	char **tmp_comment = mycalloc(3, char*);	
+//	// parser fasta
+//	fp = gzopen(fname, "r");
+//	seq = kseq_init(fp);
+//	if(fp == NULL || seq == NULL) die("Can't open %s\n", fname);
+//	
+//	i = 0; while((l=kseq_read(seq)) >= 0){
+//		if(i >= 2) die("input fasta file has more than 2 sequences");
+//		tmp_seq[i] = strdup(seq->seq.s);
+//		if(seq->comment.s) tmp_comment[i] = strdup(seq->comment.s);
+//		i++;
+//	}
+//	// read sequence
+//	if(tmp_seq[0] == NULL || tmp_seq[1] == NULL) die("read_kstring: fail to read sequence");
+//	(str1)->s = strdup(tmp_seq[0]); (str1)->l = strlen((str1)->s);
+//	(str2)->s = strdup(tmp_seq[1]); (str2)->l = strlen((str2)->s);
+//	// read the junctions sites if opt != NULL and opt->s==ture
+//	if(opt != NULL && opt->s == true){
+//		if(tmp_comment[1] == NULL) die("fail to read junction sites");
+//		kstring_t *tmp = mycalloc(1, kstring_t);
+//		tmp->s = strdup(tmp_comment[1]);
+//		tmp->l = strlen(tmp->s);
+//		int *fields, i, n;
+//		fields = ksplit(tmp, '|', &n);
+//		opt->sites.size = n;
+//		opt->sites.pos = mycalloc(n, int);
+//		for (i = 0; i < n; ++i) opt->sites.pos[i] = atoi(tmp->s + fields[i]);
+//		if(tmp) kstring_destory(tmp);
+//		if(fields) free(fields);
+//	}
+//	for(; i >=0; i--) if(tmp_seq[i]) free(tmp_seq[i]);	
+//	free(tmp_seq);
+//	if(tmp_comment) free(tmp_comment);
+//	if(seq) kseq_destroy(seq);
+//	gzclose(fp);
+//}
 
 static inline bool 
 isvalueinarray(int val, int *arr, int size){
@@ -305,4 +276,41 @@ isvalueinarray(int val, int *arr, int size){
     }
     return FALSE;
 }
+
+static inline void 
+trace_back(matrix_t *S, kstring_t *s1, kstring_t *s2, kstring_t *res_ks1, kstring_t *res_ks2, int state, int i, int j){
+	if(S == NULL || s1 == NULL || s2 == NULL || res_ks1 == NULL || res_ks2 == NULL) die("trace_back: paramter error");
+	int cur = 0; 
+	while(i>0){
+		switch(state){
+			case LOW:
+				state = S->pointerL[i][j]; // change to next state
+				res_ks1->s[cur] = s1->s[--i];
+				res_ks2->s[cur++] = '-';
+				break;
+			case MID:
+				state = S->pointerM[i][j]; // change to next state
+                res_ks1->s[cur] = s1->s[--i];
+                res_ks2->s[cur++] = s2->s[--j];
+				break;
+			case UPP:
+				state = S->pointerU[i][j];
+				res_ks1->s[cur] = '-';
+            	res_ks2->s[cur++] = s2->s[--j];
+				break;
+			case JUMP:
+				state = S->pointerJ[i][j];
+				res_ks1->s[cur] = '-';
+	           	res_ks2->s[cur++] = s2->s[--j];
+				break;
+			default:
+				break;
+			}
+	}
+	res_ks1->l = cur;
+	res_ks2->l = cur;	
+	res_ks1->s = strrev(res_ks1->s);
+	res_ks2->s = strrev(res_ks2->s);
+}
+
 #endif
