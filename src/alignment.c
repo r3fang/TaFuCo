@@ -1,4 +1,3 @@
-
 #include "alignment.h"
 
 /* main function. */
@@ -11,7 +10,6 @@ int main(int argc, char *argv[]) {
 	ks2->s = "ATCCACTTTTACAATATGTAAAAGGTACTTTTAACTTCCTTTCATTGAACCAGTGTACAACAGTTCACTGTACAACTGAAGGACTGACATGGCAATCCTTAAGAATTTTACCTACAGAATGAATGCACACAatttgacacattttcttagtttcaaaagattatttaaaaaaggaattcagtagattgacttgtaaataaccattgcagattttgaatctgcaaaaatccgtcacattgctgttgggacagattaagataaggctaaaatttttttccaagttattgcaaactgctatggaaagagaaagtaatccaaaatgtataaaatggcccatggacaaatccaaaccacgcaatttttgtaaataaaggtttattgcaatatggccacatctacttactcatgTATATCATTCCAAATTTGTCAACTTATATAAATATGGTCCCATTTTCACAGTTAATTGGCTTCACCAAGTAAGAAAATATGGGTAAAAACACAATTCAAGGTCACTCAAGTTTATCATCCTCGTAAGTAACAACAGCTCTCTATTTGAAGGTATATGGGAATCTCAAGTAGAATATTCAAGACTTTCTTAACAATATGTAAATAGCTCAATAATAGCAAACTTTAAAATGTACATTTTTCTCAGTACAGTCACCCATAAGCCACTGTTCTTTAAACAGGAAGCTAAATTTATTTACATAGGAAGCTGCAATTTATTCCCATCTCAATATGGCAATAAATGGAGATATACAAGTAttcgctatattaggtaagttatatccgataggacaggtttacatttacagttactcaattcatgttaataagcttttttccagCCATGTTTCAACTACTTTGTAAAGAAAAAGAGATCCATACGTACTGGGGAAATACTCATGTGTTTCATGTATTTTTCAAAAGAATTATATTCATAAGGAAACCACCACTTAATTATTCCAATCTCATGCAGGCTCAATGATTTTTTAAGTCAGTATTTTGTCCTATGGAACTAATCCAACCGAGTAACAGATGATTTTAAAAATACGCTCATTTAAATACAAACA";
 	ks1->l = strlen(ks1->s);
 	ks2->l = strlen(ks2->s);
-	//kstring_read(argv[argc-1], ks1, ks2, opt);
 	if(ks1->s == NULL || ks2->s == NULL) die("fail to read sequence\n");
 	if(ks1->l > ks2->l) die("first sequence must be shorter than the second\n");
 	kstring_t *r1 = mycalloc(1, kstring_t);
