@@ -4,7 +4,6 @@
 /* E-mail: r3fang@ucsd.edu                                            */
 /* Indexing reference exon sequences.                                 */
 /*--------------------------------------------------------------------*/
-
 #include <stdio.h>  
 #include <stdlib.h> 
 #include <string.h>
@@ -14,6 +13,7 @@
 #include "uthash.h"
 #include "kseq.h"
 #include "common.h"
+#include "utils.h"
 #include "kmer_uthash.h"
 #include "fasta_uthash.h"
 
@@ -34,7 +34,6 @@ static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char*
 	assert(kmer != NULL);
 	/* check if kmer exists in table*/
 	HASH_FIND_STR(*table, kmer, s);  
-
 	if (s==NULL){
 		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
 		if (s == NULL)
@@ -108,50 +107,49 @@ int main(int argc, char *argv[]) {
 	if (argc != 3) {  
 	        fprintf(stderr, "Usage: %s <in.fa> <k>\n", argv[0]);  
 	        return 1;  
-	 }  
+	 }  	 
 	char *fasta_file = argv[1];
-	int k;
-	if (sscanf(argv[2], "%i", &k)!=1) {printf ("error - k not an integer");}
 	
-	if(k > MAX_K)
-		{fprintf(stderr, "ERROR: input k exceeds 100\n"); exit(EXIT_FAILURE);}	
+	int k;
+	if (sscanf(argv[2], "%i", &k)!=1) {printf ("error - k not an integer");}	
+	if(k > MAX_K) die("input k exceeds 100\n");
+	
 	/* index file */
 	gzFile fp;  
 	kseq_t *seqs;  
 	int l;
-	
+	char *kmer = mycalloc(k+1, char);	
 	struct kmer_uthash *table = NULL;
-
+	char *seq,  *name;
+	seq = name = NULL;
 	fp = gzopen(fasta_file, "r");
-	if (fp == NULL)
-		{perror(fasta_file); exit(EXIT_FAILURE);}
-	
+	if (fp == NULL) die("Can't open %s\n", fasta_file);
 	seqs = kseq_init(fp);	
+	if (seqs == NULL) die("kseq_init fails\n");
 	while ((l = kseq_read(seqs)) >= 0) {
-		char *seq = strToUpper(seqs->seq.s);
-		char *name = seqs->name.s;		
+		seq = strToUpper(seqs->seq.s);
+		name = strdup(seqs->name.s);		
+		printf("%s\n", name);
 		if(seq == NULL || name == NULL || strlen(seq) <= k){
 			continue;
 		}
-		int i;
-		for(i=0; i < strlen(seq)-k+1; i++){
-			char *kmer = malloc(k * sizeof(char));
+		int i; for(i=0; i < strlen(seq)-k+1; i++){
 			memset(kmer, '\0', sizeof(kmer));
 			strncpy(kmer, seq+i, k);
 			kmer[k] = '\0';
-			char i_str[100];
-			sprintf(i_str, "%d", i);
+			char i_str[100]; sprintf(i_str, "%d", i);
 			add_to_kmer_hash(&table, kmer, concat(concat(name, "_"), i_str), k); 
-			free(kmer);
 		}
-	}  	
-	char *index_file = concat(fasta_file, ".index");	
-	if(index_file == NULL)
-		{exit(EXIT_FAILURE);}
-
-	kmer_uthash_write(table, index_file);
-	kmer_uthash_destroy(&table);
+	}
+	if(kmer) free(kmer);  	
+	if(seq) free(seq);
+	if(name) free(name);
 	kseq_destroy(seqs);
 	gzclose(fp);
+	
+	char *index_file = concat(fasta_file, ".index");	
+	if(index_file == NULL) die("output file error\n");
+	kmer_uthash_write(table, index_file);
+	kmer_uthash_destroy(&table);
 	return 0;
 }
