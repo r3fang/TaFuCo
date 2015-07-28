@@ -17,90 +17,70 @@
 #include "kmer_uthash.h"
 #include "fasta_uthash.h"
 
-/*--------------------------------------------------------------------*/
-/* The name of the file. */
-static const char *pcPgmName="index.c";
-
-/*--------------------------------------------------------------------*/
-
-static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, int k_index);
-static void kmer_uthash_write(struct kmer_uthash *htable, char *fname);
-int index_main(char *fasta_file, int k);
-
-/* add one kmer and its position to kmer_uthash table */
-static void add_to_kmer_hash(struct kmer_uthash **table, char kmer[MAX_K], char* pos, int k_index) {
-	struct kmer_uthash *s;	
-	assert(table != NULL);
-	assert(kmer != NULL);
+/* add one kmer and its exon name to kmer_uthash table */
+void kmer_uthash_insert(struct kmer_uthash **table, char* kmer, char* name) {
+	// check input param
+	if(kmer==NULL || name==NULL) die("kmer_uthash_insert: input error");
+	struct kmer_uthash *s;
 	/* check if kmer exists in table*/
 	HASH_FIND_STR(*table, kmer, s);  
 	if (s==NULL){
-		s = (struct kmer_uthash*)malloc(sizeof(struct kmer_uthash));
-		if (s == NULL)
-			{perror(pcPgmName); exit(EXIT_FAILURE);}
-			
-		strncpy(s->kmer, kmer, k_index);
-		//strcpy(s->kmer, kmer);		
-		s->kmer[k_index] = '\0';     /*IMPORTANT*/
+		s = mycalloc(1, struct kmer_uthash);
+		s->kmer = strdup(kmer);
 		s->count = 1;                /* first pos in the list */
-		/* an array of char pointers */
-		char **tmp;
-		s->pos = malloc(s->count * sizeof(char*));
-		s->pos = malloc((strlen(pos)+1) * sizeof(char));
-		s->pos[0] = pos; /* first and only 1 element*/
-		HASH_ADD_STR(*table, kmer, s);
+		s->seq_names = mycalloc(s->count, char*);
+		s->seq_names[0] = strdup(name); /* first and only 1 element*/
+		HASH_ADD_STR(*table, kmer, s); // add to hash table
 	}else{
 		char **tmp;
 		s->count += 1;
 		/* copy s->pos */
-		tmp = malloc(s->count * sizeof(char*));
-		int i;
-		for (i = 0; i < s->count-1; i++){
-		    tmp[i] = malloc((strlen(s->pos[i])+1) * sizeof(char));
-			tmp[i] = s->pos[i];
+		tmp = mycalloc(s->count, char*);
+		int i; for (i = 0; i < s->count-1; i++){
+			tmp[i] = strdup(s->seq_names[i]);
 		}
+		free(s->seq_names);
 		/* append pos */
-		tmp[i] = malloc(strlen(pos) * sizeof(char));
-		tmp[i] = pos;
+		tmp[i] = strdup(name);
 		/* assign tmp to s->pos*/
-		s->pos = tmp;
+		s->seq_names = tmp;
 	}
 }
 /*--------------------------------------------------------------------*/
 
-/* Write down kmer_uthash */
-static void kmer_uthash_write(struct kmer_uthash *htable, char *fname){
-	/* write htable to disk*/
-	FILE *ofp = fopen(fname, "w");
-
-	if (ofp == NULL) {
-	  fprintf(stderr, "Can't open output file %s!\n", fname);
-	  exit(1);
-	}
-
-	if(htable == NULL)
-		exit(1);
-	
-	struct kmer_uthash *s, *tmp;
-
-	HASH_ITER(hh, htable, s, tmp) {
-
-		if(s == NULL)
-			fprintf(stderr, "Fail to write down %s!\n", fname);
-		
-		fprintf(ofp, ">%s\t%d\n", s->kmer, s->count);		
-		int i;
-		for(i=0; i < s->count; i++){
-			if(i==0){
-				fprintf(ofp, "%s", s->pos[i]);																
-			}else{
-				fprintf(ofp, "|%s", s->pos[i]);
-			}
-		}
-		fprintf(ofp, "\n");
-	}
-	fclose(ofp);
-}
+///* Write down kmer_uthash */
+//static void kmer_uthash_write(struct kmer_uthash *htable, char *fname){
+//	/* write htable to disk*/
+//	FILE *ofp = fopen(fname, "w");
+//
+//	if (ofp == NULL) {
+//	  fprintf(stderr, "Can't open output file %s!\n", fname);
+//	  exit(1);
+//	}
+//
+//	if(htable == NULL)
+//		exit(1);
+//	
+//	struct kmer_uthash *s, *tmp;
+//
+//	HASH_ITER(hh, htable, s, tmp) {
+//
+//		if(s == NULL)
+//			fprintf(stderr, "Fail to write down %s!\n", fname);
+//		
+//		fprintf(ofp, ">%s\t%d\n", s->kmer, s->count);		
+//		int i;
+//		for(i=0; i < s->count; i++){
+//			if(i==0){
+//				fprintf(ofp, "%s", s->seq_names[i]);																
+//			}else{
+//				fprintf(ofp, "|%s", s->seq_names[i]);
+//			}
+//		}
+//		fprintf(ofp, "\n");
+//	}
+//	fclose(ofp);
+//}
 
 /*--------------------------------------------------------------------*/
 int main(int argc, char *argv[]) { 
@@ -129,27 +109,25 @@ int main(int argc, char *argv[]) {
 	while ((l = kseq_read(seqs)) >= 0) {
 		seq = strToUpper(seqs->seq.s);
 		name = strdup(seqs->name.s);		
-		printf("%s\n", name);
 		if(seq == NULL || name == NULL || strlen(seq) <= k){
 			continue;
 		}
 		int i; for(i=0; i < strlen(seq)-k+1; i++){
 			memset(kmer, '\0', sizeof(kmer));
 			strncpy(kmer, seq+i, k);
-			kmer[k] = '\0';
-			char i_str[100]; sprintf(i_str, "%d", i);
-			add_to_kmer_hash(&table, kmer, concat(concat(name, "_"), i_str), k); 
+			kmer_uthash_insert(&table, kmer, name); 
 		}
 	}
+
 	if(kmer) free(kmer);  	
 	if(seq) free(seq);
 	if(name) free(name);
 	kseq_destroy(seqs);
 	gzclose(fp);
-	
-	char *index_file = concat(fasta_file, ".index");	
-	if(index_file == NULL) die("output file error\n");
-	kmer_uthash_write(table, index_file);
-	kmer_uthash_destroy(&table);
+	//
+	//char *index_file = concat(fasta_file, ".index");	
+	//if(index_file == NULL) die("output file error\n");
+	//kmer_uthash_write(table, index_file);
+	//kmer_uthash_destroy(&table);
 	return 0;
 }
