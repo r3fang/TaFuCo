@@ -12,10 +12,25 @@
 #include <assert.h>
 #include "uthash.h"
 #include "kseq.h"
+#include "kstring.h"
 #include "common.h"
 #include "utils.h"
 #include "kmer_uthash.h"
 #include "fasta_uthash.h"
+
+
+char** strsplit(char* s, const char delim){
+	if(s==NULL) die("strsplit: input error");
+	kstring_t *ks = mycalloc(1, kstring_t);
+	ks->s = strdup(s);
+	ks->l = strlen(s);
+	int *fields, n, i;
+	fields = ksplit(ks, delim, &n);
+	if(n==0) return NULL;
+	char** ret = mycalloc(n, char*);
+	for(i=0; i<n; i++) ret[i] = strdup(ks->s + fields[i]);
+	return ret;
+}
 
 /* add one kmer and its exon name to kmer_uthash table */
 void kmer_uthash_insert(struct kmer_uthash **table, char* kmer, char* name) {
@@ -115,7 +130,7 @@ int main(int argc, char *argv[]) {
 		int i; for(i=0; i < strlen(seq)-k+1; i++){
 			memset(kmer, '\0', sizeof(kmer));
 			strncpy(kmer, seq+i, k);
-			kmer_uthash_insert(&table, kmer, name); 
+			kmer_uthash_insert(&table, kmer, strsplit(name, '.')[0]); 
 		}
 	}
 
