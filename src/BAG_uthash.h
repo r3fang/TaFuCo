@@ -14,6 +14,7 @@
 #include <zlib.h>
 #include <assert.h>
 #include "utils.h"
+#include "kseq.h"
 
 /* error code */
 #define BA_ERR_NONE		     0 // no error
@@ -101,6 +102,9 @@ cmpstr(void const *a, void const *b) {
     return strcmp(aa, bb);
 }
 
+/*
+ * trim edges with evidence less than min_weight
+ */
 static inline int 
 BAG_uthash_trim(struct BAG_uthash** tb, int min_weight){
 	if(*tb == NULL || min_weight < 0) die("BAG_uthash_tim: wrong parameters\n");
@@ -149,5 +153,29 @@ BAG_uthash_uniq(struct BAG_uthash **tb){
 	return BA_ERR_NONE;
 }
 
-
+///*
+// * trim edges with evidence less than min_weight
+// */
+//static inline struct BAG_uthash *BAG_uthash_load(char* fname){
+//	if(fname == NULL) die("[%s] input error", __func__);
+//	struct BAG_uthash *tb = NULL;
+//	gzFile fp;
+//	kseq_t *seq;
+//	int l;
+//	fp = gzopen(fname, "r");
+//	if(fp == NULL) die("[%s] fail to open %s", __func__, fname);		
+//
+//	struct fasta_uthash *s;	
+//	if((seq = kseq_init(fp))==NULL) die("[%s] kseq_init fails", __func__);
+//
+//	while ((l = kseq_read(seq)) >= 0){
+//		if(seq->name.s == NULL || seq->seq.s==NULL)
+//			continue;
+//		printf("%s\n", seq->name.s);
+//		printf("%s\n", seq->seq.s);
+//	}	
+//	if(seq) kseq_destroy(seq);
+//	gzclose(fp);
+//	return tb;
+//}
 #endif

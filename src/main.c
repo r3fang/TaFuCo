@@ -45,7 +45,7 @@ opt_t *init_opt(){
 	opt->fq2 = NULL;
 	opt->fa = NULL;
 	opt->k = 15;
-	opt->min_match = 10;
+	opt->min_match = 15;
 	opt->min_weight = 1;	
 	return opt;
 }
@@ -138,7 +138,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int _min_match, struct BAG
 				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
 				if(rc==0) edge_name = NULL;
 				if(edge_name!=NULL){
-					printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
 					if(BAG_uthash_add(bag, edge_name, concat(concat(_read1, "_"), _read2)) != PR_ERR_NONE) die("BAG_uthash_add fails\n");							
 				}
 		}}
@@ -196,7 +195,7 @@ int main(int argc, char *argv[]) {
 	if((BAG_uthash_uniq(&BAG_HT)) != PR_ERR_NONE) die("main: BAG_uthash_uniq fails\n");
 	// delete edges with weight < opt->min_weight
 	if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
-	//if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
+	if(BAG_uthash_display(BAG_HT) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
 	//*--------------------------------------------------------------------*/	
 	// clear up the masses
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	

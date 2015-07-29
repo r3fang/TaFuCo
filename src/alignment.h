@@ -63,10 +63,6 @@
 #include "kseq.h"
 #include "kstring.h"
 
-int S1[6] = {130, 131, 132, 407, 408, 409};
-int S2[6] = {761, 762, 763, 844, 845, 846};
-int JUNCTION = 612;
-
 typedef enum { true, false } bool;
 
 #define GAP 					-3.0
@@ -101,39 +97,26 @@ typedef struct {
   int  **pointerG2;
 } matrix_t;
 
-//for alignment allows jump state with junctions
-typedef struct {
-	size_t size;
-	int *pos;
-} junction_t;
+typedef struct
+{
+	size_t  n1; // number of junctions sites in gene1
+	size_t  n2;
+	int    *S1;
+	int    *S2;
+	char   *str1;  
+	char   *str2;  
+} ref_t;
 
-//opt
-typedef struct {
-	int o; // gap open
-	int e; // gap extension
-	int m; // match
-	int u; // unmatch
-	int j; // jump penality
-	bool s;
-	junction_t G1;
-	junction_t G2;
-	int mid;
-} opt_t;
-
-static inline opt_t 
-*init_opt(){
-	opt_t *opt = mycalloc(1, opt_t);
-	opt->o = -5.0;
-	opt->e = -1.0;
-	opt->m =  1.0;
-	opt->u = -2.0;
-	opt->j = -10.0;
-	opt->s = false;
-	opt->G1.size = opt->G2.size = 0;	
-	opt->G1.pos =  opt->G2.pos = NULL;	
-	opt->mid = 0;
-	return opt;
+// initilize ref_t
+static inline ref_t *ref_init(){
+	ref_t *r = mycalloc(1, ref_t);
+	if(r == NULL) die("[%s] input error", __func__);
+	r->n1 = r->n2 = 0;
+	r->S1 = r->S2 = NULL;
+	r->str1 = r->str2 = NULL;
+	return r;
 }
+
 
 /* max of fix values */
 static inline int 
@@ -297,9 +280,12 @@ trace_back(matrix_t *S, kstring_t *s1, kstring_t *s2, kstring_t *res_ks1, kstrin
 	res_ks1->s = strrev(res_ks1->s);
 	res_ks2->s = strrev(res_ks2->s);
 }
-double align(kstring_t *s1, kstring_t *s2, kstring_t *r1, kstring_t *r2){
+double align(kstring_t *s1, kstring_t *s2, kstring_t *r1, kstring_t *r2, ref_t *ref){
 	if(s1 == NULL || s2 == NULL || r1 == NULL || r2 == NULL) die("align: parameter error\n");
 	if(s1->l > s2->l) die("first sequence must be shorter than the second to do fitting alignment"); 
+	int *S1 = ref->S1;
+	int *S2 = ref->S2;
+	int JUNCTION = strlen(ref->str1);
 	size_t m   = s1->l + 1; size_t n   = s2->l + 1;
 	matrix_t *S = create_matrix(m, n);
 	// initlize leftmost column
