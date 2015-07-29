@@ -13,9 +13,9 @@
 #include <regex.h>
 #include "kseq.h"
 #include "common.h"
+#include "kstring.h"
 #include "uthash.h"
 #include "kmer_uthash.h"
-#include "kstring.h"
 #include "BAG_uthash.h"
 #include "fasta_uthash.h"
 #include "utils.h"

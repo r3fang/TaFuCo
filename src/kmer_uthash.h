@@ -204,48 +204,4 @@ kmer_uthash_display(struct kmer_uthash *_kmer_ht) {
 	return KM_ERR_NONE;
 }
 
-//static inline int
-//kmer_uthash_load(char *fname, int *k, struct kmer_uthash** htable){	
-//	if(fname == NULL || *htable != NULL) die("kmer_uthash_load: parameter error\n");
-//	gzFile fp;  kseq_t *seq; int l;
-//	
-//	if ((fp = gzopen(fname, "r")) == NULL) die("Can't open input file %s!\n", fname);
-//	if ((seq = kseq_init(fp)) == NULL) die("kmer_uthash_load: kseq_init fails\n"); // STEP 3: initialize seq  
-//	
-//	while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence 
-//		/* add kmer */
-//		char *kmer = seq->name.s;
-//		*k = strlen(kmer);
-//		struct kmer_uthash *s;
-//		if((s = malloc(1 * sizeof(struct kmer_uthash))) == NULL) die("kmer_uthash_load: malloc fails\n");
-//		strncpy(s->kmer, kmer, *k);
-//		s->kmer[*k] = '\0'; /* just in case*/
-//		if(strlen(s->kmer) != *k) die("kmer_uthash_load: strncpy fails\n");
-//		/* add count */
-//		int count = atoi(seq->comment.s);
-//		s->count = count;		
-//		/* add pos */
-//		char *pos = seq->seq.s;				
-//		s->seq_names = malloc((s->count) * sizeof(char*));
-//		/* split a string by delim */
-//		char *token;	    
-//		/* get the first token */
-//	    token = strtok(seq_names, "|");				
-//		/* walk through other tokens */
-//		int i = 0;
-//	    while(token != NULL) 
-//	    {
-//			s->pos[i] = malloc((strlen(token)+1) * sizeof(char));
-//			/*duplicate a string*/
-//			s->pos[i] = strdup(token);
-//			token = strtok(NULL, "|");
-//			i ++;
-//	    }		
-//		HASH_ADD_STR(*htable, kmer, s);
-//	}	
-//	gzclose(fp);
-//	kseq_destroy(seq);
-//	return KM_ERR_NONE;
-//}
-
 #endif
