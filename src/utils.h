@@ -33,6 +33,7 @@
 #include <errno.h>
 #include "zlib.h"
 
+
 #ifndef BOOL_DEFINED
 #define BOOL_DEFINED
 typedef char BOOL ;

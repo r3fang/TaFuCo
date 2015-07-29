@@ -37,25 +37,32 @@ static inline int sortstring( const char *str1, const char *str2 )
 static inline void kmer_uthash_uniq(struct kmer_uthash **tb){
 	if(*tb == NULL) die("kmer_uthash_uniq: input error");
 	struct kmer_uthash *cur, *tmp;
-	int i;
-	int before, after;
+	int i, j;
+	int before, del;
 	HASH_ITER(hh, *tb, cur, tmp) {
 		if(cur == NULL) die("kmer_uthash_uniq: HASH_ITER fails\n");
-		printf("%s\n", cur->kmer);
 		qsort(cur->seq_names, cur->count, sizeof(char*), mystrcmp);
 		before = cur->count;
+		del = 0;
 		if(cur->count > 1){
-			for(i=0; i<cur->count-1; i++){
-				if(mystrcmp(cur->seq_names[i], cur->seq_names[i+1])){
-					cur->seq_names[i+1] = NULL;
+			for(i=1; i<cur->count; i++){
+				if(mystrcmp(cur->seq_names[i], cur->seq_names[i-1]) == 0){
+					cur->seq_names[i-1] = NULL;
+					del++;
 				}
-			}			
+			}
 		}		
-		after=0;
-		for(i=0; i<cur->count; i++){
-			if(cur->seq_names[i] != NULL) after++;
+		if(del > 0){ // if any element has been deleted
+			char** tmp = mycalloc(before - del , char*);
+			j=0; for(i=0; i<cur->count; i++){
+				if(cur->seq_names[i] != NULL){
+					tmp[j++] = strdup(cur->seq_names[i]);
+				}
+			}
+			free(cur->seq_names);
+			cur->seq_names = tmp;		
+			cur->count = before - del;	
 		}
-		if(before != after) printf("before=%d\tafter=%d\n", before, after);
     }	
 }
 
