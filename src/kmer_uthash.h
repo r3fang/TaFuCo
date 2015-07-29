@@ -123,7 +123,7 @@ static inline struct kmer_uthash
 			continue;
 		}
 		int i; for(i=0; i < strlen(seq)-k+1; i++){
-			memset(kmer, '\0', sizeof(kmer));
+			memset(kmer, '\0', k+1);
 			strncpy(kmer, seq+i, k);
 			kmer_uthash_insert(&table, kmer, strsplit(name, '.')[0]); 
 		}
@@ -148,7 +148,7 @@ kmer_uthash_write(struct kmer_uthash *htable, char *fname){
 	struct kmer_uthash *s, *tmp;
 	HASH_ITER(hh, htable, s, tmp) {
 		if(s == NULL) die("Fail to write down %s!\n", fname);
-		fprintf(ofp, ">%s\t%d\n", s->kmer, s->count);		
+		fprintf(ofp, ">%s\t%zu\n", s->kmer, s->count);		
 		int i;
 		for(i=0; i < s->count; i++){
 			if(i==0){
