@@ -8,6 +8,7 @@
 #include <assert.h>
 #include "common.h"
 #include "kseq.h"
+#include "kstring.h"
 #include "uthash.h"
 #include "utils.h"
 
@@ -20,21 +21,17 @@ struct kmer_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-static inline int mystrcmp(const void * a, const void * b)
+static inline int 
+mystrcmp(const void * a, const void * b)
 {
    return ( *(int*)a - *(int*)b );
 }
 
-static inline int sortstring( const char *str1, const char *str2 )
-{
-    int result = 0;
-    int val = strcmp(str1, str2);     
-    if ( val < 0 ) result = -1;
-    if ( val > 0 ) result = 1;
-    return result;
-}
-
-static inline void kmer_uthash_uniq(struct kmer_uthash **tb){
+/*
+ * delete duplicate seq_names 
+ */
+static inline void 
+kmer_uthash_uniq(struct kmer_uthash **tb){
 	if(*tb == NULL) die("kmer_uthash_uniq: input error");
 	struct kmer_uthash *cur, *tmp;
 	int i, j;
