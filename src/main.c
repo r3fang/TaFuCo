@@ -19,40 +19,37 @@
 #include "fasta_uthash.h"
 #include "utils.h"
 
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION "0.7.30-r15"
+#endif
+
 /* error code */
 #define PR_ERR_NONE		     	 		0 		// no error
 /*--------------------------------------------------------------------*/
 /*Global paramters.*/
-static struct kmer_uthash *KMER_HT  	= NULL;
-static struct fasta_uthash *FASTA_HT 	= NULL;
-static struct BAG_uthash *BAG_HT 		= NULL;
-/*--------------------------------------------------------------------*/
-#define k                               15
+static struct kmer_uthash *KMER_HT      = NULL;
+static struct fasta_uthash *FASTA_HT    = NULL;
+static struct BAG_uthash *BAG_HT        = NULL;
 
-typedef struct
-{
-	char 	*KEY;
-	size_t  SIZE;
-	UT_hash_handle hh;
-} str_ctr;
+//opt
+typedef struct {
+	char* fq1; // gap open
+	char* fq2; // gap open
+	char* fa; // gap open
+	int k; // gap extension
+	int min_match; // match
+	int min_weight; // unmatch
+} opt_t;
 
-int str_ctr_add(str_ctr** tb, char* key){
-	if(key == NULL) die("str_ctr_add: prameter error\n");
-	str_ctr *s;
-	HASH_FIND_STR(*tb, key, s);
-	if(s == NULL){
-		s = mycalloc(1, str_ctr);
-		s->KEY = key;
-		s->SIZE = 1;
-		HASH_ADD_STR(*tb, KEY, s);
-	}else{
-		s->SIZE++;
-	}
-	return PR_ERR_NONE;
-}
-
-int str_ctr_sort(str_ctr *a, str_ctr *b) {
-    return (a->SIZE >= b->SIZE);
+opt_t *init_opt(){
+	opt_t *opt = mycalloc(1, opt_t);
+	opt->fq1 = NULL;
+	opt->fq2 = NULL;
+	opt->fa = NULL;
+	opt->k = 15;
+	opt->min_match = 10;
+	opt->min_weight = 1;	
+	return opt;
 }
 
 /* 
@@ -157,33 +154,53 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff, struct BAG_uth
 }
 
 /*--------------------------------------------------------------------*/
-
 /* main function. */
 int main(int argc, char *argv[]) {
-	if (argc != 6) {  
-	        fprintf(stderr, "Usage: %s <in.fa> <read_R1.fq> <read_R2.fq> <int k> <int min_match> <int min_weight>\n", argv[0]);  
-	        return 1;  
-	 }
- 	int  min_match, min_weight;
-	char *fasta_file = argv[1];
-	char *fq_file1 = argv[2];
-	char *fq_file2 = argv[3];
-	if (sscanf (argv[4], "%d", &min_match)!=1)	die("Input error: wrong type for k\n");
-	if (sscanf (argv[5], "%d", &min_weight)!=1)	die("Input error: wrong type for min_weight\n");
+	opt_t *opt = init_opt(); // initlize options with default settings
+	int c, i;
+	srand48(11);
+	while ((c = getopt(argc, argv, "m:w:k:f:s")) >= 0) {
+				switch (c) {
+				case 'm': opt->min_match = atoi(optarg); break;
+				case 'w': opt->min_weight = atoi(optarg); break;
+				case 'k': opt->k = atoi(optarg); break;
+				case 'f': opt->fa = optarg; break;
+				default: return 1;
+		}
+	}
+	if (optind + 3 > argc) {
+			fprintf(stderr, "\n");
+					fprintf(stderr, "Usage:   tfc [options] <in.fa> <R1.fq> <R2.fq>\n\n");
+					fprintf(stderr, "Options: -m INT   min number kmer match for a hit between read and gene [%d]\n", opt->min_match);
+					fprintf(stderr, "         -w INT   min weight of edge on BAG [%d]\n", opt->min_weight);
+					fprintf(stderr, "         -k INT   kmer length for indexing reference [%d]\n", opt->k);
+					fprintf(stderr, "\n");
+					return 1;
+	}
+	opt->fa = argv[argc-3];
+	opt->fq1 = argv[argc-2];
+	opt->fq2 = argv[argc-1];
 	/* load kmer hash table in the memory */
-	///* load kmer_uthash table */
-	printf("Generating kmer hash table (K=%d) ... \n", k);
-	KMER_HT = kmer_uthash_construct(fasta_file, k);	
+	//* load kmer_uthash table */
+	printf("Generating kmer hash table (K=%d) ... \n", opt->k);
+	KMER_HT = kmer_uthash_construct(opt->fa, opt->k);	
 	if(KMER_HT == NULL) die("Fail to load the index\n");	
 	///* load fasta_uthash table */
 	printf("Loading fasta hash table ... \n");
-	if((fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
-	if((construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
-	if(BAG_uthash_trim(&BAG_HT, min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
-	if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
-	///*--------------------------------------------------------------------*/	
+	if((fasta_uthash_load(opt->fa, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
+	if((construct_BAG(opt->fq1, opt->fq2, opt->k, opt->min_match, &BAG_HT)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
+	if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
+	//if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
+	/////*--------------------------------------------------------------------*/	
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
 	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE)	die("main: fasta_uthash_destroy fails\n");		
 	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE)	die("main: BAG_uthash_destroy\n");	
+	/////*--------------------------------------------------------------------*/	
+	fprintf(stderr, "[%s] Version: %s\n", __func__, PACKAGE_VERSION);
+	fprintf(stderr, "[%s] CMD:", __func__);
+	for (i = 0; i < argc; ++i)
+		fprintf(stderr, " %s", argv[i]);
+		fprintf(stderr, "\n");
+
 	return 0;
 }

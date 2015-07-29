@@ -8,6 +8,7 @@
 #include <errno.h>
 #include "zlib.h"
 #include "kseq.h"
+#include "uthash.h"
 
 KSEQ_INIT(gzFile, gzread);
 
@@ -18,6 +19,12 @@ typedef char BOOL ;
 #define FALSE 0
 #endif
 
+typedef struct
+{
+	char 	*KEY;
+	size_t  SIZE;
+	UT_hash_handle hh;
+} str_ctr;
 
 static inline char* 
 concat(char *s1, char *s2)
@@ -98,5 +105,26 @@ static inline void *_mycalloc (long number, int size)
   return p ;
 }
 #define mycalloc(n,type) (type*)_mycalloc(n,sizeof(type))
+
+static inline int 
+str_ctr_add(str_ctr** tb, char* key){
+	if(key == NULL) die("str_ctr_add: prameter error\n");
+	str_ctr *s;
+	HASH_FIND_STR(*tb, key, s);
+	if(s == NULL){
+		s = mycalloc(1, str_ctr);
+		s->KEY = key;
+		s->SIZE = 1;
+		HASH_ADD_STR(*tb, KEY, s);
+	}else{
+		s->SIZE++;
+	}
+	return 0;
+}
+
+static inline int  
+str_ctr_sort(str_ctr *a, str_ctr *b) {
+    return (a->SIZE >= b->SIZE);
+}
 
 #endif
