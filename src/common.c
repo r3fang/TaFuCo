@@ -141,6 +141,7 @@ strToUpper(char* s){
 	return r;
 }
 
+
 int max_of_int_array(const int *arr, size_t length) {
     size_t i;
     int minimum = arr[0];
