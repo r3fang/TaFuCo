@@ -29,6 +29,7 @@ static struct kmer_uthash *KMER_HT      = NULL;
 static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
 
+
 //opt
 typedef struct {
 	char* fq1; // gap open
@@ -37,6 +38,12 @@ typedef struct {
 	int k; // gap extension
 	int min_match; // match
 	int min_weight; // unmatch
+	int match;
+	int mismatch;
+	int gap;
+	int extension;
+	int jump_gene;
+	int jump_exon;
 } opt_t;
 
 opt_t *init_opt(){
@@ -45,8 +52,14 @@ opt_t *init_opt(){
 	opt->fq2 = NULL;
 	opt->fa = NULL;
 	opt->k = 15;
-	opt->min_match = 15;
+	opt->min_match = 10;
 	opt->min_weight = 1;	
+	opt->match = 2;
+	opt->mismatch = -2;
+	opt->gap = -5;
+	opt->extension = -1;
+	opt->jump_gene = -10;
+	opt->jump_exon = -8;
 	return opt;
 }
 
@@ -158,21 +171,35 @@ int main(int argc, char *argv[]) {
 	opt_t *opt = init_opt(); // initlize options with default settings
 	int c, i;
 	srand48(11);
-	while ((c = getopt(argc, argv, "m:w:k:f:s")) >= 0) {
+	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s")) >= 0) {
 				switch (c) {
 				case 'm': opt->min_match = atoi(optarg); break;
 				case 'w': opt->min_weight = atoi(optarg); break;
 				case 'k': opt->k = atoi(optarg); break;
-				case 'f': opt->fa = optarg; break;
+				case 'n': opt->match = atoi(optarg); break;
+				case 'u': opt->mismatch = atoi(optarg); break;
+				case 'o': opt->gap = atoi(optarg); break;
+				case 'e': opt->extension = atoi(optarg); break;
+				case 'j': opt->jump_gene = atoi(optarg); break;
+				case 's': opt->jump_exon = atoi(optarg); break;
 				default: return 1;
 		}
 	}
 	if (optind + 3 > argc) {
 			fprintf(stderr, "\n");
 					fprintf(stderr, "Usage:   tfc [options] <in.fa> <R1.fq> <R2.fq>\n\n");
-					fprintf(stderr, "Options: -m INT   min number kmer match for a hit between read and gene [%d]\n", opt->min_match);
+					fprintf(stderr, "Options: --------------------  BAG Graph Options  -------------------\n");
+					fprintf(stderr, "         -m INT   min number kmer match for a hit between read and gene [%d]\n", opt->min_match);
 					fprintf(stderr, "         -w INT   min weight of edge on BAG [%d]\n", opt->min_weight);
 					fprintf(stderr, "         -k INT   kmer length for indexing reference [%d]\n", opt->k);
+					fprintf(stderr, "\n");
+					fprintf(stderr, "         --------------------  Alignment Options  --------------------\n");
+					fprintf(stderr, "         -n INT   match score [%d]\n", opt->match);
+					fprintf(stderr, "         -u INT   mismatch score [%d]\n", opt->mismatch);
+					fprintf(stderr, "         -o INT   gap open penality [%d]\n", opt->gap);
+					fprintf(stderr, "         -e INT   gap extension penality [%d]\n", opt->extension);
+					fprintf(stderr, "         -j INT   jump penality between genes [%d]\n", opt->jump_gene);
+					fprintf(stderr, "         -s INT   jump penality between exons [%d]\n", opt->jump_exon);					
 					fprintf(stderr, "\n");
 					return 1;
 	}
