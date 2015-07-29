@@ -67,7 +67,7 @@ find_all_matches(str_ctr **hash, char* _read, int _k){
 	int _read_pos = 0;
 	char* gene = NULL;
 	struct kmer_uthash *s_kmer = NULL; 
-	register char buff[_k];
+	char buff[_k];
 /*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k-1)){
 		/* copy a kmer of string */
