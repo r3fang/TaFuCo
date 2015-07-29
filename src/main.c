@@ -138,6 +138,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int _min_match, struct BAG
 				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
 				if(rc==0) edge_name = NULL;
 				if(edge_name!=NULL){
+					printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
 					if(BAG_uthash_add(bag, edge_name, concat(concat(_read1, "_"), _read2)) != PR_ERR_NONE) die("BAG_uthash_add fails\n");							
 				}
 		}}
@@ -181,21 +182,21 @@ int main(int argc, char *argv[]) {
 	opt->fq2 = argv[argc-1];
 	/* load kmer hash table in the memory */
 	/* load kmer_uthash table */
-	printf("Generating kmer hash table (K=%d) ... \n", opt->k);
+	fprintf(stderr, "[%s] Generating kmer hash table (K=%d) ... \n",__func__, opt->k);
 	KMER_HT = kmer_uthash_construct(opt->fa, opt->k);	
 	if(KMER_HT == NULL) die("Fail to load the index\n");	
 	///* load fasta_uthash table */
-	printf("Loading fasta hash table ... \n");
+	fprintf(stderr, "[%s] Loading fasta hash table ... \n", __func__);
 	// load fasta sequences
 	if((fasta_uthash_load(opt->fa, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
 	// construct break-end associated graph
-	printf("constructing break-end associated graph ... \n");
+	fprintf(stderr, "[%s] constructing break-end associated graph ... \n", __func__);
 	if((construct_BAG(opt->fq1, opt->fq2, opt->k, opt->min_match, &BAG_HT)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
 	// rm duplicate evidence for edges on BAG
-	//if((BAG_uthash_uniq(&BAG_HT)) != PR_ERR_NONE) die("main: BAG_uthash_uniq fails\n");
+	if((BAG_uthash_uniq(&BAG_HT)) != PR_ERR_NONE) die("main: BAG_uthash_uniq fails\n");
 	// delete edges with weight < opt->min_weight
-	//if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
-	if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
+	if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
+	//if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
 	//*--------------------------------------------------------------------*/	
 	// clear up the masses
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
