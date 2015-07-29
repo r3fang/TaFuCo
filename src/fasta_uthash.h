@@ -7,7 +7,6 @@
 #include <zlib.h>  
 #include "uthash.h"
 #include "kseq.h"
-#include "common.h"
 #include "utils.h"
 
 /* error code */

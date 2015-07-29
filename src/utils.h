@@ -1,30 +1,5 @@
-/*  File: utils.h
- *  Author: Richard Durbin (rd@sanger.ac.uk)
- *  Modified by Daniel Lawson (dan.lawson@bristol.ac.uk) in December 2014, adding gzip output for paintSparse
- *  Copyright (C) Genome Research Limited, 2011
- * -------------------------------------------------------------------
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *-------------------------------------------------------------------
- * Description: includes standard system headers and own headers
- * Exported functions:
- * HISTORY:
- * Last edited: Jan 20 01:01 2015 (rd)
- * adding gzip output for paintSparse
- * Created: Wed Jan  5 16:13:48 2011 (rd)
- *-------------------------------------------------------------------
- */
+#ifndef UTILS_H
+#define UTILS_H
 
 #include <stdio.h>		/* FILE etc. */
 #include <stdlib.h>		/* malloc(), free(), ... notation */
@@ -32,7 +7,9 @@
 #include <limits.h>		/* INT_MAX etc. */
 #include <errno.h>
 #include "zlib.h"
+#include "kseq.h"
 
+KSEQ_INIT(gzFile, gzread);
 
 #ifndef BOOL_DEFINED
 #define BOOL_DEFINED
@@ -41,15 +18,85 @@ typedef char BOOL ;
 #define FALSE 0
 #endif
 
-void die (char *format, ...) ;
-void warn (char *format, ...) ;
-#define myalloc(n,type)	(type*)_myalloc((n)*sizeof(type))
-void *_myalloc (long size) ;
-#define mycalloc(n,type) (type*)_mycalloc(n,sizeof(type))
-void *_mycalloc (long number, int size) ;
-FILE *fopenTag (char* root, char* tag, char* mode) ;
-gzFile gzopenTag (char* root, char* tag, char* mode) ;
-char *fgetword (FILE *f) ;	/* not threadsafe */
-void timeUpdate (void) ;	/* report to stderr resources used since last called */
 
-/************************/
+static inline char* 
+concat(char *s1, char *s2)
+{
+    char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
+    strcpy(result, s1);
+	strcat(result, s2);
+	return result;
+}
+
+/* Reverse complement of DNA-seq */
+static inline char 
+*rev_com(char *s){
+	/* Reverse complement of given DNA sequence*/
+	assert(s != NULL);
+	int n, c, d;
+	n=strlen(s);
+	char* r;
+	r = (char*)malloc((n+1) * sizeof(char)); // always allocate N+1
+	for (c = n - 1, d = 0; c >= 0; c--, d++){
+		switch(toupper(s[c])){
+			case 'A':
+				r[d] = 'T';
+				break;
+			case 'T':
+				r[d] = 'A';
+				break;
+			case 'C':
+				r[d] = 'G';
+				break;
+			case 'G':
+				r[d] = 'C';
+				break;
+			default:
+				r[d] = s[c];
+				break;
+		}
+	}
+	r[n] = '\0';
+	return r;
+}
+
+static inline char
+*strToUpper(char* s){
+	if(s == NULL)
+		return NULL;
+	int n;
+	n=strlen(s);
+	char* r;
+	r = (char*)malloc((n+1) * sizeof(char));
+	if(r == NULL)
+		return NULL;	
+	int i;
+	for(i=0; i < n; i++){
+		r[i] = toupper(s[i]);
+	}
+	r[n] = '\0';
+	return r;
+}
+
+
+static inline void die (char *format, ...)
+{
+  va_list args ;
+
+  va_start (args, format) ;
+  fprintf (stderr, "FATAL ERROR: ") ;
+  vfprintf (stderr, format, args) ;
+  fprintf (stderr, "\n") ;
+  va_end (args) ;
+  exit (-1) ;
+}
+
+static inline void *_mycalloc (long number, int size)
+{
+  void *p = (void*) calloc (number, size) ;
+  if (!p) die ("mycalloc failure requesting %d of size %d bytes", number, size) ;
+  return p ;
+}
+#define mycalloc(n,type) (type*)_mycalloc(n,sizeof(type))
+
+#endif

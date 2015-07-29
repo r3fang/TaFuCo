@@ -12,7 +12,6 @@
 #include <math.h>
 #include <regex.h>
 #include "kseq.h"
-#include "common.h"
 #include "kstring.h"
 #include "uthash.h"
 #include "kmer_uthash.h"
@@ -28,7 +27,7 @@ static struct kmer_uthash *KMER_HT  	= NULL;
 static struct fasta_uthash *FASTA_HT 	= NULL;
 static struct BAG_uthash *BAG_HT 		= NULL;
 /*--------------------------------------------------------------------*/
-#define k                               20
+#define k                               15
 
 typedef struct
 {
@@ -173,21 +172,18 @@ int main(int argc, char *argv[]) {
 	if (sscanf (argv[5], "%d", &min_weight)!=1)	die("Input error: wrong type for min_weight\n");
 	/* load kmer hash table in the memory */
 	///* load kmer_uthash table */
-	printf("Generating kmer hash table ... \n");
+	printf("Generating kmer hash table (K=%d) ... \n", k);
 	KMER_HT = kmer_uthash_construct(fasta_file, k);	
 	if(KMER_HT == NULL) die("Fail to load the index\n");	
 	///* load fasta_uthash table */
 	printf("Loading fasta hash table ... \n");
 	if((fasta_uthash_load(fasta_file, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
-	if((construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");	
-	
-	//timeUpdate();
+	if((construct_BAG(fq_file1, fq_file2, k, min_match, &BAG_HT)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
 	if(BAG_uthash_trim(&BAG_HT, min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
 	if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
-	//timeUpdate();
 	///*--------------------------------------------------------------------*/	
-	//if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
-	//if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE)	die("main: fasta_uthash_destroy fails\n");		
-	//if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE)	die("main: BAG_uthash_destroy\n");	
+	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
+	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE)	die("main: fasta_uthash_destroy fails\n");		
+	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE)	die("main: BAG_uthash_destroy\n");	
 	return 0;
 }

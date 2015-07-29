@@ -9,7 +9,6 @@
 #include <string.h>  /* strcpy */
 #include <zlib.h> 
 #include <assert.h>
-#include "common.h"
 #include "utils.h"
 
 /* error code */
@@ -109,7 +108,7 @@ BAG_uthash_rmdup(struct BAG_uthash** tb){
 					cur->evidence[i-1] = "\0";
 				}
 			}
-			char **tmp = myalloc(cur->weight, char*);
+			char **tmp = mycalloc(cur->weight, char*);
 			int j =0;
 			for(i=0; i < cur->weight; i++){
 				if(strlen(cur->evidence[i]) > 0){

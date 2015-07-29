@@ -63,8 +63,6 @@
 #include "kseq.h"
 #include "kstring.h"
 
-KSEQ_INIT(gzFile, gzread);
-
 int S1[6] = {130, 131, 132, 407, 408, 409};
 int S2[6] = {761, 762, 763, 844, 845, 846};
 int JUNCTION = 612;

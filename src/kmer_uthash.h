@@ -7,7 +7,6 @@
 #include <string.h>  /* strcpy */
 #include <zlib.h> 
 #include <assert.h>
-#include "common.h"
 #include "kseq.h"
 #include "kstring.h"
 #include "uthash.h"
