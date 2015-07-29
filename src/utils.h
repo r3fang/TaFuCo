@@ -1,10 +1,10 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <stdio.h>		/* FILE etc. */
-#include <stdlib.h>		/* malloc(), free(), ... notation */
-#include <string.h>		/* memset() */
-#include <limits.h>		/* INT_MAX etc. */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
 #include <errno.h>
 #include "zlib.h"
 #include "kseq.h"
@@ -25,6 +25,13 @@ typedef struct
 	size_t  SIZE;
 	UT_hash_handle hh;
 } str_ctr;
+
+
+static inline int 
+mystrcmp(const void * a, const void * b)
+{
+   return ( *(int*)a - *(int*)b );
+}
 
 static inline char* 
 concat(char *s1, char *s2)

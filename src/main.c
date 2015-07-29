@@ -139,6 +139,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff, struct BAG_uth
 				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
 				if(rc==0) edge_name = NULL;
 				if(edge_name!=NULL){
+					printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
 					if(BAG_uthash_add(bag, edge_name, concat(concat(_read1, "_"), _read2)) != PR_ERR_NONE) die("BAG_uthash_add fails\n");							
 				}
 		}}
@@ -187,11 +188,16 @@ int main(int argc, char *argv[]) {
 	if(KMER_HT == NULL) die("Fail to load the index\n");	
 	///* load fasta_uthash table */
 	printf("Loading fasta hash table ... \n");
+	// load fasta sequences
 	if((fasta_uthash_load(opt->fa, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
+	// construct break-end associated graph
 	if((construct_BAG(opt->fq1, opt->fq2, opt->k, opt->min_match, &BAG_HT)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
+	// rm duplicate evidence for edges on BAG
+	if((BAG_uthash_uniq(&BAG_HT)) != PR_ERR_NONE) die("main: BAG_uthash_uniq fails\n");
+	// delete edges with weight < opt->min_weight
 	if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
-	//if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
-	/////*--------------------------------------------------------------------*/	
+	if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
+	//*--------------------------------------------------------------------*/	
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
 	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE)	die("main: fasta_uthash_destroy fails\n");		
 	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE)	die("main: BAG_uthash_destroy\n");	

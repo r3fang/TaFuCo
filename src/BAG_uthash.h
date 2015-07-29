@@ -1,13 +1,17 @@
-/* Contact: Rongxin Fang <r3fang@ucsd.edu> */
-/* Last Modified: 15JULY2015 */
+/*--------------------------------------------------------------------*/
+/* Created Date: 15JULY2015                                           */
+/* Author: Rongxin Fang                                               */
+/* Contact: r3fang@ucsd.edu                                           */
+/* Library for Breakend Associated Graph (BAG).                       */
+/*--------------------------------------------------------------------*/
 
 #ifndef _BAG_UTHASH_H
 #define _BAG_UTHASH_H
 
-#include <stdio.h>   /* gets */
-#include <stdlib.h>  /* atoi, malloc */
-#include <string.h>  /* strcpy */
-#include <zlib.h> 
+#include <stdio.h> 
+#include <stdlib.h>
+#include <string.h>
+#include <zlib.h>
 #include <assert.h>
 #include "utils.h"
 
@@ -24,6 +28,9 @@ struct BAG_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
+/*
+ * destory 
+ */
 static inline int 
 BAG_uthash_destroy(struct BAG_uthash **table) {
 	if(*table == NULL) die("BAG_uthash_destroy: parameter error\n");
@@ -95,36 +102,6 @@ cmpstr(void const *a, void const *b) {
 }
 
 static inline int 
-BAG_uthash_rmdup(struct BAG_uthash** tb){
-	if(*tb == NULL) die("BAG_uthash_rmdup: wrong parameters\n");
-	register struct BAG_uthash *cur, *tmp;
-	HASH_ITER(hh, *tb, cur, tmp) {
-		if(cur==NULL) die("BAG_uthash_tim: HASH_ITER fails\n");
-		if(cur->weight >= 2){
-			qsort(cur->evidence, cur->weight, sizeof(cur->evidence[0]), cmpstr);	
-			int i; for(i=1; i < cur->weight; i ++){
-				if(strcmp(cur->evidence[i], cur->evidence[i-1])){
-					free(cur->evidence[i-1]);
-					cur->evidence[i-1] = "\0";
-				}
-			}
-			char **tmp = mycalloc(cur->weight, char*);
-			int j =0;
-			for(i=0; i < cur->weight; i++){
-				if(strlen(cur->evidence[i]) > 0){
-					tmp[j] = strdup(cur->evidence[i]);
-					j++;
-				}
-			}
-			free(cur->evidence);
-			cur->evidence = tmp;
-			cur->weight = j;			
-		}
-	}
-	return BA_ERR_NONE;
-}
-
-static inline int 
 BAG_uthash_trim(struct BAG_uthash** tb, int min_weight){
 	if(*tb == NULL || min_weight < 0) die("BAG_uthash_tim: wrong parameters\n");
 	register struct BAG_uthash *cur, *tmp;
@@ -132,6 +109,43 @@ BAG_uthash_trim(struct BAG_uthash** tb, int min_weight){
 		if(cur==NULL) die("BAG_uthash_tim: HASH_ITER fails\n");
 		if(cur->weight < min_weight) {HASH_DEL(*tb, cur); free(cur);}
     }
+	return BA_ERR_NONE;
+}
+
+/*
+ * rm duplicate evidence for graph edge
+ */
+static inline void 
+BAG_uthash_uniq(struct BAG_uthash **tb){
+	if(*tb == NULL) die("BAG_uthash_uniq: input error");
+	struct BAG_uthash *cur, *tmp;
+	int i, j;
+	int before, del;
+	HASH_ITER(hh, *tb, cur, tmp) {
+		if(cur == NULL) die("kmer_uthash_uniq: HASH_ITER fails\n");
+		qsort(cur->evidence, cur->weight, sizeof(char*), mystrcmp);
+		before = cur->weight;
+		del = 0;
+		if(cur->weight > 1){
+			for(i=1; i<cur->weight; i++){
+				if(mystrcmp(cur->evidence[i], cur->evidence[i-1]) == 0){
+					cur->evidence[i-1] = NULL;
+					del++;
+				}
+			}
+		}		
+		if(del > 0){ // if any element has been deleted
+			char** tmp = mycalloc(before - del , char*);
+			j=0; for(i=0; i<cur->weight; i++){
+				if(cur->evidence[i] != NULL){
+					tmp[j++] = strdup(cur->evidence[i]);
+				}
+			}
+			free(cur->evidence);
+			cur->evidence = tmp;		
+			cur->weight = before - del;	
+		}
+    }	
 	return BA_ERR_NONE;
 }
 

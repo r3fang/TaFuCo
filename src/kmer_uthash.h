@@ -21,12 +21,6 @@ struct kmer_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-static inline int 
-mystrcmp(const void * a, const void * b)
-{
-   return ( *(int*)a - *(int*)b );
-}
-
 /*
  * delete duplicate seq_names 
  */
