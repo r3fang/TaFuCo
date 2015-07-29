@@ -23,12 +23,12 @@
 
 /* error code */
 #define PR_ERR_NONE		     	 		0 		// no error
+
 /*--------------------------------------------------------------------*/
 /*Global paramters.*/
 static struct kmer_uthash *KMER_HT      = NULL;
 static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
-
 
 //opt
 typedef struct {
@@ -173,10 +173,10 @@ int main(int argc, char *argv[]) {
 	srand48(11);
 	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s")) >= 0) {
 				switch (c) {
-				case 'm': opt->min_match = atoi(optarg); break;
+				case 'n': opt->min_match = atoi(optarg); break;
 				case 'w': opt->min_weight = atoi(optarg); break;
 				case 'k': opt->k = atoi(optarg); break;
-				case 'n': opt->match = atoi(optarg); break;
+				case 'm': opt->match = atoi(optarg); break;
 				case 'u': opt->mismatch = atoi(optarg); break;
 				case 'o': opt->gap = atoi(optarg); break;
 				case 'e': opt->extension = atoi(optarg); break;
@@ -189,12 +189,12 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "\n");
 					fprintf(stderr, "Usage:   tfc [options] <in.fa> <R1.fq> <R2.fq>\n\n");
 					fprintf(stderr, "Options: --------------------  BAG Graph Options  -------------------\n");
-					fprintf(stderr, "         -m INT   min number kmer match for a hit between read and gene [%d]\n", opt->min_match);
+					fprintf(stderr, "         -n INT   min number kmer match for a hit between read and gene [%d]\n", opt->min_match);
 					fprintf(stderr, "         -w INT   min weight of edge on BAG [%d]\n", opt->min_weight);
 					fprintf(stderr, "         -k INT   kmer length for indexing reference [%d]\n", opt->k);
 					fprintf(stderr, "\n");
 					fprintf(stderr, "         --------------------  Alignment Options  --------------------\n");
-					fprintf(stderr, "         -n INT   match score [%d]\n", opt->match);
+					fprintf(stderr, "         -m INT   match score [%d]\n", opt->match);
 					fprintf(stderr, "         -u INT   mismatch score [%d]\n", opt->mismatch);
 					fprintf(stderr, "         -o INT   gap open penality [%d]\n", opt->gap);
 					fprintf(stderr, "         -e INT   gap extension penality [%d]\n", opt->extension);
