@@ -115,7 +115,7 @@ BAG_uthash_trim(struct BAG_uthash** tb, int min_weight){
 /*
  * rm duplicate evidence for graph edge
  */
-static inline void 
+static inline int 
 BAG_uthash_uniq(struct BAG_uthash **tb){
 	if(*tb == NULL) die("BAG_uthash_uniq: input error");
 	struct BAG_uthash *cur, *tmp;
@@ -148,5 +148,6 @@ BAG_uthash_uniq(struct BAG_uthash **tb){
     }	
 	return BA_ERR_NONE;
 }
+
 
 #endif

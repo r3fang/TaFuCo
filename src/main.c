@@ -12,8 +12,6 @@
 #include <math.h>
 #include <regex.h>
 #include "kseq.h"
-#include "kstring.h"
-#include "uthash.h"
 #include "kmer_uthash.h"
 #include "BAG_uthash.h"
 #include "fasta_uthash.h"
@@ -59,7 +57,7 @@ opt_t *init_opt(){
  * _k       - kmer length
  */
 int
-find_all_matched_genes(str_ctr **hash, char* _read, int _k){
+find_all_matches(str_ctr **hash, char* _read, int _k){
 /*--------------------------------------------------------------------*/
 	/* check parameters */
 	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
@@ -69,7 +67,7 @@ find_all_matched_genes(str_ctr **hash, char* _read, int _k){
 	int _read_pos = 0;
 	char* gene = NULL;
 	struct kmer_uthash *s_kmer = NULL; 
-	char buff[_k];
+	register char buff[_k];
 /*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k-1)){
 		/* copy a kmer of string */
@@ -97,13 +95,14 @@ find_all_matched_genes(str_ctr **hash, char* _read, int _k){
  * bag      - BAG_uthash object (breakend associated graph)
  */
 int
-construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff, struct BAG_uthash **bag){
+construct_BAG(char *fq_file1, char *fq_file2, int _k, int _min_match, struct BAG_uthash **bag){
 	if(fq_file1 == NULL || fq_file2 == NULL) die("construct_BAG: parameter error\n");
 	int error;
 	gzFile fp1, fp2;
-	kseq_t *seq1, *seq2;
-	int l1, l2;
-	char *_read1, *_read2, *edge_name;
+	register int l1, l2;
+	register kseq_t *seq1, *seq2;
+	register char *_read1, *_read2;
+	register char *edge_name;
 	_read1 = _read2 = edge_name = NULL;
 	
 	fp1 = gzopen(fq_file1, "r");
@@ -121,8 +120,8 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff, struct BAG_uth
 		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
 		str_ctr* gene_counter = NULL;
 		str_ctr *s, *tmp;
-		find_all_matched_genes(&gene_counter, _read1, _k);
-		find_all_matched_genes(&gene_counter, _read2, _k);
+		find_all_matches(&gene_counter, _read1, _k);
+		find_all_matches(&gene_counter, _read2, _k);
 		
 		HASH_SORT(gene_counter, str_ctr_sort);
 		unsigned int num = HASH_COUNT(gene_counter);
@@ -130,7 +129,7 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff, struct BAG_uth
 		char** hits = mycalloc(num, char*);
 		int i=0; if(num > 1){
 			HASH_ITER(hh, gene_counter, s, tmp) { 
-				if(s->SIZE >= cutoff){hits[i++] = strdup(s->KEY);}
+				if(s->SIZE >= _min_match){hits[i++] = strdup(s->KEY);}
 			}			
 		}
 		int m, n; for(m=0; m < i; m++){for(n=m+1; n < i; n++){
@@ -139,7 +138,6 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int cutoff, struct BAG_uth
 				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
 				if(rc==0) edge_name = NULL;
 				if(edge_name!=NULL){
-					printf("%s\t%s\n", edge_name, concat(concat(_read1, "_"), _read2));
 					if(BAG_uthash_add(bag, edge_name, concat(concat(_read1, "_"), _read2)) != PR_ERR_NONE) die("BAG_uthash_add fails\n");							
 				}
 		}}
@@ -182,7 +180,7 @@ int main(int argc, char *argv[]) {
 	opt->fq1 = argv[argc-2];
 	opt->fq2 = argv[argc-1];
 	/* load kmer hash table in the memory */
-	//* load kmer_uthash table */
+	/* load kmer_uthash table */
 	printf("Generating kmer hash table (K=%d) ... \n", opt->k);
 	KMER_HT = kmer_uthash_construct(opt->fa, opt->k);	
 	if(KMER_HT == NULL) die("Fail to load the index\n");	
@@ -191,22 +189,23 @@ int main(int argc, char *argv[]) {
 	// load fasta sequences
 	if((fasta_uthash_load(opt->fa, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
 	// construct break-end associated graph
+	printf("constructing break-end associated graph ... \n");
 	if((construct_BAG(opt->fq1, opt->fq2, opt->k, opt->min_match, &BAG_HT)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
 	// rm duplicate evidence for edges on BAG
-	if((BAG_uthash_uniq(&BAG_HT)) != PR_ERR_NONE) die("main: BAG_uthash_uniq fails\n");
+	//if((BAG_uthash_uniq(&BAG_HT)) != PR_ERR_NONE) die("main: BAG_uthash_uniq fails\n");
 	// delete edges with weight < opt->min_weight
-	if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
+	//if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
 	if(BAG_uthash_display(BAG_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
 	//*--------------------------------------------------------------------*/	
+	// clear up the masses
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
 	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE)	die("main: fasta_uthash_destroy fails\n");		
 	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE)	die("main: BAG_uthash_destroy\n");	
-	/////*--------------------------------------------------------------------*/	
+	/*--------------------------------------------------------------------*/	
 	fprintf(stderr, "[%s] Version: %s\n", __func__, PACKAGE_VERSION);
 	fprintf(stderr, "[%s] CMD:", __func__);
 	for (i = 0; i < argc; ++i)
 		fprintf(stderr, " %s", argv[i]);
 		fprintf(stderr, "\n");
-
 	return 0;
 }
