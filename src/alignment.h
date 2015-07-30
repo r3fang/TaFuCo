@@ -99,24 +99,33 @@ typedef struct {
 
 typedef struct
 {
-	size_t  n1; // number of junctions sites in gene1
-	size_t  n2;
-	int    *S1;
-	int    *S2;
-	char   *str1;  
-	char   *str2;  
+	char *s;   // string
+	size_t l;  // length of the string
+	int *S1;    // exon junction sites
+	int *S2;    // exon junction sites
+	size_t S1_l; // number of exon junction sites
+	size_t S2_l; // number of exon junction sites
+	size_t J;     // junction site between 2 genes
 } ref_t;
 
 // initilize ref_t
-static inline ref_t *ref_init(){
+static inline ref_t 
+*ref_init(){
 	ref_t *r = mycalloc(1, ref_t);
-	if(r == NULL) die("[%s] input error", __func__);
-	r->n1 = r->n2 = 0;
-	r->S1 = r->S2 = NULL;
-	r->str1 = r->str2 = NULL;
+	r->S1_l  = 0;
+	r->S2_l  = 0;
+	r->s = NULL;
+	r->l = 0;
+	r->J = 0;
 	return r;
 }
 
+static inline void 
+ref_destory(ref_t* t){
+	if(t->S1) free(t->S1);
+	if(t->S2) free(t->S2);
+	if(t->s)  free(t->s);
+}
 
 /* max of fix values */
 static inline int 
@@ -236,57 +245,62 @@ isvalueinarray(int val, int *arr, int size){
 }
 
 static inline void 
-trace_back(matrix_t *S, kstring_t *s1, kstring_t *s2, kstring_t *res_ks1, kstring_t *res_ks2, int state, int i, int j){
-	if(S == NULL || s1 == NULL || s2 == NULL || res_ks1 == NULL || res_ks2 == NULL) die("trace_back: paramter error");
+trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
+	if(S == NULL || s1 == NULL || s2 == NULL) die("trace_back: paramter error");
+	char *res_ks1 = mycalloc(strlen(s1)+strlen(s2), char); 
+	char *res_ks2 = mycalloc(strlen(s1)+strlen(s2), char); 
 	int cur = 0; 
 	while(i>0){
 		switch(state){
 			case LOW:
 				state = S->pointerL[i][j]; // change to next state
-				res_ks1->s[cur] = s1->s[--i];
-				res_ks2->s[cur++] = '-';
+				res_ks1[cur] = s1[--i];
+				res_ks2[cur++] = '-';
 				break;
 			case MID:
 				state = S->pointerM[i][j]; // change to next state
-                res_ks1->s[cur] = s1->s[--i];
-                res_ks2->s[cur++] = s2->s[--j];
+                res_ks1[cur] = s1[--i];
+                res_ks2[cur++] = s2[--j];
 				break;
 			case UPP:
 				state = S->pointerU[i][j];
-				res_ks1->s[cur] = '-';
-            	res_ks2->s[cur++] = s2->s[--j];
+				res_ks1[cur] = '-';
+            	res_ks2[cur++] = s2[--j];
 				break;
 			case JUMP:
 				state = S->pointerJ[i][j];
-				res_ks1->s[cur] = '-';
-	           	res_ks2->s[cur++] = s2->s[--j];
+				res_ks1[cur] = '-';
+	           	res_ks2[cur++] = s2[--j];
 				break;
 			case GENE1:
 				state = S->pointerG1[i][j];
-				res_ks1->s[cur] = '-';
-		        res_ks2->s[cur++] = s2->s[--j];
+				res_ks1[cur] = '-';
+		        res_ks2[cur++] = s2[--j];
 				break;
 			case GENE2:
 				state = S->pointerG2[i][j];
-				res_ks1->s[cur] = '-';
-			    res_ks2->s[cur++] = s2->s[--j];
+				res_ks1[cur] = '-';
+			    res_ks2[cur++] = s2[--j];
 				break;
 			default:
 				break;
 			}
 	}
-	res_ks1->l = cur;
-	res_ks2->l = cur;	
-	res_ks1->s = strrev(res_ks1->s);
-	res_ks2->s = strrev(res_ks2->s);
+	free(res_ks1);
+	free(res_ks2);
+	//res_ks1 = strrev(res_ks1);
+	//res_ks2 = strrev(res_ks2);
 }
-double align(kstring_t *s1, kstring_t *s2, kstring_t *r1, kstring_t *r2, ref_t *ref){
-	if(s1 == NULL || s2 == NULL || r1 == NULL || r2 == NULL) die("align: parameter error\n");
-	if(s1->l > s2->l) die("first sequence must be shorter than the second to do fitting alignment"); 
-	int *S1 = ref->S1;
-	int *S2 = ref->S2;
-	int JUNCTION = strlen(ref->str1);
-	size_t m   = s1->l + 1; size_t n   = s2->l + 1;
+
+double align(char *s1, ref_t *ref){
+	if(s1 == NULL || ref == NULL) die("align: parameter error\n");
+	char *s2 = ref->s;
+	int  *S1 = ref->S1;
+	int  *S2 = ref->S2;
+	int  JUNCTION = ref->J;
+	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
+	size_t m   = strlen(s1) + 1; 
+	size_t n   = strlen(s2) + 1;
 	matrix_t *S = create_matrix(m, n);
 	// initlize leftmost column
 	int i, j;
@@ -311,10 +325,10 @@ double align(kstring_t *s1, kstring_t *s2, kstring_t *r1, kstring_t *r2, ref_t *
 	int idx;
 	
 	// recurrance relation
-	for(i=1; i<=s1->l; i++){
-		for(j=1; j<=s2->l; j++){
+	for(i=1; i<=strlen(s1); i++){
+		for(j=1; j<=strlen(s2); j++){
 			// MID any state can goto MID
-			delta = ((s1->s[i-1] - s2->s[j-1]) == 0) ? MATCH : MISMATCH;
+			delta = ((s1[i-1] - s2[j-1]) == 0) ? MATCH : MISMATCH;
 			tmp_J = (j > JUNCTION) ?  S->J[i-1][j-1]+delta : -INFINITY;
 			tmp_G1 = (isvalueinarray(j, S1, 6)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
 			tmp_G2 = (isvalueinarray(j, S2, 6)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
@@ -351,28 +365,27 @@ double align(kstring_t *s1, kstring_t *s2, kstring_t *r1, kstring_t *r2, ref_t *
 			if(idx == 1) S->pointerG2[i][j] = GENE2;
 			}
 		}
-	
 	// find trace-back start point
 	// NOTE: ALWAYS STARTS TRACING BACK FROM MID OR LOW
 	int i_max, j_max;
 	double max_score = -INFINITY;
 	int max_state;
-	i_max = s1->l;
-	for(j=0; j<s2->l; j++){
+	i_max = strlen(s1);
+	for(j=0; j<strlen(s2); j++){
 		if(max_score < S->M[i_max][j]){
 			max_score = S->M[i_max][j];
 			j_max = j;
 			max_state = MID;
 		}
 	}
-	for(j=0; j<s2->l; j++){
+	for(j=0; j<strlen(s2); j++){
 		if(max_score < S->L[i_max][j]){
 			max_score = S->L[i_max][j];
 			j_max = j;
 			max_state = LOW;
 		}
 	}
-	trace_back(S, s1, s2, r1, r2, max_state, i_max, j_max);	
+	trace_back(S, s1, s2, max_state, i_max, j_max);	
 	destory_matrix(S);
 	return max_score;
 }
