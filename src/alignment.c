@@ -84,7 +84,7 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	int i; for(i=0; i>ref->n2; i++) ref->S2[i] += strlen(ref->str1); 
 	ks2->l = strlen(ks2->s);
 	
-	i; for(i=0; i<eg->weight; i++){
+	for(i=0; i<eg->weight; i++){
 		ks1->s = strsplit(eg->evidence[i], '_')[0]; ks1->l = strlen(ks1->s);
 		if(ks1->s == NULL || ks2->s == NULL) die("fail to read sequence\n");
 		if(ks1->l > ks2->l) die("first sequence must be shorter than the second\n");
@@ -96,7 +96,6 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		printf("%s\n%s\n", r1->s, r2->s);	
 		//kstring_destory(ks1);
 	}
-		
 	kstring_destory(ks2);
 	//kstring_destory(r1);
 	//kstring_destory(r2);
@@ -107,15 +106,15 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 }
 /* main function. */
 int main(int argc, char *argv[]) {
-	struct BAG_uthash *tb = mycalloc(1, struct BAG_uthash);
-	tb->edge = "EGFR_PLAG1";
-	tb->weight = 3;
-	tb->evidence = mycalloc(3, char*);
-	tb->evidence[0] = "GGAAAAAAATTTTAGCCTTATCTTAATCTGTCCCAACAGCAATGTGACGGATTTTTGCAGATTCAAAATCTGCAATGGTTATTTACAAGTCAATCT";
-	tb->evidence[1] = "GATCATTCTACAAGATGTCAGTGCACTGAAACATGCAGGGGCGTGTTGAGTGTGGAAGGATCTTGACAAGTTGTTT_CCTGCCCGGCAGGAGTCATGGGAGAAAACAACACCCTGGTCTGGAAGTACGCAGACGCCGGCCATGTGTGCCACCT";
-	tb->evidence[2] = "ATTCTACAAGATGTCAGTGCACTGAAACATGCAGGGGCGTGTTGAGTGTGGAAGGATCTTGACAAGTTGTTTTGAA_ATCCAAACTGCACCTACGGATGCACTGGGCCAGGTCTTGAAGGCTGTCCAACGAATGGAAGCTACATAGTGTCTC";
-	if((fasta_uthash_load("sample_data/exons.fa", &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
-	edge_align(tb, FASTA_HT);
-	
+	//tb->edge = "EGFR_PLAG1";
+	//tb->weight = 3;
+	//tb->evidence = mycalloc(3, char*);
+	//tb->evidence[0] = "GGAAAAAAATTTTAGCCTTATCTTAATCTGTCCCAACAGCAATGTGACGGATTTTTGCAGATTCAAAATCTGCAATGGTTATTTACAAGTCAATCT";
+	//tb->evidence[1] = "GATCATTCTACAAGATGTCAGTGCACTGAAACATGCAGGGGCGTGTTGAGTGTGGAAGGATCTTGACAAGTTGTTT_CCTGCCCGGCAGGAGTCATGGGAGAAAACAACACCCTGGTCTGGAAGTACGCAGACGCCGGCCATGTGTGCCACCT";
+	//tb->evidence[2] = "ATTCTACAAGATGTCAGTGCACTGAAACATGCAGGGGCGTGTTGAGTGTGGAAGGATCTTGACAAGTTGTTTTGAA_ATCCAAACTGCACCTACGGATGCACTGGGCCAGGTCTTGAAGGCTGTCCAACGAATGGAAGCTACATAGTGTCTC";
+	//if((fasta_uthash_load("sample_data/exons.fa", &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
+	//edge_align(tb, FASTA_HT);
+	struct BAG_uthash *tb = BAG_uthash_load("graph_flank_0.fa");
+	BAG_uthash_display(tb);
 	return 0;
 }

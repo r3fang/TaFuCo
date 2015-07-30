@@ -56,12 +56,32 @@ static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 	register struct BAG_uthash *cur, *tmp;
 	HASH_ITER(hh, graph_ht, cur, tmp) {
 		if(cur == NULL) die("BAG_uthash_display: HASH_ITER fails\n");
-		printf(">%s\t%zu\n", cur->edge, cur->weight);
-		int i; for(i=0; i<cur->weight; i++){
-			printf("%s\n", cur->evidence[i]);	
+		int i; for(i=0; i < cur->weight; i++){
+			printf(">%s\n%s\n", cur->edge, cur->evidence[i]);
 		}
 	}
 	return BA_ERR_NONE;
+}
+
+/*
+ * intiate BAG_uthash
+ *
+ */
+static inline struct BAG_uthash 
+*BAG_uthash_init() {
+	struct BAG_uthash *t = mycalloc(1, struct BAG_uthash);
+	t->edge = NULL;
+	t->weight = 0;
+	t->evidence = mycalloc(1, char*);
+	return t;
+}
+
+static inline struct BAG_uthash 
+*find_edge(struct BAG_uthash *tb, char* quary_name) {
+	if(quary_name == NULL) die("[%s] input error", __func__);
+	struct BAG_uthash* s = NULL;	
+    HASH_FIND_STR(tb, quary_name, s);  /* s: output pointer */
+	return s;
 }
 
 /*
@@ -70,27 +90,24 @@ static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 static inline int 
 BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
 	/* check parameters */
-	if(edge_name == NULL || evidence == NULL) die("BAG_uthash_add: parameter error\n");
-	register struct BAG_uthash *s;
-	HASH_FIND_STR(*graph_ht, edge_name, s);
-	if(s==NULL){
-		if((s=(struct BAG_uthash*)malloc(sizeof(struct BAG_uthash))) == NULL) die("BAG_uthash_add: malloc fails\n");
-		s->edge = edge_name;
+	if(edge_name == NULL || evidence == NULL) die("[%s]: parameter error\n", __func__);
+	struct BAG_uthash *s;
+	register int n;
+	if((s = find_edge(*graph_ht, edge_name)) == NULL){
+		s = BAG_uthash_init();
+		s->edge = strdup(edge_name);
 		s->weight = 1;
-		if((s->evidence = malloc(sizeof(char*))) == NULL) die("BAG_uthash_add: malloc fails\n");
-		s->evidence[0] = evidence; /* first and only 1 element*/
-		HASH_ADD_STR(*graph_ht, edge, s);						
+		s->evidence[0] = strdup(evidence); /* first and only 1 element*/
+		HASH_ADD_STR(*graph_ht, edge, s);								
 	}else{
-		s->weight ++;
-		char **tmp;
-		if((tmp = malloc((s->weight+1) * sizeof(char*)))==NULL) die("BAG_uthash_add: malloc fails\n");
-		int n;
-		for (n = 0; n < s->weight-1; n++){
-			tmp[n] = strdup(s->evidence[n]);
-		}
-		free(s->evidence);
-		tmp[n] = evidence;
-		s->evidence = tmp;
+		s->weight++;
+		char **tmp = mycalloc(s->weight, char*);
+	 	for (n = 0; n < s->weight-1; n++){
+	 		tmp[n] = strdup(s->evidence[n]);
+	 	}
+	 	tmp[n] = strdup(evidence);
+	 	free(s->evidence);
+	 	s->evidence = tmp;
 	}
 	return BA_ERR_NONE;
 }
@@ -156,26 +173,29 @@ BAG_uthash_uniq(struct BAG_uthash **tb){
 ///*
 // * trim edges with evidence less than min_weight
 // */
-//static inline struct BAG_uthash *BAG_uthash_load(char* fname){
-//	if(fname == NULL) die("[%s] input error", __func__);
-//	struct BAG_uthash *tb = NULL;
-//	gzFile fp;
-//	kseq_t *seq;
-//	int l;
-//	fp = gzopen(fname, "r");
-//	if(fp == NULL) die("[%s] fail to open %s", __func__, fname);		
-//
-//	struct fasta_uthash *s;	
-//	if((seq = kseq_init(fp))==NULL) die("[%s] kseq_init fails", __func__);
-//
-//	while ((l = kseq_read(seq)) >= 0){
-//		if(seq->name.s == NULL || seq->seq.s==NULL)
-//			continue;
-//		printf("%s\n", seq->name.s);
-//		printf("%s\n", seq->seq.s);
-//	}	
-//	if(seq) kseq_destroy(seq);
-//	gzclose(fp);
-//	return tb;
-//}
+static inline struct BAG_uthash 
+*BAG_uthash_load(char* fname){
+	if(fname == NULL) die("[%s] input error", __func__);
+	struct BAG_uthash *tb = NULL;
+	struct BAG_uthash *cur = NULL;
+	
+	gzFile fp;
+	kseq_t *seq;
+	int l;
+	fp = gzopen(fname, "r");
+	if(fp == NULL) die("[%s] fail to open %s", __func__, fname);		
+
+	struct fasta_uthash *s;	
+	if((seq = kseq_init(fp))==NULL) die("[%s] kseq_init fails", __func__);
+
+	while ((l = kseq_read(seq)) >= 0){
+		if(seq->name.s == NULL || seq->seq.s==NULL)
+			continue;
+		BAG_uthash_add(&tb, seq->name.s, seq->seq.s);		
+	}	
+	//if(cur) BAG_uthash_destroy(&cur);
+	if(seq) kseq_destroy(seq);
+	gzclose(fp);
+	return tb;
+}
 #endif
