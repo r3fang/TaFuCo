@@ -85,9 +85,21 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	int gene2_S[MAX_EXON_NUM]; // junction sites for gene2
 	ref_t *ref1 = ref_generate(FASTA_HT, gname1, gname2);
 	ref_t *ref2 = ref_generate(FASTA_HT, gname2, gname1);
-	
+	solution *a, *b;
 	register int i; for(i=0; i<eg->weight; i++){
-		printf("score1=%f\tscore2=%f\n", align(eg->evidence[i], ref1), align(eg->evidence[i], ref2));
+		a = align(strsplit(eg->evidence[i], '_')[0], ref1);
+		b = align(strsplit(eg->evidence[i], '_')[0], ref2);
+		if(b!=NULL){
+			printf("%s\n", b->s1);
+			//printf("%s\n", b->s2);			
+		}
+		//if(a->score > b->score){
+		//	printf("%s\n", a->s1);
+		//	printf("%s\n", a->s2);
+		//}else{
+		//	printf("%s\n", b->s1);
+		//	printf("%s\n", b->s2);
+		//}
 	}
 	if(gname1) free(gname1);
 	if(gname2) free(gname2);

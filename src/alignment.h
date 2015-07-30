@@ -65,9 +65,9 @@
 
 typedef enum { true, false } bool;
 
-#define GAP 					-3.0
+#define GAP 					-5.0
 #define MATCH 					 2.0
-#define MISMATCH 				-0.5
+#define MISMATCH 				-1.0
 #define EXTENSION               -1.0
 #define JUMP_GENE               -15.0
 #define JUMP_EXON               -10.0
@@ -107,6 +107,13 @@ typedef struct
 	size_t S2_l; // number of exon junction sites
 	size_t J;     // junction site between 2 genes
 } ref_t;
+
+typedef struct
+{
+	char* s1;
+	char* s2;
+	double score;
+} solution;
 
 // initilize ref_t
 static inline ref_t 
@@ -244,9 +251,11 @@ isvalueinarray(int val, int *arr, int size){
     return FALSE;
 }
 
-static inline void 
+static inline solution* 
 trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
+	int flag = 0;
 	if(S == NULL || s1 == NULL || s2 == NULL) die("trace_back: paramter error");
+	solution *s = mycalloc(1, solution);
 	char *res_ks1 = mycalloc(strlen(s1)+strlen(s2), char); 
 	char *res_ks2 = mycalloc(strlen(s1)+strlen(s2), char); 
 	int cur = 0; 
@@ -268,6 +277,7 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
             	res_ks2[cur++] = s2[--j];
 				break;
 			case JUMP:
+				flag = 1;
 				state = S->pointerJ[i][j];
 				res_ks1[cur] = '-';
 	           	res_ks2[cur++] = s2[--j];
@@ -286,13 +296,14 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 				break;
 			}
 	}
-	free(res_ks1);
-	free(res_ks2);
-	//res_ks1 = strrev(res_ks1);
-	//res_ks2 = strrev(res_ks2);
+	s->s1 = res_ks1;
+	s->s2 = res_ks2;
+	if(flag == 0) s = NULL;
+	return s;
 }
 
-double align(char *s1, ref_t *ref){
+static inline solution 
+*align(char *s1, ref_t *ref){
 	if(s1 == NULL || ref == NULL) die("align: parameter error\n");
 	char *s2 = ref->s;
 	int  *S1 = ref->S1;
@@ -385,8 +396,11 @@ double align(char *s1, ref_t *ref){
 			max_state = LOW;
 		}
 	}
-	trace_back(S, s1, s2, max_state, i_max, j_max);	
+	solution *s = trace_back(S, s1, s2, max_state, i_max, j_max);	
+	if(s != NULL){
+		s->score = max_score;		
+	}
 	destory_matrix(S);
-	return max_score;
+	return s;
 }
 #endif
