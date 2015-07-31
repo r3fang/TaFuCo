@@ -44,6 +44,8 @@ typedef struct {
 	int extension;
 	int jump_gene;
 	int jump_exon;
+	int min_hits;
+	double min_align_score;
 } opt_t;
 
 opt_t *init_opt(){
@@ -53,13 +55,15 @@ opt_t *init_opt(){
 	opt->fa = NULL;
 	opt->k = 15;
 	opt->min_match = 10;
-	opt->min_weight = 1;	
+	opt->min_weight = 3;	
 	opt->match = 2;
 	opt->mismatch = -2;
 	opt->gap = -5;
 	opt->extension = -1;
 	opt->jump_gene = -10;
 	opt->jump_exon = -8;
+	opt->min_hits = 3;
+	opt->min_align_score = 0.8;
 	return opt;
 }
 
@@ -182,6 +186,8 @@ int main(int argc, char *argv[]) {
 				case 'e': opt->extension = atoi(optarg); break;
 				case 'j': opt->jump_gene = atoi(optarg); break;
 				case 's': opt->jump_exon = atoi(optarg); break;
+				case 'h': opt->min_hits = atoi(optarg); break;
+				case 'a': opt->min_align_score = atof(optarg); break;
 				default: return 1;
 		}
 	}
@@ -199,7 +205,11 @@ int main(int argc, char *argv[]) {
 					fprintf(stderr, "         -o INT   gap open penality [%d]\n", opt->gap);
 					fprintf(stderr, "         -e INT   gap extension penality [%d]\n", opt->extension);
 					fprintf(stderr, "         -j INT   jump penality between genes [%d]\n", opt->jump_gene);
-					fprintf(stderr, "         -s INT   jump penality between exons [%d]\n", opt->jump_exon);					
+					fprintf(stderr, "         -s INT   jump penality between exons [%d]\n", opt->jump_exon);
+					fprintf(stderr, "\n");
+					fprintf(stderr, "         --------------------  Junction Options  --------------------\n");										
+					fprintf(stderr, "         -h INT   min number of hits for a junction [%d]\n", opt->min_hits);					
+					fprintf(stderr, "         -a FLOAT min alignment score [%f]\n", opt->min_align_score);
 					fprintf(stderr, "\n");
 					return 1;
 	}
