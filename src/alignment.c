@@ -24,12 +24,12 @@ static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
 
 typedef struct {
-	unsigned long idx;
-	char *name;
-	int start;
+	unsigned long idx; // determined by pair(start, end)
+	char *name;        // name of edge
+	int start;         
 	int end;
-	char* str;
-	double prob;
+	char* str;         // reference string
+	double likehood;       // alignment probability
     UT_hash_handle hh;
 } junction_t;
 
@@ -50,6 +50,7 @@ void solution_pair_destory(solution_pair_t *s){
 	}
 	free(s);
 }
+
 ref_t* ref_generate(struct fasta_uthash *tb, char* gname1, char* gname2){
 	if(tb==NULL || gname1==NULL || gname2==NULL) die("[%s] input error", __func__);
 	ref_t *ref = ref_init();
@@ -104,6 +105,51 @@ ref_t* ref_generate(struct fasta_uthash *tb, char* gname1, char* gname2){
 	ref->l = strlen(ref->s);
 	return ref;
 }
+/*
+ * generate junction sites from solution_pair_t
+ */
+junction_t * junction_gen(solution_pair_t *p, char* name){
+	if(p == NULL) return NULL;
+	solution_pair_t *s, *tmp;
+	junction_t *m, *ret = NULL;
+	unsigned int idx;
+    HASH_ITER(hh, p, s, tmp) {
+		// one read
+		if(s->r1->jump == true){
+			idx = pair(s->r1->jump_start, s->r1->jump_end);
+			HASH_FIND_INT(ret, &idx, m);
+			if(m==NULL){ // this junction not in ret
+				m = mycalloc(1, junction_t);
+				m->idx = idx;
+				m->name = strdup(name);
+				m->start = s->r1->jump_start;
+				m->end = s->r1->jump_end;
+				m->likehood = 10*log(s->r1->pos); 
+				HASH_ADD_INT(ret, idx, m);
+			}else{
+				m->likehood += 10*log(s->r1->pos); 
+			}
+		}
+		// the other read
+		if(s->r2->jump == true){
+			idx = pair(s->r2->jump_start, s->r2->jump_end);
+			HASH_FIND_INT(ret, &idx, m);
+			if(m==NULL){ // this junction not in ret
+				m = mycalloc(1, junction_t);
+				m->idx = idx;
+				m->name = strdup(name);
+				m->start = s->r2->jump_start;
+				m->end = s->r2->jump_end;
+				m->likehood = 10*log(s->r2->pos); 
+				HASH_ADD_INT(ret, idx, m);
+			}else{
+				m->likehood += 10*log(s->r2->pos); 
+			}
+		}	
+    }
+	return ret;	
+}
+
 /*
  * Align reads that support e(Vi, Vj) to the string concated by exons of 
  * Vi and Vj.
@@ -171,7 +217,14 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		likehood2 += 10*log(s->r1->prob);
 		likehood2 += 10*log(s->r2->prob);		
     }
-	printf("%f\t%f\n", likehood1, likehood2);
+	junction_t *ret, *aa, *bb;
+	if(likehood1 >= likehood2){ret = junction_gen(sol_pairs_r1, eg->edge);};
+	if(likehood1 < likehood2) {ret = junction_gen(sol_pairs_r2, eg->edge);};
+	if(ret != NULL){
+	    HASH_ITER(hh, ret, aa, bb) {
+			printf("%d\t%d\t%f\n", aa->start, aa->end, aa->likehood);
+	    }		
+	}
 	/*------------------------------------------------------------------------------*/	
 	// find uniquely aligned reads
 

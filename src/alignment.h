@@ -142,7 +142,7 @@ static inline solution
 	t->match = 0;
 	t->insertion = 0;
 	t->deletion = 0;
-		t->prob = 0.0;
+	t->prob = 0.0;
 	return t;
 }
 
