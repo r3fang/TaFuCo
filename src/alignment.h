@@ -125,6 +125,7 @@ typedef struct
 	int match;
 	int insertion;
 	int deletion;
+	double prob;
 } solution;
 
 // initilize solution
@@ -141,6 +142,7 @@ static inline solution
 	t->match = 0;
 	t->insertion = 0;
 	t->deletion = 0;
+		t->prob = 0.0;
 	return t;
 }
 
@@ -440,6 +442,8 @@ static inline solution
 	solution *s = trace_back(S, s1, s2, max_state, i_max, j_max);	
 	s->score = max_score;		
 	destory_matrix(S);
+	if(s->jump == false) {s->prob = s->score/(strlen(s1)*MATCH);}
+	if(s->jump == true)  {s->prob = s->score/(strlen(s1)*MATCH+JUMP_GENE);}
 	return s;
 }
 #endif

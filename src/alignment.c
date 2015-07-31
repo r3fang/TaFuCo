@@ -18,6 +18,7 @@
 
 #define pair(k1, k2)  ((k1 + k2)*(k1 + k2 + 1)/2 + k2)
 
+
 static struct kmer_uthash *KMER_HT      = NULL;
 static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
@@ -28,9 +29,19 @@ typedef struct {
 	int start;
 	int end;
 	char* str;
-	double score;
+	double prob;
     UT_hash_handle hh;
 } junction_t;
+
+// alingment soulution
+typedef struct
+{
+	unsigned long idx;
+	solution *r1;
+	solution *r2;
+	double prob;
+	UT_hash_handle hh;
+} solution_pair;
 
 ref_t* ref_generate(struct fasta_uthash *tb, char* gname1, char* gname2){
 	if(tb==NULL || gname1==NULL || gname2==NULL) die("[%s] input error", __func__);
@@ -93,42 +104,55 @@ ref_t* ref_generate(struct fasta_uthash *tb, char* gname1, char* gname2){
 void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	char* gname1 = strsplit(eg->edge, '_')[0];
 	char* gname2 = strsplit(eg->edge, '_')[1];
-	int gene1_S[MAX_EXON_NUM]; // junction sites for gene1
-	int gene2_S[MAX_EXON_NUM]; // junction sites for gene2
 	ref_t *ref1 = ref_generate(FASTA_HT, gname1, gname2);
 	ref_t *ref2 = ref_generate(FASTA_HT, gname2, gname1);
 	// because we don't know the order of gene fusion
 	// therefore, we need align E1, E2 to both order 
 	// and decide the order of gene fusion based on alignment score
-	solution **sol_set_e1_r1 = mycalloc(eg->weight, solution*);
-	solution **sol_set_e2_r1 = mycalloc(eg->weight, solution*);
-	solution **sol_set_e1_r2 = mycalloc(eg->weight, solution*);
-	solution **sol_set_e2_r2 = mycalloc(eg->weight, solution*);
+	solution_pair *sol_pairs_r1 = NULL;
+	//solution_pair *sol_pair_r2 = NULL;
+	solution_pair *s, *tmp; 
 	register int i, j;
+	int idx_r1, idx_r2;
 	
 	for(i=0; i<eg->weight; i++){
-		sol_set_e1_r1[i] = align(strsplit(eg->evidence[i], '_')[0], ref1);
-		sol_set_e2_r1[i] = align(strsplit(eg->evidence[i], '_')[1], ref1);
-		sol_set_e1_r2[i] = align(strsplit(eg->evidence[i], '_')[0], ref2);
-		sol_set_e2_r2[i] = align(strsplit(eg->evidence[i], '_')[1], ref2);
+		solution *a = align(strsplit(eg->evidence[i], '_')[0], ref1);
+		solution *b = align(strsplit(eg->evidence[i], '_')[1], ref1);
+		//solution *c = align(strsplit(eg->evidence[i], '_')[0], ref2);
+		//solution *d = align(strsplit(eg->evidence[i], '_')[1], ref2);
+		idx_r1 = pair(a->pos, b->pos); //idx_r2 = pair(c->pos, d->pos);
+		HASH_FIND_INT(sol_pairs_r1, &idx_r1, s);
+		if(s==NULL){
+			s = mycalloc(1, solution_pair);
+			s->idx = idx_r1;
+			s->r1 = a; s->r2 = b;
+			s->prob = a->prob * b->prob;
+			HASH_ADD_INT(sol_pairs_r1, idx, s );  /* idx: name of key field */
+		}else{ // update with higher score
+			if(s->prob < a->prob * b->prob){
+				s->prob =  a->prob * b->prob;
+				s->r1 = a;
+				s->r2 = b;
+			}
+		}
 	}
 	/*------------------------------------------------------------------------------*/	
-	// make decision of gene order
-	double score_r1, score_r2;
-	score_r1 = score_r2 = 0;
-	for(i=0; i<eg->weight; i++){
-		score_r1 += log(sol_set_e1_r1[i]->score);
-		score_r1 += log(sol_set_e2_r1[i]->score);
-		score_r2 += log(sol_set_e1_r2[i]->score);
-		score_r2 += log(sol_set_e2_r2[i]->score);
-	}
-	printf("score1=%f\tscore2=%f\n", score_r1, score_r2);
-	/*------------------------------------------------------------------------------*/	
+	// make decision of gene order, chose the one with smaller likelihood
+	//register double likehood1, likehood2;
+	//likehood1 = likehood2 = 0;
 	
-	if(sol_set_e1_r1){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e1_r1[i]);}
-	if(sol_set_e1_r2){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e1_r2[i]);}
-	if(sol_set_e2_r1){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e2_r1[i]);}
-	if(sol_set_e2_r2){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e2_r2[i]);}
+    HASH_ITER(hh, sol_pairs_r1, s, tmp) {
+		printf("%d\t%d\t%f\n", s->r1->jump_start, s->r2->jump_start, s->prob);
+    }
+	/*------------------------------------------------------------------------------*/	
+	// find uniquely aligned reads
+
+	/*------------------------------------------------------------------------------*/		
+	//if(sol_pair_r1) {for(i=0; i<eg->weight; i++){solution_destory(sol_pair_r1[i]->e1); solution_destory(sol_pair_r1[i]->e2)} }
+	//if(sol_set_e1_r1){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e1_r1[i]);}
+	//if(sol_set_e1_r2){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e1_r2[i]);}
+	//if(sol_set_e2_r1){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e2_r1[i]);}
+	//if(sol_set_e2_r2){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e2_r2[i]);}
 	if(gname1) free(gname1);     if(gname2) free(gname2);
 	if(ref1) ref_destory(ref1);  if(ref2) ref_destory(ref2);
 }
