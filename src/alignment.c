@@ -16,15 +16,17 @@
 #define MAX_EXON_NUM                      5000
 #define EXON_FLANK_LEN                    0
 
-//!!!!!!!
-//pi(k1, k2) = 1/2(k1 + k2)(k1 + k2 + 1) + k2
+#define pair(k1, k2)  ((k1 + k2)*(k1 + k2 + 1)/2 + k2)
 
 static struct kmer_uthash *KMER_HT      = NULL;
 static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
 
 typedef struct {
-	int pos[2];
+	unsigned long idx;
+	char *name;
+	int start;
+	int end;
 	char* str;
 	double score;
     UT_hash_handle hh;
@@ -103,26 +105,29 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	double score1 = 0;
 	int num1 = 1;
 	
-	junction_t *l, *p, *s, *tmp, *junctions = NULL;
-	l = mycalloc(1, junction_t);
+	junction_t *s, *tmp, *junctions = NULL;
+	unsigned long idx;
 	register int i; for(i=0; i<eg->weight; i++){
-		solution *a = align(strsplit(eg->evidence[i], '_')[0], ref1);
 		char* quary = strsplit(eg->evidence[i], '_')[0];
+		solution *a = align(quary, ref1);
 		if(a->jump == true){
 			printf("%f\tpos=%d\tstart=%d\tend=%d\tscore=%f\tprob=%f\n", a->score, a->pos, a->jump_start, a->jump_end, a->score, a->score/(strlen(quary)*MATCH+JUMP_GENE));
-			l->pos[0] = a->jump_start;
-			l->pos[1] = a->jump_end;
-			l->str = strdup(ref1->s);
-			HASH_FIND(hh, junctions, l->pos, 2*sizeof(int), p);
-			if(p){
-				//printf("%f\t%f\n", p->score,  a->score);
-				p->score += a->score;
-				printf("%f\n", p->score);
+			idx = pair(a->jump_start, a->jump_end);
+			HASH_FIND_INT(junctions, &idx, s);
+			if(s==NULL){ // instance not found in the hash table
+				s = mycalloc(1, junction_t);
+				s->idx = idx;
+				s->start = a->jump_start;
+				s->end = a->jump_end;
+				s->name = eg->edge;
+				s->str = ref1->s;
+				s->score = a->score;
+				HASH_ADD_INT( junctions, idx, s);
 			}else{
-				l->score = a->score;
-				HASH_ADD(hh, junctions, pos, 2*sizeof(int), l);
+				s->score += a->score;
 			}
 		}
+		if(quary) free(quary);
 		//printf("%s\n", a->s1);
 		//printf("%s\n", a->s2);
 		//char* quary = strsplit(eg->evidence[i], '_')[1];
@@ -180,7 +185,7 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		//}
 	}
 	HASH_ITER(hh, junctions, s, tmp) {
-		printf("start=%d\tend=%d\tscore=%f\n", s->pos[0], s->pos[1], s->score);
+		printf("start=%d\tend=%d\tscore=%f\n", s->start, s->end, s->score);
 	}
 	if(gname1) free(gname1);
 	if(gname2) free(gname2);
