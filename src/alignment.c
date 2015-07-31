@@ -97,100 +97,40 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	int gene2_S[MAX_EXON_NUM]; // junction sites for gene2
 	ref_t *ref1 = ref_generate(FASTA_HT, gname1, gname2);
 	ref_t *ref2 = ref_generate(FASTA_HT, gname2, gname1);
-	solution **sol1_E1 = mycalloc(eg->weight, solution*);
-	solution **sol1_E2 = mycalloc(eg->weight, solution*);
-	solution **sol2_E1 = mycalloc(eg->weight, solution*);
-	solution **sol2_E2 = mycalloc(eg->weight, solution*);
+	// because we don't know the order of gene fusion
+	// therefore, we need align E1, E2 to both order 
+	// and decide the order of gene fusion based on alignment score
+	solution **sol_set_e1_r1 = mycalloc(eg->weight, solution*);
+	solution **sol_set_e2_r1 = mycalloc(eg->weight, solution*);
+	solution **sol_set_e1_r2 = mycalloc(eg->weight, solution*);
+	solution **sol_set_e2_r2 = mycalloc(eg->weight, solution*);
+	register int i, j;
 	
-	double score1 = 0;
-	int num1 = 1;
+	for(i=0; i<eg->weight; i++){
+		sol_set_e1_r1[i] = align(strsplit(eg->evidence[i], '_')[0], ref1);
+		sol_set_e2_r1[i] = align(strsplit(eg->evidence[i], '_')[1], ref1);
+		sol_set_e1_r2[i] = align(strsplit(eg->evidence[i], '_')[0], ref2);
+		sol_set_e2_r2[i] = align(strsplit(eg->evidence[i], '_')[1], ref2);
+	}
+	/*------------------------------------------------------------------------------*/	
+	// make decision of gene order
+	double score_r1, score_r2;
+	score_r1 = score_r2 = 0;
+	for(i=0; i<eg->weight; i++){
+		score_r1 += log(sol_set_e1_r1[i]->score);
+		score_r1 += log(sol_set_e2_r1[i]->score);
+		score_r2 += log(sol_set_e1_r2[i]->score);
+		score_r2 += log(sol_set_e2_r2[i]->score);
+	}
+	printf("score1=%f\tscore2=%f\n", score_r1, score_r2);
+	/*------------------------------------------------------------------------------*/	
 	
-	junction_t *s, *tmp, *junctions = NULL;
-	unsigned long idx;
-	register int i; for(i=0; i<eg->weight; i++){
-		char* quary = strsplit(eg->evidence[i], '_')[0];
-		solution *a = align(quary, ref1);
-		if(a->jump == true){
-			printf("%f\tpos=%d\tstart=%d\tend=%d\tscore=%f\tprob=%f\n", a->score, a->pos, a->jump_start, a->jump_end, a->score, a->score/(strlen(quary)*MATCH+JUMP_GENE));
-			idx = pair(a->jump_start, a->jump_end);
-			HASH_FIND_INT(junctions, &idx, s);
-			if(s==NULL){ // instance not found in the hash table
-				s = mycalloc(1, junction_t);
-				s->idx = idx;
-				s->start = a->jump_start;
-				s->end = a->jump_end;
-				s->name = eg->edge;
-				s->str = ref1->s;
-				s->score = a->score;
-				HASH_ADD_INT( junctions, idx, s);
-			}else{
-				s->score += a->score;
-			}
-		}
-		if(quary) free(quary);
-		//printf("%s\n", a->s1);
-		//printf("%s\n", a->s2);
-		//char* quary = strsplit(eg->evidence[i], '_')[1];
-		//sol1_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref1);
-		//sol1_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref1);
-		//if(sol1_E1[i]->jump == true){
-		//	r->key.name = strdup(eg->edge);
-		//	r->key.start = sol1_E1[i]->jump_start;
-		//	r->key.end = sol1_E1[i]->jump_end;
-		//	r->key.str = strdup(ref1->s);
-		//}
-		//
-		//HASH_FIND(hh, records, &l.key, sizeof(record_key_t), p);
-		//sol2_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref2);
-		//sol2_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref2);
-		//if(sol1_E1[i]->jump == true){
-		//	score1 += log(sol1_E1[i]->score);
-		//	score1_num++;
-		//} 
-		//if(sol1_E2[i]->jump == true){
-		//	score1 += log(sol1_E2[i]->score);
-		//	score1_num++;
-		//} 
-        //
-		//if(sol2_E1[i]->jump == true){
-		//	score2 += log(sol2_E1[i]->score);
-		//	score2_num++;
-		//} 
-		//if(sol2_E2[i]->jump == true){
-		//	score2 += log(sol2_E2[i]->score);
-		//	score2_num++;
-		//} 
-		
-		//score1 += log(sol1_E1[i]->score);
-		//score1 += log(sol1_E2[i]->score);
-		//score2 += log(sol2_E1[i]->score);
-		//score2 += log(sol2_E2[i]->score);
-		
-		//if(a->jump || b->jump){
-		//	printf("ref1=%f\tref2=%f\n", a->score, b->score);			
-			//}
-		//if(a->score > b->score && a->jump == true){
-		//	printf("score=%f\tpos=%d\tjunction=%d\n", a->score, a->pos, a->jump_pos);
-		//	printf("%s\n", a->s1);
-		//	printf("%s\n", a->s2);
-		//}
-		//if(b->score >= a->score && b->jump == true){
-		//if(b->jump == true || a->jump == true)
-			//printf("score_a=%f\tpos_a=%d\tjump_start_a=%d\tjump_end_a=%d\tscore_b=%f\tpos_b=%d\tjump_start_b=%d\tjump_end_b=%d\n", a->score, a->pos, a->jump_start, a->jump_end, b->score, b->pos, b->jump_start, b->jump_end);
-		//	printf("score_a=%f\tpos_a=%d\tinsertion=%d\tdeletion=%d\tjump_start_a=%d\tjump_end_a=%d\n", a->score, a->pos, a->insertion, a->deletion, a->jump_start, a->jump_end);
-			//printf("score_a=%f\tpos_a=%d\tinsertion=%d\tdeletion=%d\tjump_start_a=%d\tjump_end_a=%d\n", b->score, b->pos, b->insertion, b->deletion, b->jump_start, b->jump_end);
-
-			//printf("%s\n", b->s1);
-			//printf("%s\n", b->s2);
-		//}
-	}
-	HASH_ITER(hh, junctions, s, tmp) {
-		printf("start=%d\tend=%d\tscore=%f\n", s->start, s->end, s->score);
-	}
-	if(gname1) free(gname1);
-	if(gname2) free(gname2);
-	if(ref1) ref_destory(ref1);
-	if(ref2) ref_destory(ref2);
+	if(sol_set_e1_r1){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e1_r1[i]);}
+	if(sol_set_e1_r2){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e1_r2[i]);}
+	if(sol_set_e2_r1){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e2_r1[i]);}
+	if(sol_set_e2_r2){for(i=0; i<eg->weight; i++) solution_destory(sol_set_e2_r2[i]);}
+	if(gname1) free(gname1);     if(gname2) free(gname2);
+	if(ref1) ref_destory(ref1);  if(ref2) ref_destory(ref2);
 }
 
 /* main function. */
