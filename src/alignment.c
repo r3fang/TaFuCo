@@ -14,21 +14,15 @@
 
 #define PR_ERR_NONE                       0
 #define MAX_EXON_NUM                      5000
-#define EXON_FLANK_LEN                    50
+#define EXON_FLANK_LEN                    0
 
 static struct kmer_uthash *KMER_HT      = NULL;
 static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
 
 typedef struct {
-	char* name;
-	int start; 
-	int end;
+	int pos[2];
 	char* str;
-} junction_key_t;
-
-typedef struct {
-    junction_key_t key;
 	double score;
     UT_hash_handle hh;
 } junction_t;
@@ -106,26 +100,39 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	double score1 = 0;
 	int num1 = 1;
 	
-	junction_t l, *p, *r, *tmp, *records = NULL;
-	r = mycalloc(1, junction_t);
+	junction_t *l, *p, *s, *tmp, *junctions = NULL;
+	l = mycalloc(1, junction_t);
 	register int i; for(i=0; i<eg->weight; i++){
-		//solution *a = align(strsplit(eg->evidence[i], '_')[1], ref1);
-		//char* quary = strsplit(eg->evidence[i], '_')[1];
-		//if(a->jump == true)
-		//	printf("%f\tpos=%d\tstart=%d\tend=%d\tscore=%f\tprob=%f\n", a->score, a->pos, a->jump_start, a->jump_end, a->score, a->score/(strlen(quary)*MATCH+JUMP_GENE));
+		solution *a = align(strsplit(eg->evidence[i], '_')[0], ref1);
+		char* quary = strsplit(eg->evidence[i], '_')[0];
+		if(a->jump == true){
+			printf("%f\tpos=%d\tstart=%d\tend=%d\tscore=%f\tprob=%f\n", a->score, a->pos, a->jump_start, a->jump_end, a->score, a->score/(strlen(quary)*MATCH+JUMP_GENE));
+			l->pos[0] = a->jump_start;
+			l->pos[1] = a->jump_end;
+			l->str = strdup(ref1->s);
+			HASH_FIND(hh, junctions, l->pos, 2*sizeof(int), p);
+			if(p){
+				//printf("%f\t%f\n", p->score,  a->score);
+				p->score += a->score;
+				printf("%f\n", p->score);
+			}else{
+				l->score = a->score;
+				HASH_ADD(hh, junctions, pos, 2*sizeof(int), l);
+			}
+		}
 		//printf("%s\n", a->s1);
 		//printf("%s\n", a->s2);
-		char* quary = strsplit(eg->evidence[i], '_')[1];
-		sol1_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref1);
-		sol1_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref1);
-		if(sol1_E1[i]->jump == true){
-			r->key.name = strdup(eg->edge);
-			r->key.start = sol1_E1[i]->jump_start;
-			r->key.end = sol1_E1[i]->jump_end;
-			r->key.str = strdup(ref1->s);
-		}
-		
-		HASH_FIND(hh, records, &l.key, sizeof(record_key_t), p);
+		//char* quary = strsplit(eg->evidence[i], '_')[1];
+		//sol1_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref1);
+		//sol1_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref1);
+		//if(sol1_E1[i]->jump == true){
+		//	r->key.name = strdup(eg->edge);
+		//	r->key.start = sol1_E1[i]->jump_start;
+		//	r->key.end = sol1_E1[i]->jump_end;
+		//	r->key.str = strdup(ref1->s);
+		//}
+		//
+		//HASH_FIND(hh, records, &l.key, sizeof(record_key_t), p);
 		//sol2_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref2);
 		//sol2_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref2);
 		//if(sol1_E1[i]->jump == true){
@@ -169,7 +176,9 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 			//printf("%s\n", b->s2);
 		//}
 	}
-	free(r);
+	HASH_ITER(hh, junctions, s, tmp) {
+		printf("start=%d\tend=%d\tscore=%f\n", s->pos[0], s->pos[1], s->score);
+	}
 	if(gname1) free(gname1);
 	if(gname2) free(gname2);
 	if(ref1) ref_destory(ref1);
