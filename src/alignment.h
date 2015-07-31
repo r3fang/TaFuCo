@@ -69,9 +69,9 @@ typedef enum { true, false } bool;
 #define GAP 					-5.0
 #define MATCH 					 2.0
 #define MISMATCH 				-1.0
-#define EXTENSION               -1.0
-#define JUMP_GENE               -15.0
+#define EXTENSION               -2.0
 #define JUMP_EXON               -10.0
+#define JUMP_GENE               -15.0
 
 // POINTER STATE
 #define LOW                     500
@@ -99,7 +99,7 @@ typedef struct {
 } matrix_t;
 
 /*
- * concate 
+ * concatenated string of exons of two genes.
  */ 
 typedef struct
 {
@@ -112,9 +112,10 @@ typedef struct
 	size_t J;     // junction site between 2 genes
 } ref_t;
 
+// alingment soulution
 typedef struct
 {
-	char* s1;
+	char* s1; 
 	char* s2;
 	double score;
 	bool jump;
@@ -382,8 +383,8 @@ static inline solution
 			// MID any state can goto MID
 			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? MATCH : MISMATCH;
 			tmp_J = (j > JUNCTION) ?  S->J[i-1][j-1]+delta : -INFINITY;
-			tmp_G1 = (isvalueinarray(j, S1, 6)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
-			tmp_G2 = (isvalueinarray(j, S2, 6)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
+			tmp_G1 = (isvalueinarray(j, S1, ref->S1_l)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
+			tmp_G2 = (isvalueinarray(j, S2, ref->S2_l)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
 			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, tmp_J, tmp_G1, tmp_G2);
 			if(idx == 0) S->pointerM[i][j]=LOW;
 			if(idx == 1) S->pointerM[i][j]=MID;
@@ -405,12 +406,12 @@ static inline solution
 			if(idx == 0) S->pointerJ[i][j] = MID;			
 			if(idx == 1) S->pointerJ[i][j] = JUMP;			
 			// GENE1
-			tmp_M = (isvalueinarray(j, S1, 6)) ?  S->M[i][j-1]+JUMP_EXON : -INFINITY;
+			tmp_M = (isvalueinarray(j, S1, ref->S1_l)) ?  S->M[i][j-1]+JUMP_EXON : -INFINITY;
 			idx = max6(&S->G1[i][j], tmp_M, S->G1[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerG1[i][j] = MID;			
 			if(idx == 1) S->pointerG1[i][j] = GENE1;
 			// GENE2
-			tmp_M = (isvalueinarray(j, S2, 6)) ?  S->M[i][j-1]+JUMP_EXON : -INFINITY;
+			tmp_M = (isvalueinarray(j, S2, ref->S2_l)) ?  S->M[i][j-1]+JUMP_EXON : -INFINITY;
 			idx = max6(&S->G2[i][j], tmp_M, S->G2[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerG2[i][j] = MID;			
 			if(idx == 1) S->pointerG2[i][j] = GENE2;

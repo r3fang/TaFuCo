@@ -20,6 +20,19 @@ static struct kmer_uthash *KMER_HT      = NULL;
 static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
 
+typedef struct {
+	char* name;
+	int start; 
+	int end;
+	char* str;
+} junction_key_t;
+
+typedef struct {
+    junction_key_t key;
+	double score;
+    UT_hash_handle hh;
+} junction_t;
+
 ref_t* ref_generate(struct fasta_uthash *tb, char* gname1, char* gname2){
 	if(tb==NULL || gname1==NULL || gname2==NULL) die("[%s] input error", __func__);
 	ref_t *ref = ref_init();
@@ -91,17 +104,52 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	solution **sol2_E2 = mycalloc(eg->weight, solution*);
 	
 	double score1 = 0;
-	double score2 = 0;
+	int num1 = 1;
 	
+	junction_t l, *p, *r, *tmp, *records = NULL;
+	r = mycalloc(1, junction_t);
 	register int i; for(i=0; i<eg->weight; i++){
+		//solution *a = align(strsplit(eg->evidence[i], '_')[1], ref1);
+		//char* quary = strsplit(eg->evidence[i], '_')[1];
+		//if(a->jump == true)
+		//	printf("%f\tpos=%d\tstart=%d\tend=%d\tscore=%f\tprob=%f\n", a->score, a->pos, a->jump_start, a->jump_end, a->score, a->score/(strlen(quary)*MATCH+JUMP_GENE));
+		//printf("%s\n", a->s1);
+		//printf("%s\n", a->s2);
+		char* quary = strsplit(eg->evidence[i], '_')[1];
 		sol1_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref1);
 		sol1_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref1);
-		sol2_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref2);
-		sol2_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref2);
-		score1 += log(sol1_E1[i]->score);
-		score1 += log(sol1_E2[i]->score);
-		score2 += log(sol2_E1[i]->score);
-		score2 += log(sol2_E2[i]->score);
+		if(sol1_E1[i]->jump == true){
+			r->key.name = strdup(eg->edge);
+			r->key.start = sol1_E1[i]->jump_start;
+			r->key.end = sol1_E1[i]->jump_end;
+			r->key.str = strdup(ref1->s);
+		}
+		
+		HASH_FIND(hh, records, &l.key, sizeof(record_key_t), p);
+		//sol2_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref2);
+		//sol2_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref2);
+		//if(sol1_E1[i]->jump == true){
+		//	score1 += log(sol1_E1[i]->score);
+		//	score1_num++;
+		//} 
+		//if(sol1_E2[i]->jump == true){
+		//	score1 += log(sol1_E2[i]->score);
+		//	score1_num++;
+		//} 
+        //
+		//if(sol2_E1[i]->jump == true){
+		//	score2 += log(sol2_E1[i]->score);
+		//	score2_num++;
+		//} 
+		//if(sol2_E2[i]->jump == true){
+		//	score2 += log(sol2_E2[i]->score);
+		//	score2_num++;
+		//} 
+		
+		//score1 += log(sol1_E1[i]->score);
+		//score1 += log(sol1_E2[i]->score);
+		//score2 += log(sol2_E1[i]->score);
+		//score2 += log(sol2_E2[i]->score);
 		
 		//if(a->jump || b->jump){
 		//	printf("ref1=%f\tref2=%f\n", a->score, b->score);			
@@ -121,12 +169,7 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 			//printf("%s\n", b->s2);
 		//}
 	}
-	printf("score1=%f\tscore1=%f\n", score1, score2);
-	for(i=0; i<eg->weight; i++) free(sol1_E1[i]); free(sol1_E1);
-	for(i=0; i<eg->weight; i++) free(sol1_E2[i]); free(sol1_E2);
-	for(i=0; i<eg->weight; i++) free(sol2_E1[i]); free(sol2_E1);
-	for(i=0; i<eg->weight; i++) free(sol2_E2[i]); free(sol2_E2);
-		
+	free(r);
 	if(gname1) free(gname1);
 	if(gname2) free(gname2);
 	if(ref1) ref_destory(ref1);
@@ -141,6 +184,7 @@ int main(int argc, char *argv[]) {
 	register int i;
 	HASH_ITER(hh, tb, s, tmp) {
 		edge_align(s, FASTA_HT);
+		break;
 	}
 	BAG_uthash_destroy(&tb);
 	fasta_uthash_destroy(&FASTA_HT);
