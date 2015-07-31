@@ -16,6 +16,9 @@
 #define MAX_EXON_NUM                      5000
 #define EXON_FLANK_LEN                    0
 
+//!!!!!!!
+//pi(k1, k2) = 1/2(k1 + k2)(k1 + k2 + 1) + k2
+
 static struct kmer_uthash *KMER_HT      = NULL;
 static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
