@@ -638,7 +638,6 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	if(gname2) free(gname2);
 	return ret;
 }
-
 /*
  * generate junction sites from solution_pair_t
  */
@@ -679,8 +678,10 @@ static inline junction_t
 				m->end = s->r2->jump_end;
 				m->hits = 1;
 				m->likehood = 10*log(s->r2->pos); 
+				//// add junction site string here!!!!!!!!!!!!
 				HASH_ADD_INT(ret, idx, m);
 			}else{
+				////update it here!!!!!!!!!
 				m->hits ++;
 				m->likehood += 10*log(s->r2->pos); 
 			}

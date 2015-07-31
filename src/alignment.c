@@ -22,14 +22,20 @@ static struct BAG_uthash *BAG_HT        = NULL;
 int main(int argc, char *argv[]) {
 	if((fasta_uthash_load("sample_data/exons.flank_0.fa.gz", &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
 	struct BAG_uthash *tb = BAG_uthash_load("graph_flank0.fa");
-	struct BAG_uthash *s, *tmp;
+	struct BAG_uthash *s_bag, *tmp_bag;
 	register int i;
-
-	HASH_ITER(hh, tb, s, tmp) {
-			solution_pair_t *t = edge_align(s, FASTA_HT);
-			if(t != NULL){
-				printf("%f\n", t->prob);
+	solution_pair_t *p;
+	junction_t *s_junction, *cur_junction, *tmp_junction;
+	HASH_ITER(hh, tb, s_bag, tmp_bag) {
+		if(((p = edge_align(s_bag, FASTA_HT)))!=NULL){
+			if((s_junction = junction_gen(p, s_bag->edge)) !=NULL){
+				HASH_ITER(hh, s_junction, cur_junction, tmp_junction) {
+				    printf("name=%s: start=%d\tend=%d\tstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->str);
+				}				
 			}
+			junction_destory(s_junction);
+		}
+		solution_pair_destory(p);
 		break;
 	}
 	BAG_uthash_destroy(&tb);
