@@ -85,22 +85,48 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	int gene2_S[MAX_EXON_NUM]; // junction sites for gene2
 	ref_t *ref1 = ref_generate(FASTA_HT, gname1, gname2);
 	ref_t *ref2 = ref_generate(FASTA_HT, gname2, gname1);
-	solution *a, *b;
+	solution **sol1_E1 = mycalloc(eg->weight, solution*);
+	solution **sol1_E2 = mycalloc(eg->weight, solution*);
+	solution **sol2_E1 = mycalloc(eg->weight, solution*);
+	solution **sol2_E2 = mycalloc(eg->weight, solution*);
+	
+	double score1 = 0;
+	double score2 = 0;
+	
 	register int i; for(i=0; i<eg->weight; i++){
-		a = align(strsplit(eg->evidence[i], '_')[0], ref1);
-		b = align(strsplit(eg->evidence[i], '_')[0], ref2);
-		if(b!=NULL){
-			printf("%s\n", b->s1);
-			//printf("%s\n", b->s2);			
-		}
-		//if(a->score > b->score){
+		sol1_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref1);
+		sol1_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref1);
+		sol2_E1[i] = align(strsplit(eg->evidence[i], '_')[0], ref2);
+		sol2_E2[i] = align(strsplit(eg->evidence[i], '_')[1], ref2);
+		score1 += log(sol1_E1[i]->score);
+		score1 += log(sol1_E2[i]->score);
+		score2 += log(sol2_E1[i]->score);
+		score2 += log(sol2_E2[i]->score);
+		
+		//if(a->jump || b->jump){
+		//	printf("ref1=%f\tref2=%f\n", a->score, b->score);			
+			//}
+		//if(a->score > b->score && a->jump == true){
+		//	printf("score=%f\tpos=%d\tjunction=%d\n", a->score, a->pos, a->jump_pos);
 		//	printf("%s\n", a->s1);
 		//	printf("%s\n", a->s2);
-		//}else{
-		//	printf("%s\n", b->s1);
-		//	printf("%s\n", b->s2);
+		//}
+		//if(b->score >= a->score && b->jump == true){
+		//if(b->jump == true || a->jump == true)
+			//printf("score_a=%f\tpos_a=%d\tjump_start_a=%d\tjump_end_a=%d\tscore_b=%f\tpos_b=%d\tjump_start_b=%d\tjump_end_b=%d\n", a->score, a->pos, a->jump_start, a->jump_end, b->score, b->pos, b->jump_start, b->jump_end);
+		//	printf("score_a=%f\tpos_a=%d\tinsertion=%d\tdeletion=%d\tjump_start_a=%d\tjump_end_a=%d\n", a->score, a->pos, a->insertion, a->deletion, a->jump_start, a->jump_end);
+			//printf("score_a=%f\tpos_a=%d\tinsertion=%d\tdeletion=%d\tjump_start_a=%d\tjump_end_a=%d\n", b->score, b->pos, b->insertion, b->deletion, b->jump_start, b->jump_end);
+
+			//printf("%s\n", b->s1);
+			//printf("%s\n", b->s2);
 		//}
 	}
+	printf("score1=%f\tscore1=%f\n", score1, score2);
+	for(i=0; i<eg->weight; i++) free(sol1_E1[i]); free(sol1_E1);
+	for(i=0; i<eg->weight; i++) free(sol1_E2[i]); free(sol1_E2);
+	for(i=0; i<eg->weight; i++) free(sol2_E1[i]); free(sol2_E1);
+	for(i=0; i<eg->weight; i++) free(sol2_E2[i]); free(sol2_E2);
+		
 	if(gname1) free(gname1);
 	if(gname2) free(gname2);
 	if(ref1) ref_destory(ref1);
@@ -110,12 +136,11 @@ void edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 /* main function. */
 int main(int argc, char *argv[]) {
 	if((fasta_uthash_load("sample_data/exons.flank_0.fa.gz", &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
-	struct BAG_uthash *tb = BAG_uthash_load("graph_flank_0.fa");
+	struct BAG_uthash *tb = BAG_uthash_load("graph_flank0.fa");
 	struct BAG_uthash *s, *tmp;
 	register int i;
 	HASH_ITER(hh, tb, s, tmp) {
 		edge_align(s, FASTA_HT);
-		break;
 	}
 	BAG_uthash_destroy(&tb);
 	fasta_uthash_destroy(&FASTA_HT);

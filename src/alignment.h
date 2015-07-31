@@ -1,11 +1,11 @@
 /*--------------------------------------------------------------------*/
-/* alingment.h	                                              */
+/* alingment.h                                                        */
 /* Author: Rongxin Fang                                               */
 /* E-mail: r3fang@ucsd.edu                                            */
-/* Date: 07-23-2015                                                   */
+/* Created Date: 07-23-2015                                           */
 /* Pair wise fit alignment with affine gap and jump state.            */
-/* This could be used to align RNA-seq reads with intron splicing as  */
-/* jump state.                                                        */
+/* This could be used to align RNA-seq reads with intron splicing     */
+/* and fusion between two candidate genes.                            */
 /*                                                                    */
 /* initilize L(i,j), M(i,j), U(i,j), J(i,j), G1(i,j), G2(i,j):        */
 /*--------------------------------------------------------------------*/
@@ -33,14 +33,15 @@
 /*  U(i,j) = max{M(i-1, j) + GAP, U(i-1, j) + EXTENSION}              */
 /*  L(i,j) = max{M(i, j-1) + GAP, L(i, j-1) + EXTENSION}              */
 /*--------------------------------------------------------------------*/
-/* G1(i,j) = max{M(i-1, j) + JUMP_EXON (j in S1), G1(i-1, j)}        */
-/* G2(i,j) = max{M(i-1, j) + JUMP_EXON (j in S2), G2(i-1, j)}        */
+/* G1(i,j) = max{M(i-1, j) + JUMP_EXON (j in S1), G1(i-1, j)}         */
+/* G2(i,j) = max{M(i-1, j) + JUMP_EXON (j in S2), G2(i-1, j)}         */
 /*  J(i,j) = max{M(i, j-1) + JUMP_GENE (j < x), J(i-1, j)}            */
-
 /* Traceback:                                                         */
 /*--------------------------------------------------------------------*/
-/* start at max(M(m,j_max), L(n, j_max)), Stop at any of i=0 on M/L;  */
-/* The rational behind this is no gap allowed to flank s1             */
+/* Start at max(M(m, j_max), L(n, j_max)),                            */
+/* Stop at topmost row of M or L                                      */
+/* The rational behind this is alignment should not start with gap    */
+/* read.                                                              */
 /*--------------------------------------------------------------------*/
 /* NOTE:                                                              */
 /* 1. WE ONLY ALLOW STATE CHANGE FROM M(MATCH) TO J(JUMP) AT SPECIFIC */
@@ -97,14 +98,17 @@ typedef struct {
   int  **pointerG2;
 } matrix_t;
 
+/*
+ * concate 
+ */ 
 typedef struct
 {
-	char *s;   // string
-	size_t l;  // length of the string
-	int *S1;    // exon junction sites
-	int *S2;    // exon junction sites
-	size_t S1_l; // number of exon junction sites
-	size_t S2_l; // number of exon junction sites
+	char *s;      // string
+	size_t l;     // length of the string
+	int *S1;      // exon junction sites
+	int *S2;      // exon junction sites
+	size_t S1_l;  // number of exon junction sites
+	size_t S2_l;  // number of exon junction sites
 	size_t J;     // junction site between 2 genes
 } ref_t;
 
@@ -113,7 +117,38 @@ typedef struct
 	char* s1;
 	char* s2;
 	double score;
+	bool jump;
+	int jump_start;
+	int jump_end;
+	int pos;
+	int match;
+	int insertion;
+	int deletion;
 } solution;
+
+// initilize solution
+static inline solution 
+*solution_init(){
+	solution *t = mycalloc(1, solution);
+	t->s1 = NULL;
+	t->s2 = NULL;
+	t->score = 0;
+	t->jump = false;
+	t->jump_start = 0;
+	t->jump_end = 0;
+	t->pos = 0;
+	t->match = 0;
+	t->insertion = 0;
+	t->deletion = 0;
+	return t;
+}
+
+// destory solution
+static inline void solution_destory(solution *s){
+	if(s->s1) free(s->s1);
+	if(s->s2) free(s->s2);
+	free(s);
+}
 
 // initilize ref_t
 static inline ref_t 
@@ -253,31 +288,37 @@ isvalueinarray(int val, int *arr, int size){
 
 static inline solution* 
 trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
-	int flag = 0;
 	if(S == NULL || s1 == NULL || s2 == NULL) die("trace_back: paramter error");
-	solution *s = mycalloc(1, solution);
+	solution *s = solution_init();
+	s->jump = false;
 	char *res_ks1 = mycalloc(strlen(s1)+strlen(s2), char); 
 	char *res_ks2 = mycalloc(strlen(s1)+strlen(s2), char); 
 	int cur = 0; 
+	s->jump_start = s->jump_end = 0;
 	while(i>0){
 		switch(state){
 			case LOW:
+				s->deletion ++;
 				state = S->pointerL[i][j]; // change to next state
 				res_ks1[cur] = s1[--i];
 				res_ks2[cur++] = '-';
 				break;
 			case MID:
+				s->match ++;
 				state = S->pointerM[i][j]; // change to next state
                 res_ks1[cur] = s1[--i];
                 res_ks2[cur++] = s2[--j];
 				break;
 			case UPP:
+				s->insertion ++;
 				state = S->pointerU[i][j];
 				res_ks1[cur] = '-';
             	res_ks2[cur++] = s2[--j];
 				break;
 			case JUMP:
-				flag = 1;
+				s->jump = true;
+				if(j > s->jump_end) s->jump_end = j;
+				s->jump_start=j;
 				state = S->pointerJ[i][j];
 				res_ks1[cur] = '-';
 	           	res_ks2[cur++] = s2[--j];
@@ -298,7 +339,7 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 	}
 	s->s1 = res_ks1;
 	s->s2 = res_ks2;
-	if(flag == 0) s = NULL;
+	s->pos = j;
 	return s;
 }
 
@@ -339,7 +380,7 @@ static inline solution
 	for(i=1; i<=strlen(s1); i++){
 		for(j=1; j<=strlen(s2); j++){
 			// MID any state can goto MID
-			delta = ((s1[i-1] - s2[j-1]) == 0) ? MATCH : MISMATCH;
+			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? MATCH : MISMATCH;
 			tmp_J = (j > JUNCTION) ?  S->J[i-1][j-1]+delta : -INFINITY;
 			tmp_G1 = (isvalueinarray(j, S1, 6)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
 			tmp_G2 = (isvalueinarray(j, S2, 6)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
@@ -354,7 +395,6 @@ static inline solution
 			idx = max6(&S->L[i][j], S->L[i-1][j]+EXTENSION, S->M[i-1][j]+GAP, -INFINITY, -INFINITY, -INFINITY,  -INFINITY);
 			if(idx == 0) S->pointerL[i][j]=LOW;
 			if(idx == 1) S->pointerL[i][j]=MID;
-			
 			// UPP
 			idx = max6(&S->U[i][j], S->M[i][j-1]+GAP, S->U[i][j-1]+EXTENSION,  -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerU[i][j]=MID;
@@ -397,9 +437,7 @@ static inline solution
 		}
 	}
 	solution *s = trace_back(S, s1, s2, max_state, i_max, j_max);	
-	if(s != NULL){
-		s->score = max_score;		
-	}
+	s->score = max_score;		
 	destory_matrix(S);
 	return s;
 }
