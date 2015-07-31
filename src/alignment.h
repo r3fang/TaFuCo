@@ -61,23 +61,23 @@
 #include <float.h>
 #include <math.h>
 #include "utils.h"
-#include "kseq.h"
-#include "kstring.h"
 
+// constant define
 typedef enum { true, false } bool;
-
+// input for alignment
 #define GAP 					-5.0
 #define MATCH 					 2.0
 #define MISMATCH 				-1.0
 #define EXTENSION               -2.0
 #define JUMP_EXON               -10.0
 #define JUMP_GENE               -15.0
+
+// input for junction identification
 #define MIN_ALIGN_SCORE          0.7
 #define MIN_HITS                 3
 #define EXON_FLANK_LEN           0
 
-
-// POINTER STATE
+// alignment state
 #define LOW                     500
 #define MID                     600
 #define UPP                     700
@@ -87,6 +87,7 @@ typedef enum { true, false } bool;
 
 #define pair(k1, k2)  ((k1 + k2)*(k1 + k2 + 1)/2 + k2)
 
+// dynamic programming matrices
 typedef struct {
   unsigned int m;
   unsigned int n;
@@ -103,113 +104,6 @@ typedef struct {
   int  **pointerG1;
   int  **pointerG2;
 } matrix_t;
-
-/*
- * concatenated string of exons of two genes.
- */ 
-typedef struct
-{
-	char *s;      // string
-	size_t l;     // length of the string
-	int *S1;      // exon junction sites
-	int *S2;      // exon junction sites
-	size_t S1_l;  // number of exon junction sites
-	size_t S2_l;  // number of exon junction sites
-	size_t J;     // junction site between 2 genes
-} ref_t;
-
-// alingment soulution
-typedef struct
-{
-	char* s1; 
-	char* s2;
-	double score;
-	bool jump;
-	int jump_start;
-	int jump_end;
-	int pos;
-	int match;
-	int insertion;
-	int deletion;
-	double prob;
-} solution_t;
-
-
-// alingment soulution
-typedef struct
-{
-	unsigned long idx;
-	solution_t *r1;
-	solution_t *r2;
-	double prob;
-	UT_hash_handle hh;
-} solution_pair_t;
-
-// initilize solution_t
-static inline solution_t 
-*solution_init(){
-	solution_t *t = mycalloc(1, solution_t);
-	t->s1 = NULL;
-	t->s2 = NULL;
-	t->score = 0;
-	t->jump = false;
-	t->jump_start = 0;
-	t->jump_end = 0;
-	t->pos = 0;
-	t->match = 0;
-	t->insertion = 0;
-	t->deletion = 0;
-	t->prob = 0.0;
-	return t;
-}
-
-// destory solution_t
-static inline void solution_destory(solution_t *s){
-	if(s->s1) free(s->s1);
-	if(s->s2) free(s->s2);
-	free(s);
-}
-
-static inline void solution_pair_destory(solution_pair_t *s){
-	if(s!=NULL){
-		if(s->r1) solution_destory(s->r1);
-		if(s->r2) solution_destory(s->r2);
-	}
-	free(s);
-}
-
-// initilize ref_t
-static inline ref_t 
-*ref_init(){
-	ref_t *r = mycalloc(1, ref_t);
-	r->S1_l  = 0;
-	r->S2_l  = 0;
-	r->s = NULL;
-	r->l = 0;
-	r->J = 0;
-	return r;
-}
-
-static inline void 
-ref_destory(ref_t* t){
-	if(t->S1) free(t->S1);
-	if(t->S2) free(t->S2);
-	if(t->s)  free(t->s);
-}
-
-/* max of fix values */
-static inline int 
-max6(double *res, double a1, double a2, double a3, double a4, double a5, double a6){
-	*res = -INFINITY;
-	int state;
-	if(a1 > *res){*res = a1; state = 0;}
-	if(a2 > *res){*res = a2; state = 1;}
-	if(a3 > *res){*res = a3; state = 2;}	
-	if(a4 > *res){*res = a4; state = 3;}	
-	if(a5 > *res){*res = a5; state = 4;}	
-	if(a6 > *res){*res = a6; state = 5;}	
-	return state;
-}
 
 /*
  * create matrix, allocate memor
@@ -281,6 +175,151 @@ destory_matrix(matrix_t *S){
 	free(S);
 }
 
+// junction of gene fusion
+typedef struct {
+	unsigned long idx; // determined by pair(start, end)
+	char *name;        // name of edge
+	int start;         
+	int end;
+	char* str;         // reference string
+	size_t hits;         // reference string
+	double likehood;       // alignment probability
+    UT_hash_handle hh;
+} junction_t;
+
+// initlize junction_t
+static inline junction_t 
+*junction_init(){
+	junction_t *j = mycalloc(1, junction_t);
+	j->name = NULL;
+	j->str = NULL;
+	j->likehood = 0;
+	j->hits = 0;
+	return j;
+}
+// destory junction
+static inline void 
+junction_destory(junction_t *s){
+	if(s==NULL) die("[%s] input error", __func__);
+	if(s->name) free(s->name);
+	if(s->str) free(s->str);
+	free(s);
+}
+/*
+ * concatenated string of exons.
+ */ 
+typedef struct
+{
+	char *s;      // string
+	size_t l;     // length of the string
+	int *S1;      // exon junction sites
+	int *S2;      // exon junction sites
+	size_t S1_l;  // number of exon junction sites
+	size_t S2_l;  // number of exon junction sites
+	size_t J;     // junction site between 2 genes
+} ref_t;
+
+// initilize ref_t
+static inline ref_t 
+*ref_init(){
+	ref_t *r = mycalloc(1, ref_t);
+	r->S1_l  = 0;
+	r->S2_l  = 0;
+	r->s = NULL;
+	r->l = 0;
+	r->J = 0;
+	return r;
+}
+
+static inline void 
+ref_destory(ref_t* t){
+	if(t==NULL) die("[%s] input error", __func__);
+	if(t->S1) free(t->S1);
+	if(t->S2) free(t->S2);
+	if(t->s)  free(t->s);
+	free(t);
+}
+
+// alingment soulution of a single read
+typedef struct
+{
+	char* s1; 
+	char* s2;
+	double score;
+	bool jump;
+	int jump_start;
+	int jump_end;
+	int pos;
+	int match;
+	int insertion;
+	int deletion;
+	double prob;
+} solution_t;
+
+// initilize solution_t
+static inline solution_t 
+*solution_init(){
+	solution_t *t = mycalloc(1, solution_t);
+	t->s1 = NULL;
+	t->s2 = NULL;
+	t->score = 0;
+	t->jump = false;
+	t->jump_start = 0;
+	t->jump_end = 0;
+	t->pos = 0;
+	t->match = 0;
+	t->insertion = 0;
+	t->deletion = 0;
+	t->prob = 0.0;
+	return t;
+}
+// destory solution_t
+static inline void solution_destory(solution_t *s){
+	if(s->s1) free(s->s1);
+	if(s->s2) free(s->s2);
+	free(s);
+}
+
+// alingment soulution for a read pair
+typedef struct
+{
+	unsigned long idx;
+	solution_t *r1;
+	solution_t *r2;
+	double prob;
+	UT_hash_handle hh;
+} solution_pair_t;
+
+static inline solution_pair_t 
+*solution_pair_init(){
+	solution_pair_t* s = mycalloc(1, solution_pair_t);
+	s->r1 = solution_init();
+	s->r2 = solution_init();
+	return s;
+}
+
+static inline void 
+solution_pair_destory(solution_pair_t *s){
+	if(s==NULL) die("[%s] input error", __func__);	
+	if(s->r1) solution_destory(s->r1);
+	if(s->r2) solution_destory(s->r2);
+	free(s);
+}
+
+/* max of fix values */
+static inline int 
+max6(double *res, double a1, double a2, double a3, double a4, double a5, double a6){
+	*res = -INFINITY;
+	int state;
+	if(a1 > *res){*res = a1; state = 0;}
+	if(a2 > *res){*res = a2; state = 1;}
+	if(a3 > *res){*res = a3; state = 2;}	
+	if(a4 > *res){*res = a4; state = 3;}	
+	if(a5 > *res){*res = a5; state = 4;}	
+	if(a6 > *res){*res = a6; state = 5;}	
+	return state;
+}
+
 static inline char 
 *strrev(char *s){
 	if(s == NULL) return NULL;
@@ -295,14 +334,6 @@ static inline char
 	return s;
 }
 
-/*
- * destory kstring
- */
-static inline void 
-kstring_destory(kstring_t *ks){
-	free(ks->s);
-	free(ks);
-}
 
 static inline bool 
 isvalueinarray(int val, int *arr, int size){
@@ -477,8 +508,7 @@ static inline ref_t
 	if(tb==NULL || gname1==NULL || gname2==NULL) die("[%s] input error", __func__);
 	ref_t *ref = ref_init();
 	struct fasta_uthash *s, *tmp;
-	register int i = 0;
-	
+	register int i = 0;	
 	register char* str_tmp;
 	// count the number of exons
 	HASH_ITER(hh, tb, s, tmp) {
@@ -555,7 +585,7 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		// sol_pairs_r1
 		HASH_FIND_INT(sol_pairs_r1, &idx_r1, s);
 		if(s==NULL){
-			s = mycalloc(1, solution_pair_t);
+			s = solution_pair_init();
 			s->idx = idx_r1;
 			s->r1 = a; s->r2 = b;
 			s->prob = a->prob * b->prob;
@@ -595,7 +625,6 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		likehood2 += 10*log(s->r1->prob);
 		likehood2 += 10*log(s->r2->prob);		
     }
-	if(gname1) free(gname1);     if(gname2) free(gname2);
 	if(ref1) ref_destory(ref1);  if(ref2) ref_destory(ref2);
 	solution_pair_t * ret;
 	if(likehood1 >= likehood2){
@@ -605,7 +634,69 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		if(sol_pairs_r1) solution_pair_destory(sol_pairs_r1);
 		ret = sol_pairs_r2;
 	}
+	if(gname1) free(gname1);     
+	if(gname2) free(gname2);
 	return ret;
+}
+
+/*
+ * generate junction sites from solution_pair_t
+ */
+static inline junction_t 
+*junction_gen(solution_pair_t *p, char* name){
+	if(p == NULL) return NULL;
+	solution_pair_t *s, *tmp;
+	junction_t *m, *n, *ret = NULL;
+	unsigned int idx;
+    HASH_ITER(hh, p, s, tmp) {
+		// one read
+		if(s->r1->jump == true && s->r1->prob >= MIN_ALIGN_SCORE){
+			idx = pair(s->r1->jump_start, s->r1->jump_end);
+			HASH_FIND_INT(ret, &idx, m);
+			if(m==NULL){ // this junction not in ret
+				m = junction_init();
+				m->idx = idx;
+				m->name = strdup(name);
+				m->start = s->r1->jump_start;
+				m->end = s->r1->jump_end;
+				m->hits = 1;
+				m->likehood = 10*log(s->r1->pos); 
+				HASH_ADD_INT(ret, idx, m);
+			}else{
+				m->hits ++;
+				m->likehood += 10*log(s->r1->pos); 
+			}
+		}
+		// the other read
+		if(s->r2->jump == true && s->r2->prob >= MIN_ALIGN_SCORE){
+			idx = pair(s->r2->jump_start, s->r2->jump_end);
+			HASH_FIND_INT(ret, &idx, m);
+			if(m==NULL){ // this junction not in ret
+				m = mycalloc(1, junction_t);
+				m->idx = idx;
+				m->name = strdup(name);
+				m->start = s->r2->jump_start;
+				m->end = s->r2->jump_end;
+				m->hits = 1;
+				m->likehood = 10*log(s->r2->pos); 
+				HASH_ADD_INT(ret, idx, m);
+			}else{
+				m->hits ++;
+				m->likehood += 10*log(s->r2->pos); 
+			}
+		}	
+    }
+	// delete those junctions with hits < MIN_HITS
+	HASH_ITER(hh, ret, m, n){
+		if(m != NULL){
+			m->likehood = m->likehood/m->hits;
+			if(m->hits < MIN_HITS){
+				HASH_DEL(ret,m);
+				free(m);
+			}
+		}
+	}
+	return ret;	
 }
 
 #endif
