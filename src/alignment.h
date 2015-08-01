@@ -197,14 +197,15 @@ static inline junction_t
 	memset(j->s,'\0', HALF_JUNCTION_LEN*2+1);
 	return j;
 }
-// destory junction
-static inline void 
-junction_destory(junction_t *s){
-	if(s==NULL) die("[%s] input error", __func__);
-	if(s->idx)  free(s->idx);
-	if(s->name) free(s->name);
-	free(s);
-}
+//// destory junction
+//static inline int 
+//junction_destory(junction_t **s){
+//	if(*s==NULL) die("[%s] input error", __func__);
+//	if(*s->idx)  free(*s->idx);
+//	if(*s->name) free(*s->name);
+//	free(*s);
+//	return 0;
+//}
 
 /*
  * concatenated string of exons.
@@ -578,7 +579,7 @@ static inline ref_t
  *
  */
 static inline solution_pair_t* 
-edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
+align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	char* gname1 = strsplit(eg->edge, '_')[0];
 	char* gname2 = strsplit(eg->edge, '_')[1];
 	ref_t *ref1 = ref_generate(fasta_u, gname1, gname2);
@@ -593,6 +594,7 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	char* idx_r1, *idx_r2;
 
 	for(i=0; i<eg->weight; i++){
+		printf("i=%d\n", i);
 		solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1);
 		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1);
 		solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2);
@@ -660,17 +662,17 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 /*
  * generate junction sites from solution_pair_t
  */
-static inline junction_t 
-*junction_gen(solution_pair_t *p, char* name){
-	if(p == NULL) return NULL;
+static inline int 
+junction_edge(solution_pair_t *p, char* name, junction_t **ret){
+	if(p == NULL) die("[%s] input error", __func__);
 	solution_pair_t *s, *tmp;
-	junction_t *m, *n, *ret = NULL;
+	junction_t *m, *n;
 	char* idx;
     HASH_ITER(hh, p, s, tmp) {
 		// one read
 		if(s->r1->jump == true && s->r1->prob >= MIN_ALIGN_SCORE){
 			idx = idx_md5(name, s->r1->jump_start, s->r1->jump_end);
-			HASH_FIND_STR(ret, idx, m);
+			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
 				m = junction_init();
 				m->idx = strdup(idx);
@@ -681,7 +683,7 @@ static inline junction_t
 				m->likehood = 10*log(s->r1->pos); 				
 				memcpy( m->s, &s->r1->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r1->s2[m->end], HALF_JUNCTION_LEN);
-				HASH_ADD_STR(ret, idx, m);
+				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
 				m->likehood += 10*log(s->r1->pos); 
@@ -690,7 +692,7 @@ static inline junction_t
 		// the other read
 		if(s->r2->jump == true && s->r2->prob >= MIN_ALIGN_SCORE){
 			idx = idx_md5(name, s->r2->jump_start, s->r2->jump_end);			
-			HASH_FIND_STR(ret, idx, m);
+			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
 				m = junction_init();
 				m->idx = strdup(idx);
@@ -701,7 +703,7 @@ static inline junction_t
 				m->likehood = 10*log(s->r2->pos); 
 				memcpy( m->s, &s->r2->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r2->s2[m->end], HALF_JUNCTION_LEN);
-				HASH_ADD_STR(ret, idx, m);
+				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
 				m->likehood += 10*log(s->r2->pos); 
@@ -710,15 +712,34 @@ static inline junction_t
     }
 	if(idx) free(idx);
 	// delete those junctions with hits < MIN_HITS
-	HASH_ITER(hh, ret, m, n){
+	HASH_ITER(hh, *ret, m, n){
 		if(m != NULL){
 			m->likehood = m->likehood/m->hits;
 			if(m->hits < MIN_HITS){
-				HASH_DEL(ret,m);
+				HASH_DEL(*ret,m);
 				free(m);
 			}
 		}
 	}
-	return ret;	
+	return 0;
 }
+
+/*
+ * generate junction sites from breakend associated graph 
+ */
+static inline junction_t 
+*junction_gen(struct BAG_uthash *tb, struct fasta_uthash *fa){
+	if(tb == NULL || fa == NULL) die("[%s] input error", __func__);
+	struct BAG_uthash *edge, *tmp_bag;
+	register int i;
+	solution_pair_t *p;
+	junction_t *cur_junction, *tmp_junction, *ret = NULL;
+	HASH_ITER(hh, tb, edge, tmp_bag){ // iterate every edge
+		fprintf(stderr, "edge=%s \n", edge->edge);
+		if(((p = align_edge(edge, fa)))==NULL) return NULL;
+		if(junction_edge(p, edge->edge, &ret) != 0) return NULL;		
+	}
+	return ret;
+}
+
 #endif

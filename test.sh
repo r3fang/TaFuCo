@@ -1,1 +1,1 @@
-./bin/tfc -m 5 -w 2 -k 15 sample_data/exons.flank_0.fa.gz sample_data/A431-1-ABGHI_S1_L001_R1_001.fastq.gz sample_data/A431-1-ABGHI_S1_L001_R2_001.fastq.gz
+./bin/tfc -m 5 -w 2 -k 15 sample_data/exons_simulated.fa sample_data/reads_simulated_R1.fq sample_data/reads_simulated_R2.fq
