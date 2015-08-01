@@ -18,9 +18,10 @@ static struct kmer_uthash *KMER_HT      = NULL;
 static struct fasta_uthash *FASTA_HT    = NULL;
 static struct BAG_uthash *BAG_HT        = NULL;
 
+
 /* main function. */
 int main(int argc, char *argv[]) {
-	if((fasta_uthash_load("sample_data/exons.flank_0.fa.gz", &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
+	if((fasta_uthash_load("sample_data/exons.fa", &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
 	struct BAG_uthash *tb = BAG_uthash_load("graph_flank0.fa");
 	struct BAG_uthash *s_bag, *tmp_bag;
 	register int i;
@@ -32,7 +33,6 @@ int main(int argc, char *argv[]) {
 		HASH_ITER(hh, s_junction, cur_junction, tmp_junction) {
 			printf("name=%s: start=%d\tend=%d\tstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->s);
 			junction_destory(s_junction);
-			printf("afhaskjdfaslkdfgksjadhfg\n");
 		}				
 		break;
 	}

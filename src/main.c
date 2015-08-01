@@ -16,6 +16,7 @@
 #include "BAG_uthash.h"
 #include "fasta_uthash.h"
 #include "utils.h"
+#include "alignment.h"
 
 #ifndef PACKAGE_VERSION
 #define PACKAGE_VERSION "0.7.30-r15"
@@ -232,7 +233,11 @@ int main(int argc, char *argv[]) {
 	if((BAG_uthash_uniq(&BAG_HT)) != PR_ERR_NONE) die("main: BAG_uthash_uniq fails\n");
 	// delete edges with weight < opt->min_weight
 	if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
-	if(BAG_uthash_display(BAG_HT) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
+	//if(BAG_uthash_display(BAG_HT) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
+	
+
+	
+	
 	//*--------------------------------------------------------------------*/	
 	// clear up the masses
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	

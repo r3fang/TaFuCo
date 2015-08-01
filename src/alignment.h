@@ -177,7 +177,7 @@ destory_matrix(matrix_t *S){
 
 // junction of gene fusion
 typedef struct {
-	unsigned long idx; // determined by pair(start, end)
+	char* idx;         // determined by pair(name, start, end)
 	char *name;        // name of edge
 	int start;         
 	int end;
@@ -201,9 +201,11 @@ static inline junction_t
 static inline void 
 junction_destory(junction_t *s){
 	if(s==NULL) die("[%s] input error", __func__);
+	if(s->idx)  free(s->idx);
 	if(s->name) free(s->name);
 	free(s);
 }
+
 /*
  * concatenated string of exons.
  */ 
@@ -282,7 +284,7 @@ static inline void solution_destory(solution_t *s){
 // alingment soulution for a read pair
 typedef struct
 {
-	unsigned long idx;
+	char* idx;
 	solution_t *r1;
 	solution_t *r2;
 	double prob;
@@ -300,6 +302,7 @@ static inline solution_pair_t
 static inline void 
 solution_pair_destory(solution_pair_t *s){
 	if(s==NULL) die("[%s] input error", __func__);	
+	if(s->idx) free(s->idx);
 	if(s->r1) solution_destory(s->r1);
 	if(s->r2) solution_destory(s->r2);
 	free(s);
@@ -399,6 +402,18 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 	s->s2 = s2;
 	s->pos = j;
 	return s;
+}
+
+static inline char* 
+idx_md5(char* name, int i, int j){
+	if(name == NULL) die("[%s] input error", __func__);
+	// convert alignment information to md5
+	char istr[1000];
+	char jstr[1000];
+	sprintf(istr, "%d", i);
+	sprintf(jstr, "%d", j);
+	char* idx_str = concat(concat(concat(concat(name, "."), istr), "."), jstr); 
+	return str2md5(idx_str, strlen(idx_str));
 }
 
 static inline solution_t 
@@ -575,22 +590,23 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	solution_pair_t *sol_pairs_r2 = NULL;
 	solution_pair_t *s, *tmp; 
 	register int i, j;
-	int idx_r1, idx_r2;
+	char* idx_r1, *idx_r2;
 
 	for(i=0; i<eg->weight; i++){
 		solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1);
 		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1);
 		solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2);
 		solution_t *d = align(strsplit(eg->evidence[i], '_')[1], ref2);
-		idx_r1 = pair(a->pos, b->pos); idx_r2 = pair(c->pos, d->pos);
+		idx_r1 = idx_md5(eg->edge, a->pos, b->pos);
+		idx_r2 = idx_md5(eg->edge, c->pos, d->pos);
 		// sol_pairs_r1
-		HASH_FIND_INT(sol_pairs_r1, &idx_r1, s);
+		HASH_FIND_STR(sol_pairs_r1, idx_r1, s);
 		if(s==NULL){
 			s = solution_pair_init();
-			s->idx = idx_r1;
+			s->idx = strdup(idx_r1);
 			s->r1 = a; s->r2 = b;
 			s->prob = a->prob * b->prob;
-			HASH_ADD_INT(sol_pairs_r1, idx, s );  /* idx: name of key field */
+			HASH_ADD_STR(sol_pairs_r1, idx, s);  /* idx: name of key field */
 		}else{ // update with higher score
 			if(s->prob < a->prob * b->prob){
 				s->prob =  a->prob * b->prob;
@@ -598,13 +614,13 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 			}
 		}
 		// sol_pairs_r2
-		HASH_FIND_INT(sol_pairs_r2, &idx_r2, s);
+		HASH_FIND_STR(sol_pairs_r2, idx_r2, s);
 		if(s==NULL){
-			s = mycalloc(1, solution_pair_t);
-			s->idx = idx_r2;
+			s = solution_pair_init();
+			s->idx = strdup(idx_r2);
 			s->r1 = c; s->r2 = d;
 			s->prob = c->prob * d->prob;
-			HASH_ADD_INT(sol_pairs_r2, idx, s);  /* idx: name of key field */
+			HASH_ADD_STR(sol_pairs_r2, idx, s);  /* idx: name of key field */
 		}else{ // update with higher score
 			if(s->prob < c->prob * d->prob){
 				s->prob = c->prob * d->prob;
@@ -612,6 +628,8 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 			}
 		}
 	}
+	if(idx_r1) free(idx_r1);
+	if(idx_r2) free(idx_r2);
 	/*------------------------------------------------------------------------------*/	
 	// make decision of gene order, chose the one with larger likelihood
 	register double likehood1, likehood2;
@@ -647,15 +665,15 @@ static inline junction_t
 	if(p == NULL) return NULL;
 	solution_pair_t *s, *tmp;
 	junction_t *m, *n, *ret = NULL;
-	unsigned int idx;
+	char* idx;
     HASH_ITER(hh, p, s, tmp) {
 		// one read
 		if(s->r1->jump == true && s->r1->prob >= MIN_ALIGN_SCORE){
-			idx = pair(s->r1->jump_start, s->r1->jump_end);
-			HASH_FIND_INT(ret, &idx, m);
+			idx = idx_md5(name, s->r1->jump_start, s->r1->jump_end);
+			HASH_FIND_STR(ret, idx, m);
 			if(m==NULL){ // this junction not in ret
 				m = junction_init();
-				m->idx = idx;
+				m->idx = strdup(idx);
 				m->name = strdup(name);
 				m->start = s->r1->jump_start;
 				m->end = s->r1->jump_end;
@@ -663,7 +681,7 @@ static inline junction_t
 				m->likehood = 10*log(s->r1->pos); 				
 				memcpy( m->s, &s->r1->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r1->s2[m->end], HALF_JUNCTION_LEN);
-				HASH_ADD_INT(ret, idx, m);
+				HASH_ADD_STR(ret, idx, m);
 			}else{
 				m->hits ++;
 				m->likehood += 10*log(s->r1->pos); 
@@ -671,11 +689,11 @@ static inline junction_t
 		}
 		// the other read
 		if(s->r2->jump == true && s->r2->prob >= MIN_ALIGN_SCORE){
-			idx = pair(s->r2->jump_start, s->r2->jump_end);
-			HASH_FIND_INT(ret, &idx, m);
+			idx = idx_md5(name, s->r2->jump_start, s->r2->jump_end);			
+			HASH_FIND_STR(ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m = mycalloc(1, junction_t);
-				m->idx = idx;
+				m = junction_init();
+				m->idx = strdup(idx);
 				m->name = strdup(name);
 				m->start = s->r2->jump_start;
 				m->end = s->r2->jump_end;
@@ -683,13 +701,14 @@ static inline junction_t
 				m->likehood = 10*log(s->r2->pos); 
 				memcpy( m->s, &s->r2->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r2->s2[m->end], HALF_JUNCTION_LEN);
-				HASH_ADD_INT(ret, idx, m);
+				HASH_ADD_STR(ret, idx, m);
 			}else{
 				m->hits ++;
 				m->likehood += 10*log(s->r2->pos); 
 			}
 		}	
     }
+	if(idx) free(idx);
 	// delete those junctions with hits < MIN_HITS
 	HASH_ITER(hh, ret, m, n){
 		if(m != NULL){
