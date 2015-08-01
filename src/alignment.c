@@ -26,17 +26,15 @@ int main(int argc, char *argv[]) {
 	register int i;
 	solution_pair_t *p;
 	junction_t *s_junction, *cur_junction, *tmp_junction;
-	HASH_ITER(hh, tb, s_bag, tmp_bag) {
-		if(((p = edge_align(s_bag, FASTA_HT)))!=NULL){
-			if((s_junction = junction_gen(p, s_bag->edge)) !=NULL){
-				HASH_ITER(hh, s_junction, cur_junction, tmp_junction) {
-				    printf("name=%s: start=%d\tend=%d\tstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->str);
-				}				
-			}
+	HASH_ITER(hh, tb, s_bag, tmp_bag){
+		if(((p = edge_align(s_bag, FASTA_HT)))==NULL) return 0;
+		if((s_junction = junction_gen(p, s_bag->edge))==NULL) return 0;
+		ASH_ITER(hh, s_junction, cur_junction, tmp_junction) {
+			printf("name=%s: start=%d\tend=%d\tstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->str);
 			junction_destory(s_junction);
-		}
-		solution_pair_destory(p);
-		break;
+		}				
+	solution_pair_destory(p);
+	break;
 	}
 	BAG_uthash_destroy(&tb);
 	fasta_uthash_destroy(&FASTA_HT);

@@ -181,7 +181,7 @@ typedef struct {
 	char *name;        // name of edge
 	int start;         
 	int end;
-	char* str;         // reference string
+	char* str;         // string flanking junction site 
 	size_t hits;         // reference string
 	double likehood;       // alignment probability
     UT_hash_handle hh;
@@ -396,8 +396,8 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 				break;
 			}
 	}
-	s->s1 = res_ks1;
-	s->s2 = res_ks2;
+	s->s1 = s1;
+	s->s2 = s2;
 	s->pos = j;
 	return s;
 }
@@ -558,8 +558,10 @@ static inline ref_t
 	return ref;
 }
 /*
+ *
  * Align reads that support e(Vi, Vj) to the string concated by exons of 
  * Vi and Vj.
+ *
  */
 static inline solution_pair_t* 
 edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
@@ -575,7 +577,7 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	solution_pair_t *s, *tmp; 
 	register int i, j;
 	int idx_r1, idx_r2;
-	
+
 	for(i=0; i<eg->weight; i++){
 		solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1);
 		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1);
@@ -593,8 +595,7 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		}else{ // update with higher score
 			if(s->prob < a->prob * b->prob){
 				s->prob =  a->prob * b->prob;
-				s->r1 = a;
-				s->r2 = b;
+				s->r1 = a; s->r2 = b;
 			}
 		}
 		// sol_pairs_r2
@@ -611,7 +612,6 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 				s->r1 = c; s->r2 = d;
 			}
 		}
-		
 	}
 	/*------------------------------------------------------------------------------*/	
 	// make decision of gene order, chose the one with larger likelihood
@@ -626,14 +626,16 @@ edge_align(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		likehood2 += 10*log(s->r2->prob);		
     }
 	if(ref1) ref_destory(ref1);  if(ref2) ref_destory(ref2);
+	printf("likehood1=%f\tlikehood1=%f\n", likehood1, likehood2);
 	solution_pair_t * ret;
 	if(likehood1 >= likehood2){
-		if(sol_pairs_r2) solution_pair_destory(sol_pairs_r2);
+		//if(sol_pairs_r2) solution_pair_destory(sol_pairs_r2);
 		ret = sol_pairs_r1;
 	}else{
-		if(sol_pairs_r1) solution_pair_destory(sol_pairs_r1);
+		//if(sol_pairs_r1) solution_pair_destory(sol_pairs_r1);
 		ret = sol_pairs_r2;
 	}
+	
 	if(gname1) free(gname1);     
 	if(gname2) free(gname2);
 	return ret;
@@ -660,6 +662,7 @@ static inline junction_t
 				m->end = s->r1->jump_end;
 				m->hits = 1;
 				m->likehood = 10*log(s->r1->pos); 
+				m->str = strdup(s->r1->s2);
 				HASH_ADD_INT(ret, idx, m);
 			}else{
 				m->hits ++;
@@ -678,10 +681,9 @@ static inline junction_t
 				m->end = s->r2->jump_end;
 				m->hits = 1;
 				m->likehood = 10*log(s->r2->pos); 
-				//// add junction site string here!!!!!!!!!!!!
+				m->str = strdup(s->r2->s2);
 				HASH_ADD_INT(ret, idx, m);
 			}else{
-				////update it here!!!!!!!!!
 				m->hits ++;
 				m->likehood += 10*log(s->r2->pos); 
 			}
