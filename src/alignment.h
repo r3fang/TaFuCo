@@ -723,7 +723,6 @@ junction_edge(solution_pair_t *p, char* name, junction_t **ret){
 	}
 	return 0;
 }
-
 /*
  * generate junction sites from breakend associated graph 
  */
