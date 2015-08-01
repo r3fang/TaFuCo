@@ -76,7 +76,7 @@ typedef enum { true, false } bool;
 #define MIN_ALIGN_SCORE          0.7
 #define MIN_HITS                 3
 #define EXON_FLANK_LEN           0
-
+#define HALF_JUNCTION_LEN        100
 // alignment state
 #define LOW                     500
 #define MID                     600
@@ -181,7 +181,7 @@ typedef struct {
 	char *name;        // name of edge
 	int start;         
 	int end;
-	char* str;         // string flanking junction site 
+	char s[HALF_JUNCTION_LEN*2+1];         // string flanking junction site 
 	size_t hits;         // reference string
 	double likehood;       // alignment probability
     UT_hash_handle hh;
@@ -192,9 +192,9 @@ static inline junction_t
 *junction_init(){
 	junction_t *j = mycalloc(1, junction_t);
 	j->name = NULL;
-	j->str = NULL;
 	j->likehood = 0;
 	j->hits = 0;
+	memset(j->s,'\0', HALF_JUNCTION_LEN*2+1);
 	return j;
 }
 // destory junction
@@ -202,7 +202,7 @@ static inline void
 junction_destory(junction_t *s){
 	if(s==NULL) die("[%s] input error", __func__);
 	if(s->name) free(s->name);
-	if(s->str) free(s->str);
+	if(s->s) free(s->s);
 	free(s);
 }
 /*
@@ -661,8 +661,9 @@ static inline junction_t
 				m->start = s->r1->jump_start;
 				m->end = s->r1->jump_end;
 				m->hits = 1;
-				m->likehood = 10*log(s->r1->pos); 
-				m->str = strdup(s->r1->s2);
+				m->likehood = 10*log(s->r1->pos); 				
+				memcpy( m->s, &s->r1->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
+				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r1->s2[m->end], HALF_JUNCTION_LEN);
 				HASH_ADD_INT(ret, idx, m);
 			}else{
 				m->hits ++;
@@ -681,7 +682,8 @@ static inline junction_t
 				m->end = s->r2->jump_end;
 				m->hits = 1;
 				m->likehood = 10*log(s->r2->pos); 
-				m->str = strdup(s->r2->s2);
+				memcpy( m->s, &s->r2->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
+				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r2->s2[m->end], HALF_JUNCTION_LEN);
 				HASH_ADD_INT(ret, idx, m);
 			}else{
 				m->hits ++;
