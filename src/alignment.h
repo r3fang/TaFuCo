@@ -202,7 +202,6 @@ static inline void
 junction_destory(junction_t *s){
 	if(s==NULL) die("[%s] input error", __func__);
 	if(s->name) free(s->name);
-	if(s->s) free(s->s);
 	free(s);
 }
 /*
@@ -703,5 +702,4 @@ static inline junction_t
 	}
 	return ret;	
 }
-
 #endif

@@ -32,10 +32,11 @@ int main(int argc, char *argv[]) {
 		HASH_ITER(hh, s_junction, cur_junction, tmp_junction) {
 			printf("name=%s: start=%d\tend=%d\tstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->s);
 			junction_destory(s_junction);
+			printf("afhaskjdfaslkdfgksjadhfg\n");
 		}				
 		break;
 	}
-	solution_pair_destory(p);
+	//solution_pair_destory(p);
 	BAG_uthash_destroy(&tb);
 	fasta_uthash_destroy(&FASTA_HT);
 	return 0;
