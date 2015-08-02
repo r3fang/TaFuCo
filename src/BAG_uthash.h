@@ -15,7 +15,7 @@
 #include <assert.h>
 #include "utils.h"
 #include "kseq.h"
-
+#include "kmer_uthash.h"
 /* error code */
 #define BA_ERR_NONE		     0 // no error
 
@@ -198,4 +198,107 @@ static inline struct BAG_uthash
 	gzclose(fp);
 	return tb;
 }
+
+/* 
+ * Find all genes uniquely matched with kmers on _read.          
+ * hash     - a hash table count number of matches between _read and every gene
+ * _read    - inqury read
+ * _k       - kmer length
+ */
+static inline int
+find_all_matches(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k){
+/*--------------------------------------------------------------------*/
+	/* check parameters */
+	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
+/*--------------------------------------------------------------------*/
+	/* declare vaiables */
+	str_ctr *s;
+	int _read_pos = 0;
+	char* gene = NULL;
+	struct kmer_uthash *s_kmer = NULL; 
+	char buff[_k];
+/*--------------------------------------------------------------------*/
+	while(_read_pos<(strlen(_read)-_k-1)){
+		/* copy a kmer of string */
+		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
+		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
+		/*------------------------------------------------------------*/
+		if(find_kmer(KMER_HT, buff, &s_kmer) != 0) die("find_next_match: find_kmer fails\n");
+		if(s_kmer == NULL){_read_pos++; continue;} // kmer not in table but not an error
+		if(s_kmer->count == 1){ // only count the uniq match 
+			gene = strdup(s_kmer->seq_names[0]);
+			if(gene == NULL) die("find_next_match: get_exon_name fails\n");
+			if(str_ctr_add(hash, gene) != 0) die("find_all_MEKMs: str_ctr_add fails\n");
+		}
+		_read_pos++;
+	}
+	return 0;
+}
+
+/* 
+ * Construct breakend associated graph.             
+ * fq_file1 - fastq file name for R1
+ * fq_file2 - fastq file name for R2
+ * _k       - kmer length for hash table
+ * cutoff   - min number of kmer matches between a read again a gene.
+ * bag      - BAG_uthash object (breakend associated graph)
+ */
+static inline int
+construct_BAG(char *fq_file1, char *fq_file2, int _k, int _min_match, struct BAG_uthash **bag, struct kmer_uthash *kmer_uthash){
+	if(fq_file1 == NULL || fq_file2 == NULL) die("construct_BAG: parameter error\n");
+	int error;
+	gzFile fp1, fp2;
+	register int l1, l2;
+	register kseq_t *seq1, *seq2;
+	register char *_read1, *_read2;
+	register char *edge_name;
+	_read1 = _read2 = edge_name = NULL;
+	
+	fp1 = gzopen(fq_file1, "r");
+	fp2 = gzopen(fq_file2, "r");
+	seq1 = kseq_init(fp1);
+	seq2 = kseq_init(fp2);
+	
+	if(fp1 == NULL || fp2 == NULL || seq1 == NULL || seq2 == NULL) die("construct_BAG: fail to read fastq files\n");
+
+	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
+		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
+		_read2 = seq2->seq.s;		
+		if(_read1 == NULL || _read2 == NULL) die("construct_BAG: fail to get _read1 and _read2\n");
+		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("construct_BAG: read pair not matched\n");		
+		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
+		str_ctr* gene_counter = NULL;
+		str_ctr *s, *tmp;
+		find_all_matches(&gene_counter, kmer_uthash, _read1, _k);
+		find_all_matches(&gene_counter, kmer_uthash, _read2, _k);
+		
+		HASH_SORT(gene_counter, str_ctr_sort);
+		unsigned int num = HASH_COUNT(gene_counter);
+		
+		char** hits = mycalloc(num, char*);
+		int i=0; if(num > 1){
+			HASH_ITER(hh, gene_counter, s, tmp) { 
+				if(s->SIZE >= _min_match){hits[i++] = strdup(s->KEY);}
+			}			
+		}
+		int m, n; for(m=0; m < i; m++){for(n=m+1; n < i; n++){
+				int rc = strcmp(hits[m], hits[n]);
+				if(rc<0)  edge_name = concat(concat(hits[m], "_"), hits[n]);
+				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
+				if(rc==0) edge_name = NULL;
+				if(edge_name!=NULL){
+					if(BAG_uthash_add(bag, edge_name, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
+				}
+		}}
+		if(hits)		 free(hits);
+		if(gene_counter) free(gene_counter);
+	}
+	if(edge_name)   free(edge_name);
+	kseq_destroy(seq1);
+	kseq_destroy(seq2);	
+	gzclose(fp1);
+	gzclose(fp2);
+	return 0; // no error raised
+}
+
 #endif

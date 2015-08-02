@@ -179,4 +179,40 @@ char *str2md5(const char *str, int length) {
     return out;
 }
 
+//opt
+typedef struct {
+	char* fq1; // gap open
+	char* fq2; // gap open
+	char* fa; // gap open
+	int k; // gap extension
+	int min_match; // match
+	int min_weight; // unmatch
+	int match;
+	int mismatch;
+	int gap;
+	int extension;
+	int jump_gene;
+	int jump_exon;
+	int min_hits;
+	double min_align_score;
+} opt_t;
+
+static inline opt_t *init_opt(){
+	opt_t *opt = mycalloc(1, opt_t);
+	opt->fq1 = NULL;
+	opt->fq2 = NULL;
+	opt->fa = NULL;
+	opt->k = 15;
+	opt->min_match = 10;
+	opt->min_weight = 3;	
+	opt->match = 2;
+	opt->mismatch = -2;
+	opt->gap = -5;
+	opt->extension = -1;
+	opt->jump_gene = -10;
+	opt->jump_exon = -8;
+	opt->min_hits = 3;
+	opt->min_align_score = 0.8;
+	return opt;
+}
 #endif
