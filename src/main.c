@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
 	junction_t *cur_junction, *tmp_junction;
 	HASH_ITER(hh, JUNCTION_HT, cur_junction, tmp_junction) {
 		printf("name=%s: start=%d\tend=%d\thits=%zu\tlikelihood=%f\nstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->hits,cur_junction->likehood,cur_junction->s);
-	}		
+	}	
 	//*--------------------------------------------------------------------*/	
 	// clear up the masses
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
