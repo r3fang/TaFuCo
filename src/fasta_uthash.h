@@ -18,14 +18,14 @@ struct fasta_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
-static inline int 
-fasta_uthash_load(char *fname, struct fasta_uthash **tb){
+static inline struct fasta_uthash
+*fasta_uthash_load(char *fname){
+	if(fname == NULL) die("fasta_uthash_load: parameter error\n"); 
+	struct fasta_uthash *tb = NULL;
 	gzFile fp;
 	kseq_t *seq;
 	int l;
 	int error;
-	if(*tb != NULL || fname == NULL) die("fasta_uthash_load: parameter error\n"); 
-
 	fp = gzopen(fname, "r");
 	if(fp == NULL) die("fasta_uthash_load: fail to open %s\n", fname);		
 
@@ -38,11 +38,11 @@ fasta_uthash_load(char *fname, struct fasta_uthash **tb){
 			continue;
 		s->name = strdup(seq->name.s);
 		s->seq = strToUpper(seq->seq.s);
-		HASH_ADD_STR(*tb, name, s);
-	}	
+		HASH_ADD_STR(tb, name, s);
+	}
 	if(seq) kseq_destroy(seq);
 	gzclose(fp);
-	return FA_ERR_NONE;
+	return tb;
 }
 
 static inline int
