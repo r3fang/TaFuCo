@@ -27,6 +27,10 @@ typedef char BOOL ;
 #define FALSE 0
 #endif
 
+// constant define
+typedef enum { true, false } bool;
+#define pair(k1, k2)  ((k1 + k2)*(k1 + k2 + 1)/2 + k2)
+
 typedef struct
 {
 	char 	*KEY;
@@ -215,4 +219,43 @@ static inline opt_t *init_opt(){
 	opt->min_align_score = 0.8;
 	return opt;
 }
+
+static inline bool 
+isvalueinarray(int val, int *arr, int size){
+    int i;
+    for (i=0; i < size; i++) {
+        if (arr[i] == val)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+static inline char 
+*strrev(char *s){
+	if(s == NULL) return NULL;
+	int l = strlen(s);
+	char *ss = strdup(s);
+	free(s);
+	s = mycalloc(l, char);
+	int i; for(i=0; i<l; i++){
+		s[i] = ss[l-i-1];
+	}
+	s[l] = '\0';
+	return s;
+}
+
+/* max of fix values */
+static inline int 
+max6(double *res, double a1, double a2, double a3, double a4, double a5, double a6){
+	*res = -INFINITY;
+	int state;
+	if(a1 > *res){*res = a1; state = 0;}
+	if(a2 > *res){*res = a2; state = 1;}
+	if(a3 > *res){*res = a3; state = 2;}	
+	if(a4 > *res){*res = a4; state = 3;}	
+	if(a5 > *res){*res = a5; state = 4;}	
+	if(a6 > *res){*res = a6; state = 5;}	
+	return state;
+}
+
 #endif

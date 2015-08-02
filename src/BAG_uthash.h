@@ -3,6 +3,7 @@
 /* Author: Rongxin Fang                                               */
 /* Contact: r3fang@ucsd.edu                                           */
 /* Library for Breakend Associated Graph (BAG).                       */
+/* Functions it contain:                                              */
 /*--------------------------------------------------------------------*/
 
 #ifndef _BAG_UTHASH_H
@@ -18,7 +19,6 @@
 #include "kmer_uthash.h"
 /* error code */
 #define BA_ERR_NONE		     0 // no error
-
 /*
  * the BAG_uthash structure
  */
@@ -28,6 +28,19 @@ struct BAG_uthash {
 	char **evidence;    
     UT_hash_handle hh;         /* makes this structure hashable */
 };
+
+/*
+ * intiate BAG_uthash
+ *
+ */
+static inline struct BAG_uthash 
+*BAG_uthash_init() {
+	struct BAG_uthash *t = mycalloc(1, struct BAG_uthash);
+	t->edge = NULL;
+	t->weight = 0;
+	t->evidence = mycalloc(1, char*);
+	return t;
+}
 
 /*
  * destory 
@@ -61,19 +74,6 @@ static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 		}
 	}
 	return BA_ERR_NONE;
-}
-
-/*
- * intiate BAG_uthash
- *
- */
-static inline struct BAG_uthash 
-*BAG_uthash_init() {
-	struct BAG_uthash *t = mycalloc(1, struct BAG_uthash);
-	t->edge = NULL;
-	t->weight = 0;
-	t->evidence = mycalloc(1, char*);
-	return t;
 }
 
 static inline struct BAG_uthash 
@@ -243,9 +243,11 @@ find_all_matches(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _
  * cutoff   - min number of kmer matches between a read again a gene.
  * bag      - BAG_uthash object (breakend associated graph)
  */
+
 static inline int
-construct_BAG(char *fq_file1, char *fq_file2, int _k, int _min_match, struct BAG_uthash **bag, struct kmer_uthash *kmer_uthash){
-	if(fq_file1 == NULL || fq_file2 == NULL) die("construct_BAG: parameter error\n");
+construct_BAG(struct BAG_uthash **bag, struct kmer_uthash *kmer_uthash, char* fq1, char* fq2, int _min_match, int _k){
+	if(bag == NULL || kmer_uthash == NULL) die("[%s] input error\n", __func__);
+	
 	int error;
 	gzFile fp1, fp2;
 	register int l1, l2;
@@ -254,12 +256,10 @@ construct_BAG(char *fq_file1, char *fq_file2, int _k, int _min_match, struct BAG
 	register char *edge_name;
 	_read1 = _read2 = edge_name = NULL;
 	
-	fp1 = gzopen(fq_file1, "r");
-	fp2 = gzopen(fq_file2, "r");
-	seq1 = kseq_init(fp1);
-	seq2 = kseq_init(fp2);
-	
-	if(fp1 == NULL || fp2 == NULL || seq1 == NULL || seq2 == NULL) die("construct_BAG: fail to read fastq files\n");
+	if((fp1 = gzopen(fq1, "r"))==NULL) die("construct_BAG: fail to read fastq files\n");
+	if((fp2 = gzopen(fq2, "r"))==NULL) die("construct_BAG: fail to read fastq files\n");	
+	if((seq1 = kseq_init(fp1))==NULL) die("construct_BAG: fail to read fastq files\n");
+	if((seq2 = kseq_init(fp2))==NULL) die("construct_BAG: fail to read fastq files\n");	
 
 	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1

@@ -90,14 +90,14 @@ int main(int argc, char *argv[]) {
 	if((fasta_uthash_load(opt->fa, &FASTA_HT)) != PR_ERR_NONE) die("main: fasta_uthash_load fails\n");	
 	// construct break-end associated graph
 	fprintf(stderr, "[%s] constructing break-end associated graph ... \n", __func__);
-	if((construct_BAG(opt->fq1, opt->fq2, opt->k, opt->min_match, &BAG_HT, KMER_HT)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
+	if((construct_BAG(&BAG_HT, KMER_HT, opt->fq1, opt->fq2, opt->min_match, opt->k)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
 	// rm duplicate evidence for edges on BAG
 	//if((BAG_uthash_uniq(&BAG_HT)) != PR_ERR_NONE) die("main: BAG_uthash_uniq fails\n");
 	// delete edges with weight < opt->min_weight
-	//if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
+	if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
 	//if(BAG_uthash_display(BAG_HT) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
 	fprintf(stderr, "[%s] identifying junction sites ... \n", __func__);
-	JUNCTION_HT = junction_gen(BAG_HT, FASTA_HT);
+	JUNCTION_HT = junction_gen(BAG_HT, FASTA_HT, opt);
 	junction_t *cur_junction, *tmp_junction;
 	HASH_ITER(hh, JUNCTION_HT, cur_junction, tmp_junction) {
 		printf("name=%s: start=%d\tend=%d\thits=%zu\tlikelihood=%f\nstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->hits,cur_junction->likehood,cur_junction->s);
@@ -107,7 +107,6 @@ int main(int argc, char *argv[]) {
 	if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
 	if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE)	die("main: fasta_uthash_destroy fails\n");		
 	if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE)	die("main: BAG_uthash_destroy\n");	
-	//if(junction_destory(&JUNCTION_HT)  != PR_ERR_NONE)  die("main: junction_destory\n");
 	/*--------------------------------------------------------------------*/	
 	fprintf(stderr, "[%s] Version: %s\n", __func__, PACKAGE_VERSION);
 	fprintf(stderr, "[%s] CMD:", __func__);

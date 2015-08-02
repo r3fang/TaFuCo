@@ -62,21 +62,8 @@
 #include <math.h>
 #include "utils.h"
 
-// constant define
-typedef enum { true, false } bool;
-// input for alignment
-#define GAP 					-5.0
-#define MATCH 					 2.0
-#define MISMATCH 				-1.0
-#define EXTENSION               -2.0
-#define JUMP_EXON               -10.0
-#define JUMP_GENE               -15.0
 
-// input for junction identification
-#define MIN_ALIGN_SCORE          0.7
-#define MIN_HITS                 3
-#define EXON_FLANK_LEN           0
-#define HALF_JUNCTION_LEN        100
+#define HALF_JUNCTION_LEN       50
 // alignment state
 #define LOW                     500
 #define MID                     600
@@ -84,8 +71,6 @@ typedef enum { true, false } bool;
 #define JUMP                    800
 #define GENE1                   900
 #define GENE2                   1000
-
-#define pair(k1, k2)  ((k1 + k2)*(k1 + k2 + 1)/2 + k2)
 
 // dynamic programming matrices
 typedef struct {
@@ -187,6 +172,18 @@ typedef struct {
     UT_hash_handle hh;
 } junction_t;
 
+static inline char* 
+idx_md5(char* name, int i, int j){
+	if(name == NULL) die("[%s] input error", __func__);
+	// convert alignment information to md5
+	char istr[1000];
+	char jstr[1000];
+	sprintf(istr, "%d", i);
+	sprintf(jstr, "%d", j);
+	char* idx_str = concat(concat(concat(concat(name, "."), istr), "."), jstr); 
+	return str2md5(idx_str, strlen(idx_str));
+}
+
 // initlize junction_t
 static inline junction_t 
 *junction_init(){
@@ -197,15 +194,6 @@ static inline junction_t
 	memset(j->s,'\0', HALF_JUNCTION_LEN*2+1);
 	return j;
 }
-//// destory junction
-//static inline int 
-//junction_destory(junction_t **s){
-//	if(*s==NULL) die("[%s] input error", __func__);
-//	if(*s->idx)  free(*s->idx);
-//	if(*s->name) free(*s->name);
-//	free(*s);
-//	return 0;
-//}
 
 /*
  * concatenated string of exons.
@@ -309,45 +297,6 @@ solution_pair_destory(solution_pair_t *s){
 	free(s);
 }
 
-/* max of fix values */
-static inline int 
-max6(double *res, double a1, double a2, double a3, double a4, double a5, double a6){
-	*res = -INFINITY;
-	int state;
-	if(a1 > *res){*res = a1; state = 0;}
-	if(a2 > *res){*res = a2; state = 1;}
-	if(a3 > *res){*res = a3; state = 2;}	
-	if(a4 > *res){*res = a4; state = 3;}	
-	if(a5 > *res){*res = a5; state = 4;}	
-	if(a6 > *res){*res = a6; state = 5;}	
-	return state;
-}
-
-static inline char 
-*strrev(char *s){
-	if(s == NULL) return NULL;
-	int l = strlen(s);
-	char *ss = strdup(s);
-	free(s);
-	s = mycalloc(l, char);
-	int i; for(i=0; i<l; i++){
-		s[i] = ss[l-i-1];
-	}
-	s[l] = '\0';
-	return s;
-}
-
-
-static inline bool 
-isvalueinarray(int val, int *arr, int size){
-    int i;
-    for (i=0; i < size; i++) {
-        if (arr[i] == val)
-            return TRUE;
-    }
-    return FALSE;
-}
-
 static inline solution_t* 
 trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 	if(S == NULL || s1 == NULL || s2 == NULL) die("trace_back: paramter error");
@@ -405,25 +354,20 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 	return s;
 }
 
-static inline char* 
-idx_md5(char* name, int i, int j){
-	if(name == NULL) die("[%s] input error", __func__);
-	// convert alignment information to md5
-	char istr[1000];
-	char jstr[1000];
-	sprintf(istr, "%d", i);
-	sprintf(jstr, "%d", j);
-	char* idx_str = concat(concat(concat(concat(name, "."), istr), "."), jstr); 
-	return str2md5(idx_str, strlen(idx_str));
-}
-
 static inline solution_t 
-*align(char *s1, ref_t *ref){
+*align(char *s1, ref_t *ref, opt_t* opt){
 	if(s1 == NULL || ref == NULL) die("align: parameter error\n");
 	char *s2 = ref->s;
 	int  *S1 = ref->S1;
 	int  *S2 = ref->S2;
 	int  JUNCTION = ref->J;
+	double MATCH = opt->match;
+	double MISMATCH = opt->mismatch;
+	double GAP = opt->gap;
+	double EXTENSION = opt->extension;
+	double JUMP_GENE = opt->jump_gene;
+	double JUMP_EXON = opt->jump_exon;
+	
 	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
 	size_t m   = strlen(s1) + 1; 
 	size_t n   = strlen(s2) + 1;
@@ -538,14 +482,14 @@ static inline ref_t
 			if(strcmp(strsplit(s->name, '.')[0], gname1) == 0){				
 				if(ref->s==NULL){
 					ref->s = strdup(s->seq);
-					ref->S1[i++] = EXON_FLANK_LEN;
-					ref->S1[i++] = strlen(ref->s)-EXON_FLANK_LEN;
+					ref->S1[i++] = 0;
+					ref->S1[i++] = strlen(ref->s);
 				}else{
-					ref->S1[i++] = strlen(ref->s)+EXON_FLANK_LEN;
+					ref->S1[i++] = strlen(ref->s);
 					str_tmp = concat(ref->s, s->seq);
 					free(ref->s); ref->s=strdup(str_tmp);
 					free(str_tmp);
-					ref->S1[i++] = strlen(ref->s)-EXON_FLANK_LEN;
+					ref->S1[i++] = strlen(ref->s);
 				}			
 			}
 		}
@@ -557,14 +501,14 @@ static inline ref_t
 			if(strcmp(strsplit(s->name, '.')[0], gname2) == 0){				
 				if(ref->s==NULL){
 					ref->s = strdup(s->seq);
-					ref->S2[i++] = EXON_FLANK_LEN;
-					ref->S2[i++] = strlen(ref->s)-EXON_FLANK_LEN;
+					ref->S2[i++] = 0;
+					ref->S2[i++] = strlen(ref->s);
 				}else{
-					ref->S2[i++] = strlen(ref->s)+EXON_FLANK_LEN;
+					ref->S2[i++] = strlen(ref->s);
 					str_tmp = concat(ref->s, s->seq);
 					free(ref->s); ref->s=strdup(str_tmp);
 					free(str_tmp);
-					ref->S2[i++] = strlen(ref->s)-EXON_FLANK_LEN;
+					ref->S2[i++] = strlen(ref->s);
 				}			
 			}
 		}
@@ -579,7 +523,7 @@ static inline ref_t
  *
  */
 static inline solution_pair_t* 
-align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
+align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
 	char* gname1 = strsplit(eg->edge, '_')[0];
 	char* gname2 = strsplit(eg->edge, '_')[1];
 	ref_t *ref1 = ref_generate(fasta_u, gname1, gname2);
@@ -594,11 +538,10 @@ align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 	char* idx_r1, *idx_r2;
 
 	for(i=0; i<eg->weight; i++){
-		printf("i=%d\n", i);
-		solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1);
-		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1);
-		solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2);
-		solution_t *d = align(strsplit(eg->evidence[i], '_')[1], ref2);
+		solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1, opt);
+		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1, opt);
+		solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2, opt);
+		solution_t *d = align(strsplit(eg->evidence[i], '_')[1], ref2, opt);
 		idx_r1 = idx_md5(eg->edge, a->pos, b->pos);
 		idx_r2 = idx_md5(eg->edge, c->pos, d->pos);
 		// sol_pairs_r1
@@ -645,25 +588,22 @@ align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u){
 		likehood2 += 10*log(s->r2->prob);		
     }
 	if(ref1) ref_destory(ref1);  if(ref2) ref_destory(ref2);
-	printf("likehood1=%f\tlikehood1=%f\n", likehood1, likehood2);
 	solution_pair_t * ret;
 	if(likehood1 >= likehood2){
-		//if(sol_pairs_r2) solution_pair_destory(sol_pairs_r2);
 		ret = sol_pairs_r1;
 	}else{
-		//if(sol_pairs_r1) solution_pair_destory(sol_pairs_r1);
 		ret = sol_pairs_r2;
 	}
 	
-	if(gname1) free(gname1);     
-	if(gname2) free(gname2);
+	if(gname1)         free(gname1);     
+	if(gname2)         free(gname2);
 	return ret;
 }
 /*
  * generate junction sites from solution_pair_t
  */
 static inline int 
-junction_edge(solution_pair_t *p, char* name, junction_t **ret){
+junction_edge(solution_pair_t *p, char* name, junction_t **ret, double MIN_ALIGN_SCORE, double MIN_HITS){
 	if(p == NULL) die("[%s] input error", __func__);
 	solution_pair_t *s, *tmp;
 	junction_t *m, *n;
@@ -680,13 +620,13 @@ junction_edge(solution_pair_t *p, char* name, junction_t **ret){
 				m->start = s->r1->jump_start;
 				m->end = s->r1->jump_end;
 				m->hits = 1;
-				m->likehood = 10*log(s->r1->pos); 				
+				m->likehood = 10*log(s->r1->prob); 				
 				memcpy( m->s, &s->r1->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r1->s2[m->end], HALF_JUNCTION_LEN);
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
-				m->likehood += 10*log(s->r1->pos); 
+				m->likehood += 10*log(s->r1->prob); 
 			}
 		}
 		// the other read
@@ -700,13 +640,13 @@ junction_edge(solution_pair_t *p, char* name, junction_t **ret){
 				m->start = s->r2->jump_start;
 				m->end = s->r2->jump_end;
 				m->hits = 1;
-				m->likehood = 10*log(s->r2->pos); 
+				m->likehood = 10*log(s->r2->prob); 
 				memcpy( m->s, &s->r2->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r2->s2[m->end], HALF_JUNCTION_LEN);
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
-				m->likehood += 10*log(s->r2->pos); 
+				m->likehood += 10*log(s->r2->prob); 
 			}
 		}	
     }
@@ -727,16 +667,16 @@ junction_edge(solution_pair_t *p, char* name, junction_t **ret){
  * generate junction sites from breakend associated graph 
  */
 static inline junction_t 
-*junction_gen(struct BAG_uthash *tb, struct fasta_uthash *fa){
-	if(tb == NULL || fa == NULL) die("[%s] input error", __func__);
+*junction_gen(struct BAG_uthash *tb, struct fasta_uthash *fa, opt_t *opt){
+	if(tb == NULL || fa == NULL || opt==NULL) die("[%s] input error", __func__);	
 	struct BAG_uthash *edge, *tmp_bag;
 	register int i;
 	solution_pair_t *p;
 	junction_t *cur_junction, *tmp_junction, *ret = NULL;
 	HASH_ITER(hh, tb, edge, tmp_bag){ // iterate every edge
 		fprintf(stderr, "edge=%s \n", edge->edge);
-		if(((p = align_edge(edge, fa)))==NULL) return NULL;
-		if(junction_edge(p, edge->edge, &ret) != 0) return NULL;		
+		if(((p = align_edge(edge, fa, opt)))==NULL) return NULL;
+		if(junction_edge(p, edge->edge, &ret, opt->min_align_score, opt->min_hits) != 0) return NULL;		
 	}
 	return ret;
 }
