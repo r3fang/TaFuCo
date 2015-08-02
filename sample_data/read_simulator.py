@@ -23,7 +23,7 @@ def main():
                 fout2.write('+\n')
                 fout2.write('+'*k+'\n')    
                 fout1.write("@"+str(i)+'\n')
-                fout1.write(seq[i:i+k]+'\n')
+                fout1.write(seq_rev[i:i+k]+'\n')
                 fout1.write('+\n')
                 fout1.write('+'*k+'\n')             
     fout1.close()
