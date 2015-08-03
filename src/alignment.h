@@ -117,7 +117,7 @@ typedef struct
 	size_t J;     // junction site between 2 genes
 } ref_t;
 
-// alingment soulution of a single read
+// alingment of a single read
 typedef struct
 {
 	char* s1; 
@@ -132,6 +132,17 @@ typedef struct
 	int deletion;
 	double prob;
 } solution_t;
+
+// alingment of a read pair
+typedef struct
+{
+	char* idx;
+	solution_t *r1;
+	solution_t *r2;
+	double prob;
+	UT_hash_handle hh;
+} solution_pair_t;
+
 /*
  * create matrix, allocate memor
  */
@@ -175,6 +186,34 @@ static inline matrix_t
 }
 
 /*
+ * create matrix, allocate memor
+ */
+static inline matrix_t 
+*create_no_jump_matrix(size_t m, size_t n){
+	size_t i, j; 
+	matrix_t *S = mycalloc(1, matrix_t);
+	S->m = m;
+	S->n = n;
+	S->L = mycalloc(m, double*);
+	S->M = mycalloc(m, double*);
+	S->U = mycalloc(m, double*);
+	for (i = 0; i < m; i++) {
+      S->M[i] = mycalloc(n, double);
+      S->L[i] = mycalloc(n, double);
+      S->U[i] = mycalloc(n, double);
+    }
+	S->pointerM = mycalloc(m, int*);
+	S->pointerU = mycalloc(m, int*);
+	S->pointerL = mycalloc(m, int*);
+	for (i = 0; i < m; i++) {
+       	S->pointerU[i] = mycalloc(n, int);
+        S->pointerM[i] = mycalloc(n, int);
+        S->pointerL[i] = mycalloc(n, int);
+    }
+	return S;
+}
+
+/*
  * destory matrix
  */
 static inline void 
@@ -196,6 +235,26 @@ destory_matrix(matrix_t *S){
 		if(S->pointerJ[i]) free(S->pointerJ[i]);
 		if(S->pointerG1[i]) free(S->pointerG1[i]);
 		if(S->pointerG2[i]) free(S->pointerG2[i]);	
+	}
+	free(S);
+}
+
+/*
+ * destory matrix
+ */
+static inline void 
+destory_no_jump_matrix(matrix_t *S){
+	if(S == NULL) die("destory_matrix: parameter error\n");
+	int i;
+	for(i = 0; i < S->m; i++){
+		if(S->L[i]) free(S->L[i]);
+		if(S->M[i]) free(S->M[i]);
+		if(S->U[i]) free(S->U[i]);
+	}
+	for(i = 0; i < S->m; i++){
+		if(S->pointerL[i]) free(S->pointerL[i]);
+		if(S->pointerM[i]) free(S->pointerM[i]);
+		if(S->pointerU[i]) free(S->pointerU[i]);
 	}
 	free(S);
 }
@@ -267,16 +326,6 @@ static inline void solution_destory(solution_t *s){
 	if(s->s2) free(s->s2);
 	free(s);
 }
-
-// alingment soulution for a read pair
-typedef struct
-{
-	char* idx;
-	solution_t *r1;
-	solution_t *r2;
-	double prob;
-	UT_hash_handle hh;
-} solution_pair_t;
 
 static inline solution_pair_t 
 *solution_pair_init(){
@@ -498,16 +547,12 @@ static inline solution_t* trace_back_no_jump(matrix_t *S, char *s1, char *s2, in
 	return s;
 }
 
-static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t* opt){
-	if(s1 == NULL || s2 == NULL || opt == NULL) die("align: parameter error\n");
-	double MATCH = opt->match;
-	double MISMATCH = opt->mismatch;
-	double GAP = opt->gap;
-	double EXTENSION = opt->extension;
+static inline solution_t *align_with_no_jump(char *s1, char *s2, double MATCH, double MISMATCH, double GAP, double EXTENSION){
+	if(s1 == NULL || s2 == NULL) die("align: parameter error\n");
 	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
 	size_t m   = strlen(s1) + 1; 
 	size_t n   = strlen(s2) + 1;
-	matrix_t *S = create_matrix(m, n);
+	matrix_t *S = create_no_jump_matrix(m, n);
 	// initlize leftmost column
 	int i, j;
 	for(i=0; i<S->m; i++){
@@ -565,7 +610,7 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t* opt){
 	solution_t *s = trace_back_no_jump(S, s1, s2, max_state, i_max, j_max);	
 	s->score = max_score;	
 	s->prob = max_score/(MATCH*strlen(s1));	
-	destory_matrix(S);
+	destory_no_jump_matrix(S);
 	return s;
 }
 #endif

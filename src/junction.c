@@ -35,12 +35,12 @@ int main(int argc, char *argv[]) {
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);		
 		
 		if((min_mismatch(_read1, junction_str)) <= mismatch ){
-			sol1 = align_with_no_jump(_read1, str2, opt);
+			sol1 = align_with_no_jump(_read1, str2, opt->match, opt->mismatch, opt->gap, opt->extension);
 			printf("prob=%f\n", sol1->prob);
 			free(sol1);
 		}
 		if((min_mismatch(_read2, junction_str)) <= mismatch){
-			sol2 = align_with_no_jump(_read2, str2, opt);
+			sol2 = align_with_no_jump(_read2, str2, opt->match, opt->mismatch, opt->gap, opt->extension);
 			printf("prob=%f\n", sol2->prob);
 			free(sol2);
 		}
