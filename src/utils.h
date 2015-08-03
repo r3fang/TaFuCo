@@ -11,13 +11,6 @@
 #include "kseq.h"
 #include "uthash.h"
 
-//#if defined(__APPLE__)
-//#  define COMMON_DIGEST_FOR_OPENSSL
-//#  include <CommonCrypto/CommonDigest.h>
-//#  define SHA1 CC_SHA1
-//#else
-//#endif
-//
 KSEQ_INIT(gzFile, gzread);
 
 #ifndef BOOL_DEFINED
@@ -37,6 +30,14 @@ typedef struct
 	size_t  SIZE;
 	UT_hash_handle hh;
 } str_ctr;
+
+static inline void str_ctr_destory(str_ctr **s){
+	str_ctr *cur, *tmp;
+	HASH_ITER(hh, *s, cur, tmp) {
+		HASH_DEL(*s, cur);  /* delete; users advances to next */
+		free(cur);            /* optional- if you want to free  */
+	}
+}
 
 unsigned long
 hash(char *str)
@@ -58,6 +59,8 @@ mystrcmp(const void * a, const void * b)
 static inline char* 
 concat(char *s1, char *s2)
 {
+	if(s1 == NULL) return s2;
+	if(s2 == NULL) return s1;	
     char *result = malloc(strlen(s1)+strlen(s2)+1);//+1 for the zero-terminator
     strcpy(result, s1);
 	strcat(result, s2);

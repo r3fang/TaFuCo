@@ -37,6 +37,24 @@ static inline int junction_edge(solution_pair_t*, char*, junction_t**, double, d
 static inline junction_t *junction_gen(struct BAG_uthash *, struct fasta_uthash *, opt_t *);
 static inline ref_t *ref_generate(struct fasta_uthash *, char*, char*);
 
+/*
+ * generate junction sites from breakend associated graph 
+ */
+static inline junction_t 
+*junction_gen(struct BAG_uthash *tb, struct fasta_uthash *fa, opt_t *opt){
+	if(tb == NULL || fa == NULL || opt==NULL) die("[%s] input error", __func__);	
+	struct BAG_uthash *edge, *tmp_bag;
+	register int i;
+	solution_pair_t *p;
+	junction_t *cur_junction, *tmp_junction, *ret = NULL;
+	HASH_ITER(hh, tb, edge, tmp_bag){ // iterate every edge
+		fprintf(stderr, "edge=%s \n", edge->edge);
+		if(((p = align_edge(edge, fa, opt)))==NULL) return NULL;
+		if(junction_edge(p, edge->edge, &ret, opt->min_align_score, opt->min_hits) != 0) return NULL;		
+	}
+	return ret;
+}
+
 static inline ref_t 
 *ref_generate(struct fasta_uthash *tb, char* gname1, char* gname2){
 	if(tb==NULL || gname1==NULL || gname2==NULL) die("[%s] input error", __func__);
@@ -92,21 +110,48 @@ static inline ref_t
 	return ref;
 }
 
-/*
- * generate junction sites from breakend associated graph 
- */
-static inline junction_t 
-*junction_gen(struct BAG_uthash *tb, struct fasta_uthash *fa, opt_t *opt){
-	if(tb == NULL || fa == NULL || opt==NULL) die("[%s] input error", __func__);	
-	struct BAG_uthash *edge, *tmp_bag;
-	register int i;
-	solution_pair_t *p;
-	junction_t *cur_junction, *tmp_junction, *ret = NULL;
-	HASH_ITER(hh, tb, edge, tmp_bag){ // iterate every edge
-		fprintf(stderr, "edge=%s \n", edge->edge);
-		if(((p = align_edge(edge, fa, opt)))==NULL) return NULL;
-		if(junction_edge(p, edge->edge, &ret, opt->min_align_score, opt->min_hits) != 0) return NULL;		
+
+static char* concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, int *junction){
+	if(_read == NULL || fa_ht == NULL || kmer_ht==NULL || gname1==NULL || gname2==NULL) die("[%s] input error");
+	char *str1, *str2;
+	str1 = str2 = NULL;
+	int order_gene1, order_gene2;
+	order_gene1 = order_gene2 = 0;
+	int i=0;
+	char buff[_k];
+	char* gene_name_tmp;
+	str_ctr *s_ctr, *tmp_ctr, *exons=NULL;
+	struct fasta_uthash *fa_tmp;
+	find_all_exons(&exons, kmer_ht, _read, _k);
+	if(exons==NULL) return NULL;
+	HASH_ITER(hh, exons, s_ctr, tmp_ctr) { 
+		if(s_ctr->SIZE >= 2){
+			gene_name_tmp = strsplit(s_ctr->KEY, '.')[0];
+			if(strcmp(gene_name_tmp, gname1)==0){
+				fa_tmp = find_fasta(fa_ht, s_ctr->KEY);
+				if(str1 == NULL){
+					str1 = strdup(fa_tmp->seq);
+					order_gene1 = i++;
+				}else{
+					str1 = concat(str1, fa_tmp->seq);
+				}				
+			}
+			if(strcmp(gene_name_tmp, gname2)==0){
+				fa_tmp = find_fasta(fa_ht, s_ctr->KEY);
+				if(str2 == NULL){
+					str2 = strdup(fa_tmp->seq);
+					order_gene2 = i++;
+				}else{
+					str2 = concat(str2, fa_tmp->seq);
+				}				
+			}
+		}
 	}
+	if(gene_name_tmp) free(gene_name_tmp);
+	if(exons)         str_ctr_destory(&exons);
+	if(str1 == NULL || str2 == NULL) return NULL;
+	char *ret = (order_gene1 <= order_gene2) ? concat(str1, str2) : concat(str2, str1);	
+	*junction = (order_gene1 <= order_gene2) ? strlen(str1) : strlen(str2);	
 	return ret;
 }
 
@@ -122,8 +167,8 @@ align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
 	char* gname1 = strsplit(eg->edge, '_')[0];
 	char* gname2 = strsplit(eg->edge, '_')[1];
 	
-	ref_t *ref1 = ref_generate(fasta_u, gname1, gname2);
-	ref_t *ref2 = ref_generate(fasta_u, gname2, gname1);
+	//ref_t *ref1 = ref_generate(fasta_u, gname1, gname2);
+	//ref_t *ref2 = ref_generate(fasta_u, gname2, gname1);
 	// because we don't know the order of gene fusion
 	// therefore, we need align E1, E2 to both order 
 	// and decide the order of gene fusion based on alignment score
@@ -133,76 +178,71 @@ align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
 	register int i, j, m, n;
 	char* idx_r1, *idx_r2;
 	register struct kmer_uthash *s_kmer;
-	register char buff[_k];
 	for(i=0; i<eg->weight; i++){
-		//printf("%d\t%d\n", i, eg->weight);
-		//char* aaa = strsplit(eg->evidence[i], '_')[0];
-		//for(m=0; m<strlen(aaa)-_k+1; m++){
-		//	strncpy(buff, aaa + m, _k); buff[_k] = '\0';	
-		//	if((s_kmer=find_kmer(KMER_HT, buff)) == NULL) {continue;}	
-		//	for(n=0;n<s_kmer->count;n++) printf("%s\t", s_kmer->seq_names[n]);
-		//	printf("\n");
+		int junction;
+		char* _read1 = strsplit(eg->evidence[i], '_')[0];
+		char* _read2 = strsplit(eg->evidence[i], '_')[1];
+		char *str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &junction);
+		if(str2 !=NULL) printf("%s\n",str2);
+		//solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1, opt);
+		//solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1, opt);
+		//solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2, opt);
+		//solution_t *d = align(strsplit(eg->evidence[i], '_')[1], ref2, opt);
+		//idx_r1 = idx2str(eg->edge, a->pos, b->pos);
+		//idx_r2 = idx2str(eg->edge, c->pos, d->pos);
+		//// sol_pairs_r1
+		//HASH_FIND_STR(sol_pairs_r1, idx_r1, s);
+		//if(s==NULL){
+		//	s = solution_pair_init();
+		//	s->idx = strdup(idx_r1);
+		//	s->r1 = a; s->r2 = b;
+		//	s->prob = a->prob * b->prob;
+		//	HASH_ADD_STR(sol_pairs_r1, idx, s);  /* idx: name of key field */
+		//}else{ // update with higher score
+		//	if(s->prob < a->prob * b->prob){
+		//		s->prob =  a->prob * b->prob;
+		//		s->r1 = a; s->r2 = b;
+		//	}
 		//}
-		//
-		//printf("%s\n", aaa);
-		solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1, opt);
-		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1, opt);
-		solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2, opt);
-		solution_t *d = align(strsplit(eg->evidence[i], '_')[1], ref2, opt);
-		idx_r1 = idx2str(eg->edge, a->pos, b->pos);
-		idx_r2 = idx2str(eg->edge, c->pos, d->pos);
-		// sol_pairs_r1
-		HASH_FIND_STR(sol_pairs_r1, idx_r1, s);
-		if(s==NULL){
-			s = solution_pair_init();
-			s->idx = strdup(idx_r1);
-			s->r1 = a; s->r2 = b;
-			s->prob = a->prob * b->prob;
-			HASH_ADD_STR(sol_pairs_r1, idx, s);  /* idx: name of key field */
-		}else{ // update with higher score
-			if(s->prob < a->prob * b->prob){
-				s->prob =  a->prob * b->prob;
-				s->r1 = a; s->r2 = b;
-			}
-		}
-		// sol_pairs_r2
-		HASH_FIND_STR(sol_pairs_r2, idx_r2, s);
-		if(s==NULL){
-			s = solution_pair_init();
-			s->idx = strdup(idx_r2);
-			s->r1 = c; s->r2 = d;
-			s->prob = c->prob * d->prob;
-			HASH_ADD_STR(sol_pairs_r2, idx, s);  /* idx: name of key field */
-		}else{ // update with higher score
-			if(s->prob < c->prob * d->prob){
-				s->prob = c->prob * d->prob;
-				s->r1 = c; s->r2 = d;
-			}
-		}
+		//// sol_pairs_r2
+		//HASH_FIND_STR(sol_pairs_r2, idx_r2, s);
+		//if(s==NULL){
+		//	s = solution_pair_init();
+		//	s->idx = strdup(idx_r2);
+		//	s->r1 = c; s->r2 = d;
+		//	s->prob = c->prob * d->prob;
+		//	HASH_ADD_STR(sol_pairs_r2, idx, s);  /* idx: name of key field */
+		//}else{ // update with higher score
+		//	if(s->prob < c->prob * d->prob){
+		//		s->prob = c->prob * d->prob;
+		//		s->r1 = c; s->r2 = d;
+		//	}
+		//}
+		if(str2) free(str2);
 	}
-	if(idx_r1) free(idx_r1);
-	if(idx_r2) free(idx_r2);
-	/*------------------------------------------------------------------------------*/	
-	// make decision of gene order, chose the one with larger likelihood
-	register double likehood1, likehood2;
-	likehood1 = likehood2 = 0;
-    HASH_ITER(hh, sol_pairs_r1, s, tmp) {
-		likehood1 += 10*log(s->r1->prob);
-		likehood1 += 10*log(s->r2->prob);		
-    }
-    HASH_ITER(hh, sol_pairs_r2, s, tmp) {
-		likehood2 += 10*log(s->r1->prob);
-		likehood2 += 10*log(s->r2->prob);		
-    }
-	if(ref1) ref_destory(ref1);  if(ref2) ref_destory(ref2);
-	solution_pair_t * ret;
-	if(likehood1 >= likehood2){
-		ret = sol_pairs_r1;
-	}else{
-		ret = sol_pairs_r2;
-	}
-	if(gname1)         free(gname1);     
-	if(gname2)         free(gname2);
+	//if(idx_r1) free(idx_r1);
+	//if(idx_r2) free(idx_r2);
+	///*------------------------------------------------------------------------------*/	
+	//// make decision of gene order, chose the one with larger likelihood
+	//register double likehood1, likehood2;
+	//likehood1 = likehood2 = 0;
+    //HASH_ITER(hh, sol_pairs_r1, s, tmp) {
+	//	likehood1 += 10*log(s->r1->prob);
+	//	likehood1 += 10*log(s->r2->prob);		
+    //}
+    //HASH_ITER(hh, sol_pairs_r2, s, tmp) {
+	//	likehood2 += 10*log(s->r1->prob);
+	//	likehood2 += 10*log(s->r2->prob);		
+    //}
+	//if(ref1) ref_destory(ref1);  if(ref2) ref_destory(ref2);
+	solution_pair_t * ret = NULL;
+	//if(likehood1 >= likehood2){
+	//	ret = sol_pairs_r1;
+	//}else{
+	//	ret = sol_pairs_r2;
+	//}
+	//if(gname1)         free(gname1);     
+	//if(gname2)         free(gname2);
 	return ret;
 }
 
