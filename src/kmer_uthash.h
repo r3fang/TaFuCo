@@ -174,12 +174,12 @@ kmer_uthash_destroy(struct kmer_uthash **tb) {
 	return KM_ERR_NONE;
 }
 
-static inline int
-find_kmer(struct kmer_uthash *tb, char* quary_kmer, struct kmer_uthash **s) {
-	*s = NULL;
-    if(tb == NULL || quary_kmer == NULL || *s != NULL) die("find_kmer: parameter error\n");
-	HASH_FIND_STR(tb, quary_kmer, *s);  /* s: output pointer */
-    return KM_ERR_NONE;
+static inline struct kmer_uthash
+*find_kmer(struct kmer_uthash *tb, char* quary_kmer) {
+	struct kmer_uthash *s = NULL;
+    if(tb == NULL || quary_kmer == NULL) die("[%s] parameter error", __func__);
+	HASH_FIND_STR(tb, quary_kmer, s);  /* s: output pointer */
+    return s;
 }
 
 static inline int

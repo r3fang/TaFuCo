@@ -223,8 +223,7 @@ find_all_matches(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _
 		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
 		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
 		/*------------------------------------------------------------*/
-		if(find_kmer(KMER_HT, buff, &s_kmer) != 0) die("find_next_match: find_kmer fails\n");
-		if(s_kmer == NULL){_read_pos++; continue;} // kmer not in table but not an error
+		if((s_kmer=find_kmer(KMER_HT, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
 		if(s_kmer->count == 1){ // only count the uniq match 
 			gene = strdup(s_kmer->seq_names[0]);
 			if(gene == NULL) die("find_next_match: get_exon_name fails\n");

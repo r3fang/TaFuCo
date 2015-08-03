@@ -120,6 +120,7 @@ static inline solution_pair_t*
 align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
 	char* gname1 = strsplit(eg->edge, '_')[0];
 	char* gname2 = strsplit(eg->edge, '_')[1];
+	
 	ref_t *ref1 = ref_generate(fasta_u, gname1, gname2);
 	ref_t *ref2 = ref_generate(fasta_u, gname2, gname1);
 	// because we don't know the order of gene fusion
@@ -128,10 +129,13 @@ align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
 	solution_pair_t *sol_pairs_r1 = NULL;
 	solution_pair_t *sol_pairs_r2 = NULL;
 	solution_pair_t *s, *tmp; 
-	register int i, j;
+	register int i, j, m;
 	char* idx_r1, *idx_r2;
 
 	for(i=0; i<eg->weight; i++){
+		printf("%d\t%d\n", i, eg->weight);
+		char* aaa = strsplit(eg->evidence[i], '_')[0];
+		printf("%s\n", aaa);
 		solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1, opt);
 		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1, opt);
 		solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2, opt);
