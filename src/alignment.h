@@ -54,16 +54,21 @@
 #ifndef _ALIGNMENT_
 #define _ALIGNMENT_
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <float.h>
+#include <stdio.h>  
+#include <stdlib.h>  
+#include <string.h> 
+#include <zlib.h>  
+#include <assert.h>
 #include <math.h>
+#include <regex.h>
+#include "kseq.h"
+#include "kmer_uthash.h"
+#include "BAG_uthash.h"
+#include "fasta_uthash.h"
 #include "utils.h"
 
+#define HALF_JUNCTION_LEN       100
 
-#define HALF_JUNCTION_LEN       50
 // alignment state
 #define LOW                     500
 #define MID                     600
@@ -90,6 +95,47 @@ typedef struct {
   int  **pointerG2;
 } matrix_t;
 
+// junction of gene fusion
+typedef struct {
+	char* idx;         // determined by pair(name, start, end)
+	char *name;        // name of edge
+	int start;         
+	int end;
+	char s[HALF_JUNCTION_LEN*2+1];         // string flanking junction site 
+	size_t hits;         // reference string
+	double likehood;       // alignment probability
+    UT_hash_handle hh;
+} junction_t;
+
+/*
+ * concatenated string of exons.
+ */ 
+typedef struct
+{
+	char *s;      // string
+	size_t l;     // length of the string
+	int *S1;      // exon junction sites
+	int *S2;      // exon junction sites
+	size_t S1_l;  // number of exon junction sites
+	size_t S2_l;  // number of exon junction sites
+	size_t J;     // junction site between 2 genes
+} ref_t;
+
+// alingment soulution of a single read
+typedef struct
+{
+	char* s1; 
+	char* s2;
+	double score;
+	bool jump;
+	int jump_start;
+	int jump_end;
+	int pos;
+	int match;
+	int insertion;
+	int deletion;
+	double prob;
+} solution_t;
 /*
  * create matrix, allocate memor
  */
@@ -112,10 +158,8 @@ static inline matrix_t
       S->U[i] = mycalloc(n, double);
       S->J[i] = mycalloc(n, double);
       S->G1[i] = mycalloc(n, double);
-      S->G2[i] = mycalloc(n, double);
-	  
-    }	
-	
+      S->G2[i] = mycalloc(n, double); 
+    }
 	S->pointerM = mycalloc(m, int*);
 	S->pointerU = mycalloc(m, int*);
 	S->pointerL = mycalloc(m, int*);
@@ -160,18 +204,6 @@ destory_matrix(matrix_t *S){
 	free(S);
 }
 
-// junction of gene fusion
-typedef struct {
-	char* idx;         // determined by pair(name, start, end)
-	char *name;        // name of edge
-	int start;         
-	int end;
-	char s[HALF_JUNCTION_LEN*2+1];         // string flanking junction site 
-	size_t hits;         // reference string
-	double likehood;       // alignment probability
-    UT_hash_handle hh;
-} junction_t;
-
 static inline char* 
 idx_md5(char* name, int i, int j){
 	if(name == NULL) die("[%s] input error", __func__);
@@ -195,20 +227,6 @@ static inline junction_t
 	return j;
 }
 
-/*
- * concatenated string of exons.
- */ 
-typedef struct
-{
-	char *s;      // string
-	size_t l;     // length of the string
-	int *S1;      // exon junction sites
-	int *S2;      // exon junction sites
-	size_t S1_l;  // number of exon junction sites
-	size_t S2_l;  // number of exon junction sites
-	size_t J;     // junction site between 2 genes
-} ref_t;
-
 // initilize ref_t
 static inline ref_t 
 *ref_init(){
@@ -230,28 +248,12 @@ ref_destory(ref_t* t){
 	free(t);
 }
 
-// alingment soulution of a single read
-typedef struct
-{
-	char* s1; 
-	char* s2;
-	double score;
-	bool jump;
-	int jump_start;
-	int jump_end;
-	int pos;
-	int match;
-	int insertion;
-	int deletion;
-	double prob;
-} solution_t;
-
 // initilize solution_t
 static inline solution_t 
 *solution_init(){
 	solution_t *t = mycalloc(1, solution_t);
-	t->s1 = NULL;
-	t->s2 = NULL;
+	//t->s1 = NULL;
+	//t->s2 = NULL;
 	t->score = 0;
 	t->jump = false;
 	t->jump_start = 0;
@@ -681,4 +683,112 @@ static inline junction_t
 	return ret;
 }
 
+static inline solution_t* trace_back_no_jump(matrix_t *S, char *s1, char *s2, int state, int i, int j){
+	if(S == NULL || s1 == NULL || s2 == NULL) die("trace_back: paramter error");
+	solution_t *s = solution_init();
+	s->jump = false;
+	char *res_ks1 = mycalloc(strlen(s1)+strlen(s2), char); 
+	char *res_ks2 = mycalloc(strlen(s1)+strlen(s2), char); 
+	int cur = 0; 
+	s->jump_start = s->jump_end = 0;
+	while(i>0){
+		switch(state){
+			case LOW:
+				s->deletion ++;
+				state = S->pointerL[i][j]; // change to next state
+				res_ks1[cur] = s1[--i];
+				res_ks2[cur++] = '-';
+				break;
+			case MID:
+				s->match ++;
+				state = S->pointerM[i][j]; // change to next state
+                res_ks1[cur] = s1[--i];
+                res_ks2[cur++] = s2[--j];
+				break;
+			case UPP:
+				s->insertion ++;
+				state = S->pointerU[i][j];
+				res_ks1[cur] = '-';
+            	res_ks2[cur++] = s2[--j];
+				break;
+			default:
+				break;
+			}
+	}
+	s->s1 = strrev(res_ks1);
+	s->s2 = strrev(res_ks2);
+	s->pos = j;
+	return s;
+}
+
+static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t* opt){
+	if(s1 == NULL || s2 == NULL || opt == NULL) die("align: parameter error\n");
+	double MATCH = opt->match;
+	double MISMATCH = opt->mismatch;
+	double GAP = opt->gap;
+	double EXTENSION = opt->extension;
+	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
+	size_t m   = strlen(s1) + 1; 
+	size_t n   = strlen(s2) + 1;
+	matrix_t *S = create_matrix(m, n);
+	// initlize leftmost column
+	int i, j;
+	for(i=0; i<S->m; i++){
+		S->M[i][0] = -INFINITY;
+		S->U[i][0] = -INFINITY;
+		S->L[i][0] = -INFINITY;
+	}
+	// initlize first row
+	for(j=0; j<S->n; j++){
+		S->M[0][j] = 0.0;
+		S->U[0][j] = 0.0;
+		S->L[0][j] = -INFINITY;
+	}
+	double delta, tmp_J, tmp_G1, tmp_G2, tmp_M;
+	int idx;
+	// recurrance relation
+	for(i=1; i<=strlen(s1); i++){
+		for(j=1; j<=strlen(s2); j++){
+			// MID any state can goto MID
+			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? MATCH : MISMATCH;
+			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, -INFINITY, -INFINITY, -INFINITY);
+			if(idx == 0) S->pointerM[i][j]=LOW;
+			if(idx == 1) S->pointerM[i][j]=MID;
+			if(idx == 2) S->pointerM[i][j]=UPP;
+			// LOW
+			idx = max6(&S->L[i][j], S->L[i-1][j]+EXTENSION, S->M[i-1][j]+GAP, -INFINITY, -INFINITY, -INFINITY,  -INFINITY);
+			if(idx == 0) S->pointerL[i][j]=LOW;
+			if(idx == 1) S->pointerL[i][j]=MID;
+			// UPP
+			idx = max6(&S->U[i][j], S->M[i][j-1]+GAP, S->U[i][j-1]+EXTENSION,  -INFINITY, -INFINITY, -INFINITY, -INFINITY);
+			if(idx == 0) S->pointerU[i][j]=MID;
+			if(idx == 1) S->pointerU[i][j]=UPP;
+			}
+		}
+	// find trace-back start point
+	// NOTE: ALWAYS STARTS TRACING BACK FROM MID OR LOW
+	int i_max, j_max;
+	double max_score = -INFINITY;
+	int max_state;
+	i_max = strlen(s1);
+	for(j=0; j<strlen(s2); j++){
+		if(max_score < S->M[i_max][j]){
+			max_score = S->M[i_max][j];
+			j_max = j;
+			max_state = MID;
+		}
+	}
+	for(j=0; j<strlen(s2); j++){
+		if(max_score < S->L[i_max][j]){
+			max_score = S->L[i_max][j];
+			j_max = j;
+			max_state = LOW;
+		}
+	}
+	solution_t *s = trace_back_no_jump(S, s1, s2, max_state, i_max, j_max);	
+	s->score = max_score;	
+	s->prob = max_score/(MATCH*strlen(s1));	
+	destory_matrix(S);
+	return s;
+}
 #endif

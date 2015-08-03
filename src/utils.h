@@ -211,16 +211,22 @@ static inline opt_t *init_opt(){
 	opt->min_match = 10;
 	opt->min_weight = 3;	
 	opt->match = 2;
-	opt->mismatch = -2;
-	opt->gap = -5;
-	opt->extension = -1;
-	opt->jump_gene = -10;
-	opt->jump_exon = -8;
+	opt->mismatch = -2.0;
+	opt->gap = -5.0;
+	opt->extension = -1.0;
+	opt->jump_gene = -10.0;
+	opt->jump_exon = -8.0;
 	opt->min_hits = 3;
 	opt->min_align_score = 0.8;
 	return opt;
 }
 
+static inline void destory_opt(opt_t *opt){
+	if(opt->fq1) free(opt->fq1);
+	if(opt->fq2) free(opt->fq2);
+	if(opt->fa)  free(opt->fa);
+	free(opt);
+}
 static inline bool 
 isvalueinarray(int val, int *arr, int size){
     int i;

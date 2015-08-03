@@ -1,5 +1,5 @@
-#ifndef _ALIGNMENT_
-#define _ALIGNMENT_
+#ifndef _JUNCTION_H_
+#define _JUNCTION_H_
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +8,9 @@
 #include <float.h>
 #include <math.h>
 #include "utils.h"
+#include "uthash.h"
+#include "alignment.h"
+
 
 static inline int min_mismatch(char* str, char* pattern){
 	if(str == NULL || pattern == NULL) die("[%s] input error"); 
