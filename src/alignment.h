@@ -51,8 +51,8 @@
 /* WITH JUMP STATE.                                                   */ 
 /*--------------------------------------------------------------------*/
 
-#ifndef _ALIGNMENT_
-#define _ALIGNMENT_
+#ifndef _ALIGNMENT_H_
+#define _ALIGNMENT_H_
 
 #include <stdio.h>  
 #include <stdlib.h>  
@@ -208,8 +208,8 @@ static inline junction_t
 static inline solution_t 
 *solution_init(){
 	solution_t *t = mycalloc(1, solution_t);
-	//t->s1 = NULL;
-	//t->s2 = NULL;
+	t->s1 = NULL;
+	t->s2 = NULL;
 	t->score = 0;
 	t->jump = false;
 	t->jump_start = 0;
@@ -377,14 +377,13 @@ static inline solution_t
 	return s;
 }
 
-static inline solution_t* trace_back_no_jump(matrix_t *S, char *s1, char *s2, int state, int i, int j){
+static inline solution_t
+*trace_back_no_jump(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 	if(S == NULL || s1 == NULL || s2 == NULL) die("trace_back: paramter error");
 	solution_t *s = solution_init();
-	s->jump = false;
 	char *res_ks1 = mycalloc(strlen(s1)+strlen(s2), char); 
 	char *res_ks2 = mycalloc(strlen(s1)+strlen(s2), char); 
 	int cur = 0; 
-	s->jump_start = s->jump_end = 0;
 	while(i>0){
 		switch(state){
 			case LOW:
@@ -415,9 +414,10 @@ static inline solution_t* trace_back_no_jump(matrix_t *S, char *s1, char *s2, in
 	return s;
 }
 
-static inline solution_t *align_with_no_jump(char *s1, char *s2, double MATCH, double MISMATCH, double GAP, double EXTENSION){
-	if(s1 == NULL || s2 == NULL) die("align: parameter error\n");
+static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t *opt){
+	if(s1 == NULL || s2 == NULL || opt==NULL) die("align: parameter error\n");
 	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
+
 	size_t m   = strlen(s1) + 1; 
 	size_t n   = strlen(s2) + 1;
 	matrix_t *S = create_matrix(m, n);
@@ -440,21 +440,21 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, double MATCH, d
 	for(i=1; i<=strlen(s1); i++){
 		for(j=1; j<=strlen(s2); j++){
 			// MID any state can goto MID
-			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? MATCH : MISMATCH;
+			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? opt->match : opt->mismatch;
 			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerM[i][j]=LOW;
 			if(idx == 1) S->pointerM[i][j]=MID;
 			if(idx == 2) S->pointerM[i][j]=UPP;
 			// LOW
-			idx = max6(&S->L[i][j], S->L[i-1][j]+EXTENSION, S->M[i-1][j]+GAP, -INFINITY, -INFINITY, -INFINITY,  -INFINITY);
+			idx = max6(&S->L[i][j], S->L[i-1][j]+opt->extension, S->M[i-1][j]+opt->gap, -INFINITY, -INFINITY, -INFINITY,  -INFINITY);
 			if(idx == 0) S->pointerL[i][j]=LOW;
 			if(idx == 1) S->pointerL[i][j]=MID;
 			// UPP
-			idx = max6(&S->U[i][j], S->M[i][j-1]+GAP, S->U[i][j-1]+EXTENSION,  -INFINITY, -INFINITY, -INFINITY, -INFINITY);
+			idx = max6(&S->U[i][j], S->M[i][j-1]+opt->gap, S->U[i][j-1]+opt->extension,  -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerU[i][j]=MID;
 			if(idx == 1) S->pointerU[i][j]=UPP;
-			}
 		}
+	}
 	// find trace-back start point
 	// NOTE: ALWAYS STARTS TRACING BACK FROM MID OR LOW
 	int i_max, j_max;
@@ -475,10 +475,11 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, double MATCH, d
 			max_state = LOW;
 		}
 	}
-	solution_t *s = trace_back(S, s1, s2, max_state, i_max, j_max);	
-	s->score = max_score;	
-	s->prob = max_score/(MATCH*strlen(s1));	
+	solution_t *s = trace_back_no_jump(S, s1, s2, max_state, i_max, j_max);	
 	destory_matrix(S);
+	s->score = max_score;	
+	//s->prob = max_score/(MATCH*strlen(s1));	
 	return s;
 }
+
 #endif

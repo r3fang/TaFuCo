@@ -238,18 +238,4 @@ max6(double *res, double a1, double a2, double a3, double a4, double a5, double 
 	return state;
 }
 
-static inline char 
-*substr(char* s, int i, int len){
-	if(s==NULL) die("[%s] error input", __func__);
-	if(i < 0 || i > strlen(s)) die("[%s] error input", __func__);
-	if(len < 0 || len > strlen(s)) die("[%s] error input", __func__);
-	int j = i + len;
-	char *r = mycalloc(len+1, char);
-	register int pt;
-	for(pt=i; pt<j; pt++){
-		r[pt-i] = s[pt];
-	}
-	r[pt] = '\0';
-	return r;
-}
 #endif
