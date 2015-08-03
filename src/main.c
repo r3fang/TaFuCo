@@ -32,30 +32,29 @@ static struct fasta_uthash *FASTA_HT      = NULL;
 static struct BAG_uthash   *BAG_HT        = NULL;
 static        junction_t   *JUNCTION_HT   = NULL;
 
-static inline solution_pair_t* align_edge(struct BAG_uthash*, struct fasta_uthash *, opt_t *);
-static inline int junction_edge(solution_pair_t*, char*, junction_t**, double, double);
-static inline junction_t *junction_gen(struct BAG_uthash *, struct fasta_uthash *, opt_t *);
-static inline ref_t *ref_generate(struct fasta_uthash *, char*, char*);
+static char* concat_exons(char*, struct fasta_uthash *, struct kmer_uthash *, int, char *, char* , int *);
+static int find_junction_edge(struct BAG_uthash*, struct fasta_uthash *, opt_t *, junction_t **);
+static junction_t *find_junction(struct BAG_uthash *, struct fasta_uthash *, opt_t *);
+
 
 /*
  * generate junction sites from breakend associated graph 
  */
-static inline junction_t 
-*junction_gen(struct BAG_uthash *tb, struct fasta_uthash *fa, opt_t *opt){
+static junction_t 
+*find_junction(struct BAG_uthash *tb, struct fasta_uthash *fa, opt_t *opt){
 	if(tb == NULL || fa == NULL || opt==NULL) die("[%s] input error", __func__);	
 	struct BAG_uthash *edge, *tmp_bag;
 	register int i;
-	solution_pair_t *p;
 	junction_t *cur_junction, *tmp_junction, *ret = NULL;
 	HASH_ITER(hh, tb, edge, tmp_bag){ // iterate every edge
 		fprintf(stderr, "edge=%s \n", edge->edge);
-		if(((p = align_edge(edge, fa, opt)))==NULL) return NULL;
-		if(junction_edge(p, edge->edge, &ret, opt->min_align_score, opt->min_hits) != 0) return NULL;		
+		if(((find_junction_edge(edge, fa, opt, &ret))) != 0) return NULL;
 	}
 	return ret;
 }
 
-static char* concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, int *junction){
+static char 
+*concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, int *junction){
 	if(_read == NULL || fa_ht == NULL || kmer_ht==NULL || gname1==NULL || gname2==NULL) die("[%s] input error");
 	char *str1, *str2;
 	str1 = str2 = NULL;
@@ -100,115 +99,89 @@ static char* concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_u
 }
 
 /*
- *
  * Align reads that support e(Vi, Vj) to the string concated by exons of 
  * Vi and Vj.
- *
  */
-static inline solution_pair_t* 
-align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
+static inline int 
+find_junction_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret){
 	int _k = opt->k;
 	char* gname1 = strsplit(eg->edge, '_')[0];
 	char* gname2 = strsplit(eg->edge, '_')[1];
-	solution_pair_t *s, *tmp, *sol_pairs = NULL;
-	register int i, j, m, n;
+	register int i, j;
 	char* idx;
 	register struct kmer_uthash *s_kmer;
+	junction_t *m, *n;
+	register solution_t *a, *b;
+	register char* _read1, *_read2, *str2;
 	for(i=0; i<eg->weight; i++){
 		int junction;
-		char* _read1 = strsplit(eg->evidence[i], '_')[0];
-		char* _read2 = strsplit(eg->evidence[i], '_')[1];	
-		char *str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &junction);
+		_read1 = strsplit(eg->evidence[i], '_')[0];
+		_read2 = strsplit(eg->evidence[i], '_')[1];	
+		str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &junction);
 		if(str2 == NULL) continue; // no reference string
-		solution_t *a = align(_read1, str2, junction, opt);
-		solution_t *b = align(_read2, str2, junction, opt);
-		idx = idx2str(eg->edge, a->pos, b->pos);
-		HASH_FIND_STR(sol_pairs, idx, s);
-		if(s==NULL){
-			s = solution_pair_init();
-			s->idx = strdup(idx);
-			s->r1 = a; s->r2 = b;
-			s->prob = a->prob * b->prob;
-				HASH_ADD_STR(sol_pairs, idx, s);  /* idx: name of key field */
-			}else{ // update with higher score
-				if(s->prob < a->prob * b->prob){
-					s->prob =  a->prob * b->prob;
-					s->r1 = a; s->r2 = b;
-				}
-		}
-		if(str2) free(str2);
-		if(idx)  free(idx);
-	}
-	if(gname1)         free(gname1);     
-	if(gname2)         free(gname2);
-	return sol_pairs;
-}
-
-/*
- * generate junction sites from solution_pair_t
- */
-static inline int 
-junction_edge(solution_pair_t *p, char* name, junction_t **ret, double MIN_ALIGN_SCORE, double MIN_HITS){
-	if(p == NULL) die("[%s] input error", __func__);
-	solution_pair_t *s, *tmp;
-	junction_t *m, *n;
-	char* idx;
-    HASH_ITER(hh, p, s, tmp) {
-		// one read
-		if(s->r1->jump == true && s->r1->prob >= MIN_ALIGN_SCORE){
-			idx = idx2str(name, s->r1->jump_start, s->r1->jump_end);
+		a = align(_read1, str2, junction, opt);
+		b = align(_read2, str2, junction, opt);
+		
+		if(a->jump == true && a->prob >= opt->min_align_score){
+			idx = idx2str(eg->edge, a->jump_start, a->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m = junction_init();
-				m->idx = strdup(idx);
-				m->name = strdup(name);
-				m->start = s->r1->jump_start;
-				m->end = s->r1->jump_end;
-				m->hits = 1;
-				m->likehood = 10*log(s->r1->prob); 				
-				memcpy( m->s, &s->r1->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
-				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r1->s2[m->end], HALF_JUNCTION_LEN);
+				m        = junction_init();
+				m->idx   = strdup(idx);
+				m->name  = strdup(eg->edge);
+				m->start = a->jump_start;
+				m->end   = a->jump_end;
+				m->hits  = 1;
+				m->likehood = 10*log(a->prob); 				
+				memcpy( m->s, &str2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
+				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[m->end], HALF_JUNCTION_LEN);
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
-				m->likehood += 10*log(s->r1->prob); 
+				m->likehood += 10*log(a->prob); 
 			}
 		}
-		// the other read
-		if(s->r2->jump == true && s->r2->prob >= MIN_ALIGN_SCORE){
-			idx = idx2str(name, s->r2->jump_start, s->r2->jump_end);			
+		if(b->jump == true && b->prob >= opt->min_align_score){
+			idx = idx2str(eg->edge, b->jump_start, b->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m = junction_init();
-				m->idx = strdup(idx);
-				m->name = strdup(name);
-				m->start = s->r2->jump_start;
-				m->end = s->r2->jump_end;
-				m->hits = 1;
-				m->likehood = 10*log(s->r2->prob); 
-				memcpy( m->s, &s->r2->s2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
-				memcpy( &m->s[HALF_JUNCTION_LEN], &s->r2->s2[m->end], HALF_JUNCTION_LEN);
+				m        = junction_init();
+				m->idx   = strdup(idx);
+				m->name  = strdup(eg->edge);
+				m->start = b->jump_start;
+				m->end   = b->jump_end;
+				m->hits  = 1;
+				m->likehood = 10*log(b->prob); 				
+				memcpy( m->s, &str2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
+				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[m->end], HALF_JUNCTION_LEN);
+				printf("%s\n", m->s);
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
-				m->likehood += 10*log(s->r2->prob); 
+				m->likehood += 10*log(b->prob); 
 			}
 		}	
-    }
-	if(idx) free(idx);
+	}
 	// delete those junctions with hits < MIN_HITS
 	HASH_ITER(hh, *ret, m, n){
 		if(m != NULL){
 			m->likehood = m->likehood/m->hits;
-			if(m->hits < MIN_HITS){
+			if(m->hits < opt->min_hits){
 				HASH_DEL(*ret,m);
 				free(m);
 			}
 		}
 	}
+	if(str2)           free(str2);
+	if(_read1)         free(_read1);
+	if(_read2)         free(_read2);
+	if(a)              solution_destory(a);
+	if(b)              solution_destory(b);
+	if(idx)            free(idx);
+	if(gname1)         free(gname1);     
+	if(gname2)         free(gname2);
 	return 0;
 }
-
 
 
 static inline int tfc_usage(opt_t *opt){
@@ -275,7 +248,7 @@ int main(int argc, char *argv[]) {
 	if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
 	
 	fprintf(stderr, "[%s] identifying junction sites ... \n", __func__);
-	JUNCTION_HT = junction_gen(BAG_HT, FASTA_HT, opt);
+	JUNCTION_HT = find_junction(BAG_HT, FASTA_HT, opt);
 	junction_t *cur_junction, *tmp_junction;
 	HASH_ITER(hh, JUNCTION_HT, cur_junction, tmp_junction) {
 		printf("name=%s: start=%d\tend=%d\thits=%zu\tlikelihood=%f\nstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->hits,cur_junction->likehood,cur_junction->s);
