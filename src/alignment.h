@@ -139,7 +139,6 @@ static inline matrix_t
 	S->M = mycalloc(m, double*);
 	S->U = mycalloc(m, double*);
 	S->J = mycalloc(m, double*);
-	
 	for (i = 0; i < m; i++) {
       S->M[i] = mycalloc(n, double);
       S->L[i] = mycalloc(n, double);
@@ -156,34 +155,6 @@ static inline matrix_t
         S->pointerM[i] = mycalloc(n, int);
         S->pointerL[i] = mycalloc(n, int);
 		S->pointerJ[i] = mycalloc(n, int);
-    }
-	return S;
-}
-
-/*
- * create matrix, allocate memor
- */
-static inline matrix_t 
-*create_no_jump_matrix(size_t m, size_t n){
-	size_t i, j; 
-	matrix_t *S = mycalloc(1, matrix_t);
-	S->m = m;
-	S->n = n;
-	S->L = mycalloc(m, double*);
-	S->M = mycalloc(m, double*);
-	S->U = mycalloc(m, double*);
-	for (i = 0; i < m; i++) {
-      S->M[i] = mycalloc(n, double);
-      S->L[i] = mycalloc(n, double);
-      S->U[i] = mycalloc(n, double);
-    }
-	S->pointerM = mycalloc(m, int*);
-	S->pointerU = mycalloc(m, int*);
-	S->pointerL = mycalloc(m, int*);
-	for (i = 0; i < m; i++) {
-       	S->pointerU[i] = mycalloc(n, int);
-        S->pointerM[i] = mycalloc(n, int);
-        S->pointerL[i] = mycalloc(n, int);
     }
 	return S;
 }
@@ -206,26 +177,6 @@ destory_matrix(matrix_t *S){
 		if(S->pointerM[i]) free(S->pointerM[i]);
 		if(S->pointerU[i]) free(S->pointerU[i]);
 		if(S->pointerJ[i]) free(S->pointerJ[i]);
-	}
-	free(S);
-}
-
-/*
- * destory matrix
- */
-static inline void 
-destory_no_jump_matrix(matrix_t *S){
-	if(S == NULL) die("destory_matrix: parameter error\n");
-	int i;
-	for(i = 0; i < S->m; i++){
-		if(S->L[i]) free(S->L[i]);
-		if(S->M[i]) free(S->M[i]);
-		if(S->U[i]) free(S->U[i]);
-	}
-	for(i = 0; i < S->m; i++){
-		if(S->pointerL[i]) free(S->pointerL[i]);
-		if(S->pointerM[i]) free(S->pointerM[i]);
-		if(S->pointerU[i]) free(S->pointerU[i]);
 	}
 	free(S);
 }
@@ -469,7 +420,7 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, double MATCH, d
 	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
 	size_t m   = strlen(s1) + 1; 
 	size_t n   = strlen(s2) + 1;
-	matrix_t *S = create_no_jump_matrix(m, n);
+	matrix_t *S = create_matrix(m, n);
 	// initlize leftmost column
 	int i, j;
 	for(i=0; i<S->m; i++){
@@ -483,7 +434,7 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, double MATCH, d
 		S->U[0][j] = 0.0;
 		S->L[0][j] = -INFINITY;
 	}
-	double delta, tmp_J, tmp_G1, tmp_G2, tmp_M;
+	double delta, tmp_J, tmp_M;
 	int idx;
 	// recurrance relation
 	for(i=1; i<=strlen(s1); i++){
@@ -524,10 +475,10 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, double MATCH, d
 			max_state = LOW;
 		}
 	}
-	solution_t *s = trace_back_no_jump(S, s1, s2, max_state, i_max, j_max);	
+	solution_t *s = trace_back(S, s1, s2, max_state, i_max, j_max);	
 	s->score = max_score;	
 	s->prob = max_score/(MATCH*strlen(s1));	
-	destory_no_jump_matrix(S);
+	destory_matrix(S);
 	return s;
 }
 #endif

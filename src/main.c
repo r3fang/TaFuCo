@@ -47,7 +47,6 @@ static junction_t
 	register int i;
 	junction_t *cur_junction, *tmp_junction, *ret = NULL;
 	HASH_ITER(hh, tb, edge, tmp_bag){ // iterate every edge
-		fprintf(stderr, "edge=%s \n", edge->edge);
 		if(((find_junction_edge(edge, fa, opt, &ret))) != 0) return NULL;
 	}
 	return ret;
@@ -154,7 +153,6 @@ find_junction_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *o
 				m->likehood = 10*log(b->prob); 				
 				memcpy( m->s, &str2[m->start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[m->end], HALF_JUNCTION_LEN);
-				printf("%s\n", m->s);
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
@@ -184,7 +182,7 @@ find_junction_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *o
 }
 
 
-static inline int tfc_usage(opt_t *opt){
+static int tfc_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc [options] <in.fa> <R1.fq> <R2.fq>\n\n");
 			fprintf(stderr, "Options: --------------------   Graph Options  -----------------------\n");

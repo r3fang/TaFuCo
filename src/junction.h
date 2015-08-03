@@ -16,7 +16,7 @@ static inline int min_mismatch(char* str, char* pattern){
 	if(str == NULL || pattern == NULL) die("[%s] input error"); 
 	register int i, j, n;
 	char* substring;
-	int min_mis_match = INFINITY;
+	int min_mis_match = strlen(pattern)+1;
 	for(i=0;i<strlen(str)-strlen(pattern);i++){
 		n = 0;
 		substring = substr(str, i, strlen(pattern));
