@@ -215,17 +215,18 @@ find_all_matches(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _
 	str_ctr *s;
 	int _read_pos = 0;
 	char* gene = NULL;
-	struct kmer_uthash *s_kmer = NULL; 
+	register struct kmer_uthash *s_kmer = NULL; 
 	char buff[_k];
 /*--------------------------------------------------------------------*/
-	while(_read_pos<(strlen(_read)-_k-1)){
+	while(_read_pos<(strlen(_read)-_k+1)){
 		/* copy a kmer of string */
 		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
 		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
 		/*------------------------------------------------------------*/
 		if((s_kmer=find_kmer(KMER_HT, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
 		if(s_kmer->count == 1){ // only count the uniq match 
-			gene = strdup(s_kmer->seq_names[0]);
+			//gene = strdup(s_kmer->seq_names[0]);
+			gene = strsplit(s_kmer->seq_names[0], '.')[0];
 			if(gene == NULL) die("find_next_match: get_exon_name fails\n");
 			if(str_ctr_add(hash, gene) != 0) die("find_all_MEKMs: str_ctr_add fails\n");
 		}

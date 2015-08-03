@@ -123,7 +123,8 @@ static inline struct kmer_uthash
 		int i; for(i=0; i < strlen(seq)-k+1; i++){
 			memset(kmer, '\0', k+1);
 			strncpy(kmer, seq+i, k);
-			kmer_uthash_insert(&table, kmer, strsplit(name, '.')[0]); 
+			//kmer_uthash_insert(&table, kmer, strsplit(name, '.')[0]); 
+			kmer_uthash_insert(&table, kmer, name); 
 		}
 	}
 	if(kmer) free(kmer);  	

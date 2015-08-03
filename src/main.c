@@ -118,6 +118,7 @@ static inline junction_t
  */
 static inline solution_pair_t* 
 align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
+	int _k = 15;
 	char* gname1 = strsplit(eg->edge, '_')[0];
 	char* gname2 = strsplit(eg->edge, '_')[1];
 	
@@ -129,13 +130,21 @@ align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
 	solution_pair_t *sol_pairs_r1 = NULL;
 	solution_pair_t *sol_pairs_r2 = NULL;
 	solution_pair_t *s, *tmp; 
-	register int i, j, m;
+	register int i, j, m, n;
 	char* idx_r1, *idx_r2;
-
+	register struct kmer_uthash *s_kmer;
+	register char buff[_k];
 	for(i=0; i<eg->weight; i++){
-		printf("%d\t%d\n", i, eg->weight);
-		char* aaa = strsplit(eg->evidence[i], '_')[0];
-		printf("%s\n", aaa);
+		//printf("%d\t%d\n", i, eg->weight);
+		//char* aaa = strsplit(eg->evidence[i], '_')[0];
+		//for(m=0; m<strlen(aaa)-_k+1; m++){
+		//	strncpy(buff, aaa + m, _k); buff[_k] = '\0';	
+		//	if((s_kmer=find_kmer(KMER_HT, buff)) == NULL) {continue;}	
+		//	for(n=0;n<s_kmer->count;n++) printf("%s\t", s_kmer->seq_names[n]);
+		//	printf("\n");
+		//}
+		//
+		//printf("%s\n", aaa);
 		solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1, opt);
 		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1, opt);
 		solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2, opt);
@@ -192,7 +201,6 @@ align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
 	}else{
 		ret = sol_pairs_r2;
 	}
-	
 	if(gname1)         free(gname1);     
 	if(gname2)         free(gname2);
 	return ret;
