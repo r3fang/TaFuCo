@@ -99,19 +99,6 @@ typedef struct {
     UT_hash_handle hh;
 } junction_t;
 
-/*
- * concatenated string of exons.
- */ 
-typedef struct
-{
-	char *s;      // string
-	size_t l;     // length of the string
-	int *S1;      // exon junction sites
-	int *S2;      // exon junction sites
-	size_t S1_l;  // number of exon junction sites
-	size_t S2_l;  // number of exon junction sites
-	size_t J;     // junction site between 2 genes
-} ref_t;
 
 // alingment of a single read
 typedef struct
@@ -265,26 +252,6 @@ static inline junction_t
 	return j;
 }
 
-// initilize ref_t
-static inline ref_t 
-*ref_init(){
-	ref_t *r = mycalloc(1, ref_t);
-	r->S1_l  = 0;
-	r->S2_l  = 0;
-	r->s = NULL;
-	r->l = 0;
-	r->J = 0;
-	return r;
-}
-
-static inline void 
-ref_destory(ref_t* t){
-	if(t==NULL) die("[%s] input error", __func__);
-	if(t->S1) free(t->S1);
-	if(t->S2) free(t->S2);
-	if(t->s)  free(t->s);
-	free(t);
-}
 
 // initilize solution_t
 static inline solution_t 
