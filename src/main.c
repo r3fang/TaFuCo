@@ -149,8 +149,8 @@ align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
 		solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1, opt);
 		solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2, opt);
 		solution_t *d = align(strsplit(eg->evidence[i], '_')[1], ref2, opt);
-		idx_r1 = idx_md5(eg->edge, a->pos, b->pos);
-		idx_r2 = idx_md5(eg->edge, c->pos, d->pos);
+		idx_r1 = idx2str(eg->edge, a->pos, b->pos);
+		idx_r2 = idx2str(eg->edge, c->pos, d->pos);
 		// sol_pairs_r1
 		HASH_FIND_STR(sol_pairs_r1, idx_r1, s);
 		if(s==NULL){
@@ -218,7 +218,7 @@ junction_edge(solution_pair_t *p, char* name, junction_t **ret, double MIN_ALIGN
     HASH_ITER(hh, p, s, tmp) {
 		// one read
 		if(s->r1->jump == true && s->r1->prob >= MIN_ALIGN_SCORE){
-			idx = idx_md5(name, s->r1->jump_start, s->r1->jump_end);
+			idx = idx2str(name, s->r1->jump_start, s->r1->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
 				m = junction_init();
@@ -238,7 +238,7 @@ junction_edge(solution_pair_t *p, char* name, junction_t **ret, double MIN_ALIGN
 		}
 		// the other read
 		if(s->r2->jump == true && s->r2->prob >= MIN_ALIGN_SCORE){
-			idx = idx_md5(name, s->r2->jump_start, s->r2->jump_end);			
+			idx = idx2str(name, s->r2->jump_start, s->r2->jump_end);			
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
 				m = junction_init();

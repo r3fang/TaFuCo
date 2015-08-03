@@ -260,15 +260,14 @@ destory_no_jump_matrix(matrix_t *S){
 }
 
 static inline char* 
-idx_md5(char* name, int i, int j){
+idx2str(char* name, int i, int j){
 	if(name == NULL) die("[%s] input error", __func__);
 	// convert alignment information to md5
 	char istr[1000];
 	char jstr[1000];
 	sprintf(istr, "%d", i);
 	sprintf(jstr, "%d", j);
-	char* idx_str = concat(concat(concat(concat(name, "."), istr), "."), jstr); 
-	return str2md5(idx_str, strlen(idx_str));
+	return concat(concat(concat(concat(name, "."), istr), "."), jstr); 
 }
 
 // initlize junction_t
