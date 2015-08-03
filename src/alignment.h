@@ -380,39 +380,24 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 				res_ks1[cur] = '-';
 	           	res_ks2[cur++] = s2[--j];
 				break;
-			case GENE1:
-				state = S->pointerG1[i][j];
-				res_ks1[cur] = '-';
-		        res_ks2[cur++] = s2[--j];
-				break;
-			case GENE2:
-				state = S->pointerG2[i][j];
-				res_ks1[cur] = '-';
-			    res_ks2[cur++] = s2[--j];
-				break;
 			default:
 				break;
 			}
 	}
-	s->s1 = s1;
-	s->s2 = s2;
+	s->s1 = strrev(res_ks1);
+	s->s2 = strrev(res_ks2);
 	s->pos = j;
 	return s;
 }
 
 static inline solution_t 
-*align(char *s1, ref_t *ref, opt_t* opt){
-	if(s1 == NULL || ref == NULL) die("align: parameter error\n");
-	char *s2 = ref->s;
-	int  *S1 = ref->S1;
-	int  *S2 = ref->S2;
-	int  JUNCTION = ref->J;
+*align(char *s1, char *s2, int junction, opt_t* opt){
+	if(s1 == NULL || s2 == NULL || opt==NULL) die("[%s] parameter error", __func__);
 	double MATCH = opt->match;
 	double MISMATCH = opt->mismatch;
 	double GAP = opt->gap;
 	double EXTENSION = opt->extension;
 	double JUMP_GENE = opt->jump_gene;
-	double JUMP_EXON = opt->jump_exon;
 	
 	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
 	size_t m   = strlen(s1) + 1; 
@@ -425,8 +410,6 @@ static inline solution_t
 		S->U[i][0] = -INFINITY;
 		S->L[i][0] = -INFINITY;
 		S->J[i][0] = -INFINITY;
-		S->G1[i][0] = -INFINITY;
-		S->G2[i][0] = -INFINITY;
 	}
 	// initlize first row
 	for(j=0; j<S->n; j++){
@@ -434,10 +417,8 @@ static inline solution_t
 		S->U[0][j] = 0.0;
 		S->L[0][j] = -INFINITY;
 		S->J[0][j] = -INFINITY;
-		S->G1[0][j] = -INFINITY;
-		S->G2[0][j] = -INFINITY;
 	}
-	double delta, tmp_J, tmp_G1, tmp_G2, tmp_M;
+	double delta, tmp_J, tmp_M;
 	int idx;
 	
 	// recurrance relation
@@ -445,16 +426,12 @@ static inline solution_t
 		for(j=1; j<=strlen(s2); j++){
 			// MID any state can goto MID
 			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? MATCH : MISMATCH;
-			tmp_J = (j > JUNCTION) ?  S->J[i-1][j-1]+delta : -INFINITY;
-			tmp_G1 = (isvalueinarray(j, S1, ref->S1_l)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
-			tmp_G2 = (isvalueinarray(j, S2, ref->S2_l)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
-			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, tmp_J, tmp_G1, tmp_G2);
+			tmp_J = (j > junction) ?  S->J[i-1][j-1]+delta : -INFINITY;
+			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, tmp_J, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerM[i][j]=LOW;
 			if(idx == 1) S->pointerM[i][j]=MID;
 			if(idx == 2) S->pointerM[i][j]=UPP;
 			if(idx == 3) S->pointerM[i][j]=JUMP;			 				
-			if(idx == 4) S->pointerM[i][j]=GENE1;			 				
-			if(idx == 5) S->pointerM[i][j]=GENE2;			 				
 			// LOW
 			idx = max6(&S->L[i][j], S->L[i-1][j]+EXTENSION, S->M[i-1][j]+GAP, -INFINITY, -INFINITY, -INFINITY,  -INFINITY);
 			if(idx == 0) S->pointerL[i][j]=LOW;
@@ -464,20 +441,10 @@ static inline solution_t
 			if(idx == 0) S->pointerU[i][j]=MID;
 			if(idx == 1) S->pointerU[i][j]=UPP;
 			// JUMP 
-			tmp_M = (j < JUNCTION) ?  S->M[i][j-1]+JUMP_GENE : -INFINITY;
+			tmp_M = (j < junction) ?  S->M[i][j-1]+JUMP_GENE : -INFINITY;
 			idx = max6(&S->J[i][j], tmp_M, S->J[i][j-1], -INFINITY,  -INFINITY,  -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerJ[i][j] = MID;			
 			if(idx == 1) S->pointerJ[i][j] = JUMP;			
-			// GENE1
-			tmp_M = (isvalueinarray(j, S1, ref->S1_l)) ?  S->M[i][j-1]+JUMP_EXON : -INFINITY;
-			idx = max6(&S->G1[i][j], tmp_M, S->G1[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
-			if(idx == 0) S->pointerG1[i][j] = MID;			
-			if(idx == 1) S->pointerG1[i][j] = GENE1;
-			// GENE2
-			tmp_M = (isvalueinarray(j, S2, ref->S2_l)) ?  S->M[i][j-1]+JUMP_EXON : -INFINITY;
-			idx = max6(&S->G2[i][j], tmp_M, S->G2[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
-			if(idx == 0) S->pointerG2[i][j] = MID;			
-			if(idx == 1) S->pointerG2[i][j] = GENE2;
 			}
 		}
 	// find trace-back start point

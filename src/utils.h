@@ -216,14 +216,12 @@ static inline char
 *strrev(char *s){
 	if(s == NULL) return NULL;
 	int l = strlen(s);
-	char *ss = strdup(s);
-	free(s);
-	s = mycalloc(l, char);
+	char* r = mycalloc(l+1, char);
 	int i; for(i=0; i<l; i++){
-		s[i] = ss[l-i-1];
+		r[i] = s[l-i-1];
 	}
-	s[l] = '\0';
-	return s;
+	r[i] = '\0';
+	return r;
 }
 
 /* max of fix values */

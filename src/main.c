@@ -163,87 +163,41 @@ static char* concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_u
  */
 static inline solution_pair_t* 
 align_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt){
-	int _k = 15;
+	int _k = opt->k;
 	char* gname1 = strsplit(eg->edge, '_')[0];
 	char* gname2 = strsplit(eg->edge, '_')[1];
-	
-	//ref_t *ref1 = ref_generate(fasta_u, gname1, gname2);
-	//ref_t *ref2 = ref_generate(fasta_u, gname2, gname1);
-	// because we don't know the order of gene fusion
-	// therefore, we need align E1, E2 to both order 
-	// and decide the order of gene fusion based on alignment score
-	solution_pair_t *sol_pairs_r1 = NULL;
-	solution_pair_t *sol_pairs_r2 = NULL;
-	solution_pair_t *s, *tmp; 
+	solution_pair_t *s, *tmp, *sol_pairs = NULL;
 	register int i, j, m, n;
-	char* idx_r1, *idx_r2;
+	char* idx;
 	register struct kmer_uthash *s_kmer;
 	for(i=0; i<eg->weight; i++){
 		int junction;
 		char* _read1 = strsplit(eg->evidence[i], '_')[0];
-		char* _read2 = strsplit(eg->evidence[i], '_')[1];
+		char* _read2 = strsplit(eg->evidence[i], '_')[1];	
 		char *str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &junction);
-		if(str2 !=NULL) printf("%s\n",str2);
-		//solution_t *a = align(strsplit(eg->evidence[i], '_')[0], ref1, opt);
-		//solution_t *b = align(strsplit(eg->evidence[i], '_')[1], ref1, opt);
-		//solution_t *c = align(strsplit(eg->evidence[i], '_')[0], ref2, opt);
-		//solution_t *d = align(strsplit(eg->evidence[i], '_')[1], ref2, opt);
-		//idx_r1 = idx2str(eg->edge, a->pos, b->pos);
-		//idx_r2 = idx2str(eg->edge, c->pos, d->pos);
-		//// sol_pairs_r1
-		//HASH_FIND_STR(sol_pairs_r1, idx_r1, s);
-		//if(s==NULL){
-		//	s = solution_pair_init();
-		//	s->idx = strdup(idx_r1);
-		//	s->r1 = a; s->r2 = b;
-		//	s->prob = a->prob * b->prob;
-		//	HASH_ADD_STR(sol_pairs_r1, idx, s);  /* idx: name of key field */
-		//}else{ // update with higher score
-		//	if(s->prob < a->prob * b->prob){
-		//		s->prob =  a->prob * b->prob;
-		//		s->r1 = a; s->r2 = b;
-		//	}
-		//}
-		//// sol_pairs_r2
-		//HASH_FIND_STR(sol_pairs_r2, idx_r2, s);
-		//if(s==NULL){
-		//	s = solution_pair_init();
-		//	s->idx = strdup(idx_r2);
-		//	s->r1 = c; s->r2 = d;
-		//	s->prob = c->prob * d->prob;
-		//	HASH_ADD_STR(sol_pairs_r2, idx, s);  /* idx: name of key field */
-		//}else{ // update with higher score
-		//	if(s->prob < c->prob * d->prob){
-		//		s->prob = c->prob * d->prob;
-		//		s->r1 = c; s->r2 = d;
-		//	}
-		//}
+		if(str2 == NULL) continue; // no reference string
+		solution_t *a = align(_read1, str2, junction, opt);
+		solution_t *b = align(_read2, str2, junction, opt);
+		idx = idx2str(eg->edge, a->pos, b->pos);
+		HASH_FIND_STR(sol_pairs, idx, s);
+		if(s==NULL){
+			s = solution_pair_init();
+			s->idx = strdup(idx);
+			s->r1 = a; s->r2 = b;
+			s->prob = a->prob * b->prob;
+				HASH_ADD_STR(sol_pairs, idx, s);  /* idx: name of key field */
+			}else{ // update with higher score
+				if(s->prob < a->prob * b->prob){
+					s->prob =  a->prob * b->prob;
+					s->r1 = a; s->r2 = b;
+				}
+		}
 		if(str2) free(str2);
+		if(idx)  free(idx);
 	}
-	//if(idx_r1) free(idx_r1);
-	//if(idx_r2) free(idx_r2);
-	///*------------------------------------------------------------------------------*/	
-	//// make decision of gene order, chose the one with larger likelihood
-	//register double likehood1, likehood2;
-	//likehood1 = likehood2 = 0;
-    //HASH_ITER(hh, sol_pairs_r1, s, tmp) {
-	//	likehood1 += 10*log(s->r1->prob);
-	//	likehood1 += 10*log(s->r2->prob);		
-    //}
-    //HASH_ITER(hh, sol_pairs_r2, s, tmp) {
-	//	likehood2 += 10*log(s->r1->prob);
-	//	likehood2 += 10*log(s->r2->prob);		
-    //}
-	//if(ref1) ref_destory(ref1);  if(ref2) ref_destory(ref2);
-	solution_pair_t * ret = NULL;
-	//if(likehood1 >= likehood2){
-	//	ret = sol_pairs_r1;
-	//}else{
-	//	ret = sol_pairs_r2;
-	//}
-	//if(gname1)         free(gname1);     
-	//if(gname2)         free(gname2);
-	return ret;
+	if(gname1)         free(gname1);     
+	if(gname2)         free(gname2);
+	return sol_pairs;
 }
 
 /*
