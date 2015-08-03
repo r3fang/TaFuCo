@@ -22,6 +22,9 @@
 #define PACKAGE_VERSION "0.7.30-r15"
 #endif
 
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
 /* error code */
 #define PR_ERR_NONE		     	 		0 		// error code
 

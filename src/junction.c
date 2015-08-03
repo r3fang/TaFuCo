@@ -35,13 +35,11 @@ int main(int argc, char *argv[]) {
 		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);		
 		if((min_mismatch(_read1, junction_str)) <= mismatch ){
-			printf("%s\n%s\n", _read1, str2);
 			sol1 = align_with_no_jump(_read1, str2, opt);
 			printf("%s\n%s\n", sol1->s1, sol1->s2);
 			solution_destory(sol1);
 		}
 		if((min_mismatch(_read2, junction_str)) <= mismatch ){
-			printf("%s\n%s\n", _read2, str2);
 			sol2 = align_with_no_jump(_read2, str2, opt);
 			printf("%s\n%s\n", sol2->s1, sol2->s2);
 			solution_destory(sol2);

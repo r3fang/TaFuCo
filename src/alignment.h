@@ -63,7 +63,7 @@
 #include <regex.h>
 #include "utils.h"
 
-#define HALF_JUNCTION_LEN       100
+#define HALF_JUNCTION_LEN       20
 
 // alignment state
 #define LOW                     500
