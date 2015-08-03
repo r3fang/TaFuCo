@@ -55,62 +55,6 @@ static inline junction_t
 	return ret;
 }
 
-static inline ref_t 
-*ref_generate(struct fasta_uthash *tb, char* gname1, char* gname2){
-	if(tb==NULL || gname1==NULL || gname2==NULL) die("[%s] input error", __func__);
-	ref_t *ref = ref_init();
-	struct fasta_uthash *s, *tmp;
-	register int i = 0;	
-	register char* str_tmp;
-	// count the number of exons
-	HASH_ITER(hh, tb, s, tmp) {
-		if(strcmp(strsplit(s->name, '.')[0], gname1) == 0) ref->S1_l += 2;
-		if(strcmp(strsplit(s->name, '.')[0], gname2) == 0) ref->S2_l += 2;
-	}
-	ref->S1 = mycalloc(ref->S1_l, int);
-	ref->S2 = mycalloc(ref->S2_l, int);
-	
-	HASH_ITER(hh, tb, s, tmp) {
-		if(s!=NULL){
-			if(strcmp(strsplit(s->name, '.')[0], gname1) == 0){				
-				if(ref->s==NULL){
-					ref->s = strdup(s->seq);
-					ref->S1[i++] = 0;
-					ref->S1[i++] = strlen(ref->s);
-				}else{
-					ref->S1[i++] = strlen(ref->s);
-					str_tmp = concat(ref->s, s->seq);
-					free(ref->s); ref->s=strdup(str_tmp);
-					free(str_tmp);
-					ref->S1[i++] = strlen(ref->s);
-				}			
-			}
-		}
-	}
-	i = 0;
-	ref->J = strlen(ref->s);
-	HASH_ITER(hh, tb, s, tmp) {
-		if(s!=NULL){
-			if(strcmp(strsplit(s->name, '.')[0], gname2) == 0){				
-				if(ref->s==NULL){
-					ref->s = strdup(s->seq);
-					ref->S2[i++] = 0;
-					ref->S2[i++] = strlen(ref->s);
-				}else{
-					ref->S2[i++] = strlen(ref->s);
-					str_tmp = concat(ref->s, s->seq);
-					free(ref->s); ref->s=strdup(str_tmp);
-					free(str_tmp);
-					ref->S2[i++] = strlen(ref->s);
-				}			
-			}
-		}
-	}
-	ref->l = strlen(ref->s);
-	return ref;
-}
-
-
 static char* concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, int *junction){
 	if(_read == NULL || fa_ht == NULL || kmer_ht==NULL || gname1==NULL || gname2==NULL) die("[%s] input error");
 	char *str1, *str2;

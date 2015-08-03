@@ -81,14 +81,10 @@ typedef struct {
   double **M;
   double **U;
   double **J;
-  double **G1;
-  double **G2;
   int  **pointerL;
   int  **pointerM;
   int  **pointerU;
   int  **pointerJ;
-  int  **pointerG1;
-  int  **pointerG2;
 } matrix_t;
 
 // junction of gene fusion
@@ -156,31 +152,23 @@ static inline matrix_t
 	S->M = mycalloc(m, double*);
 	S->U = mycalloc(m, double*);
 	S->J = mycalloc(m, double*);
-	S->G1 = mycalloc(m, double*);
-	S->G2 = mycalloc(m, double*);
 	
 	for (i = 0; i < m; i++) {
       S->M[i] = mycalloc(n, double);
       S->L[i] = mycalloc(n, double);
       S->U[i] = mycalloc(n, double);
       S->J[i] = mycalloc(n, double);
-      S->G1[i] = mycalloc(n, double);
-      S->G2[i] = mycalloc(n, double); 
     }
 	S->pointerM = mycalloc(m, int*);
 	S->pointerU = mycalloc(m, int*);
 	S->pointerL = mycalloc(m, int*);
 	S->pointerJ = mycalloc(m, int*);
-	S->pointerG1 = mycalloc(m, int*);
-	S->pointerG2 = mycalloc(m, int*);
 	
 	for (i = 0; i < m; i++) {
        	S->pointerU[i] = mycalloc(n, int);
         S->pointerM[i] = mycalloc(n, int);
         S->pointerL[i] = mycalloc(n, int);
 		S->pointerJ[i] = mycalloc(n, int);
-		S->pointerG1[i] = mycalloc(n, int);
-		S->pointerG2[i] = mycalloc(n, int);		
     }
 	return S;
 }
@@ -225,16 +213,12 @@ destory_matrix(matrix_t *S){
 		if(S->M[i]) free(S->M[i]);
 		if(S->U[i]) free(S->U[i]);
 		if(S->J[i]) free(S->J[i]);
-		if(S->G1[i]) free(S->G1[i]);
-		if(S->G2[i]) free(S->G2[i]);
 	}
 	for(i = 0; i < S->m; i++){
 		if(S->pointerL[i]) free(S->pointerL[i]);
 		if(S->pointerM[i]) free(S->pointerM[i]);
 		if(S->pointerU[i]) free(S->pointerU[i]);
 		if(S->pointerJ[i]) free(S->pointerJ[i]);
-		if(S->pointerG1[i]) free(S->pointerG1[i]);
-		if(S->pointerG2[i]) free(S->pointerG2[i]);	
 	}
 	free(S);
 }
