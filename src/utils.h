@@ -159,6 +159,14 @@ str_ctr_sort(str_ctr *a, str_ctr *b) {
     return (a->SIZE >= b->SIZE);
 }
 
+static inline str_ctr 
+*find_ctr(str_ctr *tb, char* quary_name) {
+	if(tb == NULL || quary_name == NULL) die("[%s] input error", __func__);
+	str_ctr *s = NULL;	
+    HASH_FIND_STR(tb, quary_name, s);  /* s: output pointer */
+	return s;
+}
+
 //opt
 typedef struct {
 	char* fq1; // gap open

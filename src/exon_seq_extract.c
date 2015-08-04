@@ -17,11 +17,13 @@
 #include "fasta_uthash.h"
 
 #define EXON_HALF_FLANK                     300
-static struct fasta_uthash *FASTA_HT      = NULL;
 
 int main(int argc, char *argv[]) {
+	static struct fasta_uthash *HG19_HT       = NULL;
+	static struct fasta_uthash *s_fasta, *cur_fasta, *FASTA_HT = NULL;
+	
 	char  *fname = "sample_data/exons.bed";
-	if((FASTA_HT=fasta_uthash_load("/Users/rongxinfang/Documents/genome/hg19/hg19.fa")) == NULL) die("main: fasta_uthash_load fails\n");	
+	if((HG19_HT=fasta_uthash_load("/Users/rongxinfang/Documents/genome/hg19/hg19.fa")) == NULL) die("main: fasta_uthash_load fails\n");	
 	char  *line = NULL;
 	char  **fields = NULL;
 	int i, j, num;
@@ -34,6 +36,7 @@ int main(int argc, char *argv[]) {
 	register char *strand;
 	struct fasta_uthash *s;
 	char *seq;
+	str_ctr *s_ctr, *ctr = NULL;
 	FILE *fp = fopen(fname, "r");
 	if(fp==NULL) die("[%s] can't open %s", __func__, fname);
 	while ((read = getline(&line, &len, fp)) != -1) {
@@ -44,18 +47,20 @@ int main(int argc, char *argv[]) {
 		start = atoi(fields[3]) - EXON_HALF_FLANK;
 		end = atoi(fields[4]) + EXON_HALF_FLANK;
 		strand = fields[5];
+		str_ctr_add(&ctr, gname);
 		printf("%s\t%s\t%s\t%d\t%d\t%s\n", gname, category, chrom, start, end, strand);
 		len =  end - start;
-		if((s = find_fasta(FASTA_HT, chrom))==NULL) continue;
+		if((s = find_fasta(HG19_HT, chrom))==NULL) continue;
 		seq = mycalloc(len + 2, char);
 		memset(seq, '\0',len + 2);
 		memcpy(seq, &s->seq[start], len);
 		if(strcmp(strand, "-") == 0) seq = rev_com(seq);
-		printf("%s\n", seq);
+		s_ctr = find_ctr(ctr, gname);
+		printf("%s\t%d\n%s\n", s_ctr->KEY, s_ctr->SIZE, seq);
 		if(seq)  free(seq);
 	}
 	fclose(fp);
-	if(FASTA_HT) fasta_uthash_destroy(&FASTA_HT);
+	if(HG19_HT) fasta_uthash_destroy(&HG19_HT);
 	if (line) free(line);
 	if(gname) free(gname);
 	if(strand)   free(strand);
