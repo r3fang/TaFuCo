@@ -34,7 +34,7 @@
 /*Global paramters.*/
 static struct fasta_uthash *GENOME_HT     = NULL;  // reference genome "hg19"
 static struct kmer_uthash  *KMER_HT       = NULL;  // kmer hash table
-static struct fasta_uthash *FASTA_HT      = NULL;  // extracted exon sequences
+static struct fasta_uthash *EXON_HT      = NULL;  // extracted exon sequences
 static struct BAG_uthash   *BAG_HT        = NULL;  // Breakend Associated Graph
 static        junction_t   *JUNCTION_HT   = NULL;  // Identified Junction sites
 
@@ -314,8 +314,11 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	if((GENOME_HT=fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference genome %s", __func__, opt->fa);	
 	fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
+	if((EXON_HT=extract_exon_seq(opt->bed, GENOME_HT))==NULL) die("[%s] can't extract exon sequences of %s", __func__, opt->bed);
 	
-	
+	if(GENOME_HT) fasta_uthash_destroy(&GENOME_HT);
+	if(EXON_HT) fasta_uthash_destroy(&EXON_HT);
+	if(opt) destory_opt(opt);
 	///* load kmer hash table in the memory */
 	///* load kmer_uthash table */
 	//fprintf(stderr, "[%s] generating kmer hash table (K=%d) ... \n",__func__, opt->k);

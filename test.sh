@@ -1,1 +1,10 @@
-./bin/tfc -m 2 -n 5 -w 2 -k 15 sample_data/exons.fa sample_data/reads_simulated_R1.fq sample_data/reads_simulated_R2.fq
+#/bin/bash
+
+GENOME="/bioinfoSD/users/rfang/data/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/genome.fa"
+FQ1="sample_data/reads_simulated_R1.fq"
+FQ2="sample_data/reads_simulated_R2.fq"
+GENE="sample_data/genes.name.txt"
+TFC="bin/tfc"
+
+cd /bioinfoSD/users/rfang/tfc
+$TFC $GENE $GENOME $FQ1 $FQ2  
