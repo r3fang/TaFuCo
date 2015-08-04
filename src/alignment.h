@@ -63,8 +63,6 @@
 #include <regex.h>
 #include "utils.h"
 
-#define HALF_JUNCTION_LEN       20
-
 // alignment state
 #define LOW                     500
 #define MID                     600
@@ -72,6 +70,7 @@
 #define JUMP                    800
 #define GENE1                   900
 #define GENE2                   1000
+#define HALF_JUNCTION_LEN       20
 
 // dynamic programming matrices
 typedef struct {
@@ -89,16 +88,41 @@ typedef struct {
 
 // junction of gene fusion
 typedef struct {
-	char* idx;         // determined by pair(name, start_read1, end_read2)
-	char *name;        // name of edge
+	char* idx; // determined by chr1.start1.chr2.start2
+	char* exon1;
+	char* exon2;
+	char* gene1;
+	char* gene2;
+	char *name;  // name of edge
 	int start;         
 	int end;
 	char s[HALF_JUNCTION_LEN*2+1];         // string flanking junction site 
-	size_t hits;         // reference string
+	char *concat_exon_str;        // concated exon string 
+	size_t hits;         
 	double likehood;       // alignment probability
     UT_hash_handle hh;
 } junction_t;
 
+static inline void junction_destory(junction_t **s){
+	junction_t *cur, *tmp;
+	HASH_ITER(hh, *s, cur, tmp) {
+		HASH_DEL(*s, cur);
+	}
+}
+
+// initlize junction_t
+static inline junction_t 
+*junction_init(){
+	junction_t *j = mycalloc(1, junction_t);
+	j->name = NULL;
+	j->gene1 = NULL;
+	j->gene2 = NULL;
+	j->idx = NULL;
+	j->likehood = 0;
+	j->hits = 0;
+	memset(j->s,'\0', HALF_JUNCTION_LEN*2+1);
+	return j;
+}
 
 // alingment of a single read
 typedef struct
@@ -190,17 +214,6 @@ idx2str(char* name, int i, int j){
 	sprintf(istr, "%d", i);
 	sprintf(jstr, "%d", j);
 	return concat(concat(concat(concat(name, "."), istr), "."), jstr); 
-}
-
-// initlize junction_t
-static inline junction_t 
-*junction_init(){
-	junction_t *j = mycalloc(1, junction_t);
-	j->name = NULL;
-	j->likehood = 0;
-	j->hits = 0;
-	memset(j->s,'\0', HALF_JUNCTION_LEN*2+1);
-	return j;
 }
 
 
