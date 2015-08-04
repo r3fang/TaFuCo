@@ -188,6 +188,7 @@ static inline str_ctr
 
 //opt
 typedef struct {
+	char* bed;
 	char* fq1; // gap open
 	char* fq2; // gap open
 	char* fa; // gap open
@@ -206,6 +207,7 @@ typedef struct {
 
 static inline opt_t *init_opt(){
 	opt_t *opt = mycalloc(1, opt_t);
+	opt->bed = NULL;
 	opt->fq1 = NULL;
 	opt->fq2 = NULL;
 	opt->fa = NULL;
@@ -224,6 +226,7 @@ static inline opt_t *init_opt(){
 }
 
 static inline void destory_opt(opt_t *opt){
+	if(opt->bed) free(opt->bed);
 	if(opt->fq1) free(opt->fq1);
 	if(opt->fq2) free(opt->fq2);
 	if(opt->fa)  free(opt->fa);

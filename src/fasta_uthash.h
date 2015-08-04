@@ -13,10 +13,37 @@
 #define FA_ERR_NONE		     0 // no error
 
 struct fasta_uthash {
-    char* name;                /* key */
-	char* seq;
+    char *name;                /* key */
+	char *chrom;
+	int start;
+	int end;
+	int l;
+	char *seq;
     UT_hash_handle hh;         /* makes this structure hashable */
 };
+
+static inline int 
+fasta_uthash_destroy(struct fasta_uthash **tb) {
+	if(*tb == NULL) die("fasta_uthash_destroy: parameter error\n");
+	struct fasta_uthash *cur, *tmp;
+	HASH_ITER(hh, *tb, cur, tmp) {
+		if(cur == NULL) die("fasta_uthash_destroy: HASH_ITER fails\n");
+		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
+		free(cur);            /* free it */
+	}
+	return FA_ERR_NONE;
+}
+
+static inline int
+fasta_uthash_display(struct fasta_uthash *tb) {
+   	struct fasta_uthash *cur, *tmp;
+	if(tb == NULL) die("fasta_uthash_display: parameter error\n");	
+	HASH_ITER(hh, tb, cur, tmp) {
+		if(cur == NULL) die("fasta_uthash_display: fail to iterate uthash table\n");
+		printf(">%s\n%s\n", cur->name, cur->seq);
+	}	
+	return FA_ERR_NONE;
+}
 
 static inline struct fasta_uthash
 *fasta_uthash_load(char *fname){
@@ -45,32 +72,10 @@ static inline struct fasta_uthash
 	return tb;
 }
 
-static inline int
-fasta_uthash_display(struct fasta_uthash *tb) {
-   	struct fasta_uthash *cur, *tmp;
-	if(tb == NULL) die("fasta_uthash_display: parameter error\n");	
-	HASH_ITER(hh, tb, cur, tmp) {
-		if(cur == NULL) die("fasta_uthash_display: fail to iterate uthash table\n");
-		printf(">%s\n%s\n", cur->name, cur->seq);
-	}	
-	return FA_ERR_NONE;
-}
-
-static inline int 
-fasta_uthash_destroy(struct fasta_uthash **tb) {
-	if(*tb == NULL) die("fasta_uthash_destroy: parameter error\n");
-	struct fasta_uthash *cur, *tmp;
-	HASH_ITER(hh, *tb, cur, tmp) {
-		if(cur == NULL) die("fasta_uthash_destroy: HASH_ITER fails\n");
-		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
-		free(cur);            /* free it */
-	}
-	return FA_ERR_NONE;
-}
 
 static inline struct fasta_uthash 
 *find_fasta(struct fasta_uthash *tb, char* quary_name) {
-	if(tb == NULL || quary_name == NULL) die("[%s] input error", __func__);
+	if(quary_name == NULL) die("[%s] input error", __func__);
 	struct fasta_uthash* s = NULL;	
     HASH_FIND_STR(tb, quary_name, s);  /* s: output pointer */
 	return s;
