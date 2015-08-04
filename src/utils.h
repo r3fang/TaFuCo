@@ -238,4 +238,6 @@ max6(double *res, double a1, double a2, double a3, double a4, double a5, double 
 	return state;
 }
 
+
+
 #endif

@@ -63,6 +63,7 @@ static char
 	int order_gene1, order_gene2;
 	order_gene1 = order_gene2 = 0;
 	int i=0;
+	int num_tmp;
 	char buff[_k];
 	char* gene_name_tmp;
 	str_ctr *s_ctr, *tmp_ctr, *exons=NULL;
@@ -71,7 +72,7 @@ static char
 	if(exons==NULL) return NULL;
 	HASH_ITER(hh, exons, s_ctr, tmp_ctr) { 
 		if(s_ctr->SIZE >= 2){
-			gene_name_tmp = strsplit(s_ctr->KEY, '.')[0];
+			gene_name_tmp = strsplit(s_ctr->KEY, '.', &num_tmp)[0];
 			if(strcmp(gene_name_tmp, gname1)==0){
 				fa_tmp = find_fasta(fa_ht, s_ctr->KEY);
 				if(str1 == NULL){
@@ -107,8 +108,9 @@ static char
 static inline int 
 find_junction_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret){
 	int _k = opt->k;
-	char* gname1 = strsplit(eg->edge, '_')[0];
-	char* gname2 = strsplit(eg->edge, '_')[1];
+	int num;
+	char* gname1 = strsplit(eg->edge, '_', &num)[0];
+	char* gname2 = strsplit(eg->edge, '_', &num)[1];
 	register int i, j;
 	char* idx;
 	register struct kmer_uthash *s_kmer;
@@ -117,8 +119,8 @@ find_junction_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *o
 	register char* _read1, *_read2, *str2;
 	for(i=0; i<eg->weight; i++){
 		int junction;
-		_read1 = strsplit(eg->evidence[i], '_')[0];
-		_read2 = strsplit(eg->evidence[i], '_')[1];	
+		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
+		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
 		str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &junction);
 		if(str2 == NULL) continue; // no reference string
 		a = align(_read1, str2, junction, opt);

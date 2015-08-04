@@ -267,4 +267,18 @@ static inline int *ksplit(kstring_t *s, int delimiter, int *n)
 	return offsets;
 }
 
+/* split string*/
+static inline char** strsplit(char* s, const char delim, int *n){
+	if(s == NULL) return NULL;
+	kstring_t *ks = malloc(1*sizeof(kstring_t));
+	ks->s = strdup(s);
+	ks->l = strlen(s);
+	int *fields, i;
+	fields = ksplit(ks, delim, n);
+	if(*n==0) return NULL;
+	char** ret = malloc(*n*sizeof(char*));
+	for(i=0; i<*n; i++) ret[i] = strdup(ks->s + fields[i]);
+	return ret;
+}
+
 #endif

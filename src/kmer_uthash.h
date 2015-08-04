@@ -57,20 +57,6 @@ kmer_uthash_uniq(struct kmer_uthash **tb){
     }	
 }
 
-/* split string*/
-static inline char** strsplit(char* s, const char delim){
-	if(s==NULL) die("strsplit: input error");
-	kstring_t *ks = mycalloc(1, kstring_t);
-	ks->s = strdup(s);
-	ks->l = strlen(s);
-	int *fields, n, i;
-	fields = ksplit(ks, delim, &n);
-	if(n==0) return NULL;
-	char** ret = mycalloc(n, char*);
-	for(i=0; i<n; i++) ret[i] = strdup(ks->s + fields[i]);
-	return ret;
-}
-
 /* add one kmer and its exon name to kmer_uthash table */
 static void kmer_uthash_insert(struct kmer_uthash **table, char* kmer, char* name) {
 	// check input param
