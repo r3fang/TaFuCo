@@ -24,6 +24,17 @@ typedef char BOOL ;
 typedef enum { true, false } bool;
 #define pair(k1, k2)  ((k1 + k2)*(k1 + k2 + 1)/2 + k2)
 
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _b : _a; })
+		   
+
 typedef struct
 {
 	char 	*KEY;
@@ -37,6 +48,14 @@ static inline void str_ctr_destory(str_ctr **s){
 		HASH_DEL(*s, cur);  /* delete; users advances to next */
 		free(cur);            /* optional- if you want to free  */
 	}
+}
+
+static inline str_ctr *
+find_str_ctr(str_ctr *tb, const char *quary){
+	if(tb==NULL || quary==NULL) return NULL;
+	str_ctr *s;
+    HASH_FIND_STR(tb, quary, s);  /* s: output pointer */
+	return s;
 }
 
 unsigned long
@@ -245,7 +264,4 @@ max6(double *res, double a1, double a2, double a3, double a4, double a5, double 
 	if(a6 > *res){*res = a6; state = 5;}	
 	return state;
 }
-
-
-
 #endif
