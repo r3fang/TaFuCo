@@ -76,14 +76,15 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 			idx = idx2str(concat(concat(ename1, "."), ename2), a->jump_start, a->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m         = junction_init();
-				m->idx    = idx ;
+				m = mycalloc(1, junction_t);				
+				m->idx    = idx;
 				m->exon1  = ename1;
 				m->exon2  = ename2;				
 				m->hits  = 1;
 				m->likehood = 10*log(a->prob); 				
 				memcpy( m->s, &str2[a->jump_start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[a->jump_end], HALF_JUNCTION_LEN);
+				m->concat_exon_str = str2;
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
@@ -94,7 +95,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 			idx = idx2str(concat(concat(ename1, "."), ename2), b->jump_start, b->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m        = junction_init();
+				m = mycalloc(1, junction_t);				
 				m->idx   = idx;
 				m->exon1  = ename1;
 				m->exon2  = ename2;				
@@ -102,6 +103,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 				m->likehood = 10*log(b->prob); 				
 				memcpy( m->s, &str2[b->jump_start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[b->jump_end], HALF_JUNCTION_LEN);
+				m->concat_exon_str = str2;
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
@@ -436,14 +438,14 @@ int main(int argc, char *argv[]) {
     
 	junction_t *cur_junction, *tmp_junction;
 	HASH_ITER(hh, JUNC_HT, cur_junction, tmp_junction) {
-			printf("exon1=%s-exon2=%s\thits=%zu\tlikelihood=%f\nstr=%s\n", cur_junction->exon1, cur_junction->exon2, cur_junction->hits,cur_junction->likehood,cur_junction->s);
+			printf("exon1=%s\texon2=%s\thits=%zu\tlikelihood=%f\nstr=%s\texon=%s\n", cur_junction->exon1, cur_junction->exon2, cur_junction->hits,cur_junction->likehood, cur_junction->s, cur_junction->concat_exon_str);
 	}
 	//fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
-	//if(JUNC_HT)       junction_destory(&JUNC_HT);
-	//if(BAGR_HT)     BAG_uthash_destroy(&BAGR_HT);
-	//if(KMER_HT)    kmer_uthash_destroy(&KMER_HT);
+	if(JUNC_HT)       junction_destory(&JUNC_HT);
+	if(BAGR_HT)     BAG_uthash_destroy(&BAGR_HT);
+	if(KMER_HT)    kmer_uthash_destroy(&KMER_HT);
+	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
 	//if(GENO_HT)   fasta_uthash_destroy(&GENO_HT);
-	//if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
     //
 	//fprintf(stderr, "[%s] Version: %s\n", __func__, PACKAGE_VERSION);
 	//fprintf(stderr, "[%s] CMD:", __func__);

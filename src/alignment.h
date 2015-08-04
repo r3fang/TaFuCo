@@ -110,20 +110,6 @@ static inline void junction_destory(junction_t **s){
 	}
 }
 
-// initlize junction_t
-static inline junction_t 
-*junction_init(){
-	junction_t *j = mycalloc(1, junction_t);
-	j->name = NULL;
-	j->gene1 = NULL;
-	j->gene2 = NULL;
-	j->idx = NULL;
-	j->likehood = 0;
-	j->hits = 0;
-	memset(j->s,'\0', HALF_JUNCTION_LEN*2+1);
-	return j;
-}
-
 // alingment of a single read
 typedef struct
 {
