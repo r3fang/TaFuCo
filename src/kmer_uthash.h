@@ -87,42 +87,6 @@ static void kmer_uthash_insert(struct kmer_uthash **table, char* kmer, char* nam
 	}
 }
 
-static inline struct kmer_uthash 
-*kmer_uthash_construct(char *fasta_file, int k){
-	gzFile fp;  
-	kseq_t *seqs;  
-	int l;
-	char *kmer = mycalloc(k+1, char);	
-	struct kmer_uthash *table = NULL;
-	char *seq,  *name;
-	seq = name = NULL;
-	fp = gzopen(fasta_file, "r");
-	if (fp == NULL) die("Can't open %s\n", fasta_file);
-	seqs = kseq_init(fp);	
-	if (seqs == NULL) die("kseq_init fails\n");
-	while ((l = kseq_read(seqs)) >= 0) {
-		seq = strToUpper(seqs->seq.s);
-		name = strdup(seqs->name.s);		
-		if(seq == NULL || name == NULL || strlen(seq) <= k){
-			continue;
-		}
-		int i; for(i=0; i < strlen(seq)-k+1; i++){
-			memset(kmer, '\0', k+1);
-			strncpy(kmer, seq+i, k);
-			//kmer_uthash_insert(&table, kmer, strsplit(name, '.')[0]); 
-			kmer_uthash_insert(&table, kmer, name); 
-		}
-	}
-	if(kmer) free(kmer);  	
-	if(seq) free(seq);
-	if(name) free(name);
-	kseq_destroy(seqs);
-	gzclose(fp);
-	kmer_uthash_uniq(&table);
-	return table;
-}
-	
-
 ///* Write down kmer_uthash */
 static inline void 
 kmer_uthash_write(struct kmer_uthash *htable, char *fname){

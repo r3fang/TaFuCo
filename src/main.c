@@ -26,8 +26,10 @@
 #define EXON_FILE "sample_data/genes.bed"
 #endif
 
+
 /* error code */
 #define PR_ERR_NONE		     	 		0 		    // error code
+#define MAX_ALLOWED_K                   50
 #define EXON_HALF_FLANK                 300
 
 /*--------------------------------------------------------------------*/
@@ -206,7 +208,6 @@ static struct fasta_uthash
 	register char *strand;
 	register char *exon_name = NULL;
 	struct fasta_uthash *s;
-	char *seq;
 	char exon_idx[10];
 	FILE *fp0 = fopen(fname, "r");
 	if(fp0==NULL) die("[%s] can't open %s", __func__, fname); 
@@ -260,9 +261,39 @@ static struct fasta_uthash
 	if (line) free(line);
 	if(strand)   free(strand);
 	if(category) free(category);
+	if(fields)   free(fields);
+	if(exon_name) free(exon_name);
 	return ret_fasta;
 }
 
+static struct kmer_uthash 
+*kmer_uthash_construct(struct fasta_uthash *tb, int k){
+	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;
+	register char *kmer;
+	char *name = NULL;	
+	char *seq = NULL;	
+	register int i, j;
+	struct kmer_uthash  *s_kmer, *tmp_kmer, *ret = NULL;
+	struct fasta_uthash *s_fasta, *tmp_fasta;
+	HASH_ITER(hh, tb, s_fasta, tmp_fasta) {
+		seq = strToUpper(s_fasta->seq);
+		name = s_fasta->name;
+		if(seq == NULL || name == NULL || strlen(seq) <= k){
+			continue;
+		}
+		for(i=0; i < strlen(seq)-k+1; i++){
+			kmer = mycalloc(k+1, char);
+			memset(kmer, '\0', k+1);
+			strncpy(kmer, strToUpper(s_fasta->seq)+i, k);
+			kmer_uthash_insert(&ret, kmer, name); 
+		}
+	}
+	if(kmer) free(kmer);
+	if(seq)  free(seq);
+	if(name)  free(name);
+	kmer_uthash_uniq(&ret);
+	return ret;
+}
 
 static int tfc_usage(opt_t *opt){
 	fprintf(stderr, "\n");
@@ -314,7 +345,13 @@ int main(int argc, char *argv[]) {
 	if((GENOME_HT=fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference genome %s", __func__, opt->fa);	
 	fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
 	if((EXON_HT=extract_exon_seq(opt->bed, GENOME_HT))==NULL) die("[%s] can't extract exon sequences of %s", __func__, opt->bed);
-	
+	fprintf(stderr, "[%s] indexing exon sequneces ... \n",__func__);
+	if((KMER_HT = kmer_uthash_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
+
+
+
+
+	if(KMER_HT) kmer_uthash_destroy(&KMER_HT);
 	if(GENOME_HT) fasta_uthash_destroy(&GENOME_HT);
 	if(EXON_HT) fasta_uthash_destroy(&EXON_HT);
 	
