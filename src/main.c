@@ -23,7 +23,7 @@
 #endif
 
 #ifndef EXON_FILE
-#define EXON_FILE "../sample_data/genes.bed"
+#define EXON_FILE "sample_data/genes.bed"
 #endif
 
 /* error code */
@@ -34,7 +34,7 @@
 /*Global paramters.*/
 static struct fasta_uthash *GENOME_HT     = NULL;  // reference genome "hg19"
 static struct kmer_uthash  *KMER_HT       = NULL;  // kmer hash table
-static struct fasta_uthash *EXON_HT      = NULL;  // extracted exon sequences
+static struct fasta_uthash *EXON_HT       = NULL;  // extracted exon sequences
 static struct BAG_uthash   *BAG_HT        = NULL;  // Breakend Associated Graph
 static        junction_t   *JUNCTION_HT   = NULL;  // Identified Junction sites
 
@@ -217,7 +217,7 @@ static struct fasta_uthash
 	fclose(fp0);
 	
 	FILE *fp = fopen(EXON_FILE, "r");
-	if(fp==NULL) die("[%s] can't open %s", __func__, fname);
+	if(fp==NULL) die("[%s] can't open %s", __func__, EXON_FILE);
 	while ((read = getline(&line, &len, fp)) != -1) {
 		// get information of exons
 		if((fields = strsplit(line, 0, &num))==NULL) continue;
@@ -235,25 +235,24 @@ static struct fasta_uthash
 		// get sequence
 		len =  end - start;
 		if((s = find_fasta(HG19_HT, chrom))==NULL) continue;
-		seq = mycalloc(len + 2, char);
-		memset(seq, '\0',len + 2);
 		end = min(end, strlen(s->seq));
 		start = max(start, 0);
-		memcpy(seq, &s->seq[start], len);
-		if(strcmp(strand, "-") == 0) seq = rev_com(seq);
 		s_ctr = find_ctr(ctr, gname);
 		// add to FASTA_HT
 		sprintf(exon_idx, "%d", s_ctr->SIZE);
 		exon_name = concat(concat(gname, "."), exon_idx);
-		printf("%s\n",  exon_name);
 		if((s_fasta = find_fasta(ret_fasta, exon_name)) == NULL){
 			s_fasta = mycalloc(1, struct fasta_uthash);
 			s_fasta->name = exon_name;
 			s_fasta->chrom = chrom;
 			s_fasta->start = start;
 			s_fasta->end = end;
-			s_fasta->seq = seq; 
-			s_fasta->l = strlen(s->seq);
+			s_fasta->seq = mycalloc(len+2, char);
+			memset(s_fasta->seq, '\0',len + 2);	
+			memcpy(s_fasta->seq, &s->seq[start], len);
+			if(strcmp(strand, "-") == 0) s_fasta->seq = rev_com(s_fasta->seq);			
+			s_fasta->l = len;
+			HASH_ADD_STR(ret_fasta, name, s_fasta);
 		}
 	}
 	fclose(fp);
@@ -267,7 +266,7 @@ static struct fasta_uthash
 
 static int tfc_usage(opt_t *opt){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc [options] <gene.bed> <genome.fa> <R1.fq> <R2.fq>\n\n");
+			fprintf(stderr, "Usage:   tfc [options] <target.bed> <genome.fa> <R1.fq> <R2.fq>\n\n");
 			fprintf(stderr, "Options: --------------------   Graph Options  -----------------------\n");
 			fprintf(stderr, "         -k INT   kmer length [%d]\n", opt->k);
 			fprintf(stderr, "         -n INT   min number kmer matches [%d]\n", opt->min_match);
@@ -318,7 +317,8 @@ int main(int argc, char *argv[]) {
 	
 	if(GENOME_HT) fasta_uthash_destroy(&GENOME_HT);
 	if(EXON_HT) fasta_uthash_destroy(&EXON_HT);
-	if(opt) destory_opt(opt);
+	
+
 	///* load kmer hash table in the memory */
 	///* load kmer_uthash table */
 	//fprintf(stderr, "[%s] generating kmer hash table (K=%d) ... \n",__func__, opt->k);
