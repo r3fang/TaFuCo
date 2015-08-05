@@ -17,6 +17,7 @@
 #include "fasta_uthash.h"
 #include "utils.h"
 #include "alignment.h"
+#include "junction.h"
 
 #ifndef PACKAGE_VERSION
 #define PACKAGE_VERSION "0.7.30-r15"
@@ -64,6 +65,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 	int start1, start2;
 	int junction;
 	char *ename1, *ename2;
+	int strlen2;
 	for(i=0; i<eg->weight; i++){
 		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
 		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
@@ -71,7 +73,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 		
 		a = align(_read1, str2, junction, opt);
 		b = align(_read2, str2, junction, opt);
-		
+		printf("%s\n%s\n", a->s1, a->s2);
 		if(a->jump == true && a->prob >= opt->min_align_score){
 			idx = idx2str(concat(concat(ename1, "."), ename2), a->jump_start, a->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
@@ -84,7 +86,11 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 				m->likehood = 10*log(a->prob); 				
 				memcpy( m->s, &str2[a->jump_start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[a->jump_end], HALF_JUNCTION_LEN);
-				m->concat_exon_str = str2;
+				strlen2 = a->jump_start + strlen(str2)-a->jump_end+1;
+				m->concat_exon_str = mycalloc(strlen2, char);
+				memset(m->concat_exon_str, '\0', strlen2);
+				memcpy( m->concat_exon_str, str2, a->jump_start);
+				memcpy( &m->concat_exon_str[a->jump_start], &str2[a->jump_end], strlen(str2)-a->jump_end);				
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
@@ -103,7 +109,11 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 				m->likehood = 10*log(b->prob); 				
 				memcpy( m->s, &str2[b->jump_start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[b->jump_end], HALF_JUNCTION_LEN);
-				m->concat_exon_str = str2;
+				strlen2 = b->jump_start + strlen(str2)-b->jump_end+1;
+				m->concat_exon_str = mycalloc(strlen2, char);
+				memset(m->concat_exon_str, '\0', strlen2);
+				memcpy( m->concat_exon_str, str2, b->jump_start);
+				memcpy( &m->concat_exon_str[b->jump_start], &str2[b->jump_end], strlen(str2)-b->jump_end);				
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
@@ -254,7 +264,7 @@ static struct fasta_uthash
 		l =  end - start;
 		s_ctr = find_ctr(ctr, gname);
 		//// add to FASTA_HT
-		sprintf(exon_idx, "%d", s_ctr->SIZE);
+		sprintf(exon_idx, "%zu", s_ctr->SIZE);
 		exon_name = concat(concat(gname, "."), exon_idx);
 		if((s_fasta = find_fasta(ret_fasta, exon_name)) == NULL){
 			s_fasta = mycalloc(1, struct fasta_uthash);
@@ -371,6 +381,41 @@ static struct BAG_uthash
 	return bag;
 }
 
+static junction_t *junction_score(junction_t *junc, opt_t *opt){
+	if(junc==NULL || opt==NULL) return NULL;
+	int mismatch = 2;
+	gzFile fp1, fp2;
+	int l1, l2;
+	kseq_t *seq1, *seq2;
+	register char *_read1, *_read2;
+	solution_t *sol1, *sol2;
+	
+	if((fp1  = gzopen(opt->fq1, "r")) == NULL)   die("[%s] fail to read fastq files\n",  __func__);
+	if((fp2  = gzopen(opt->fq2, "r")) == NULL)   die("[%s] fail to read fastq files\n",  __func__);	
+	if((seq1 = kseq_init(fp1))   == NULL)   die("[%s] fail to read fastq files\n",  __func__);
+	if((seq2 = kseq_init(fp2))   == NULL)   die("[%s] fail to read fastq files\n",  __func__);	
+	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
+		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
+		_read2 = seq2->seq.s;		
+		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
+		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);		
+		if((min_mismatch(_read1, junc->s)) <= mismatch ){
+			sol1 = align_with_no_jump(_read1, junc->concat_exon_str, opt);
+			printf("%s\n%s\n", sol1->s1, sol1->s2);
+		}
+		if((min_mismatch(_read2, junc->s)) <= mismatch ){
+			sol2 = align_with_no_jump(_read2, junc->concat_exon_str, opt);
+			printf("%s\n%s\n", sol2->s1, sol2->s2);
+		}		
+	}
+	if(sol1)     solution_destory(sol1);
+	if(sol2)     solution_destory(sol2);
+	if(seq1)     kseq_destroy(seq1);
+	if(seq2)     kseq_destroy(seq2);	
+	gzclose(fp1);
+	gzclose(fp2);
+	return NULL;	
+}
 
 static int tfc_usage(opt_t *opt){
 	fprintf(stderr, "\n");
@@ -396,6 +441,7 @@ int main(int argc, char *argv[]) {
 	opt_t *opt = init_opt(); // initlize options with default settings
 	int c, i;
 	srand48(11);
+	junction_t *junc_ht;
 	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s")) >= 0) {
 				switch (c) {
 				case 'n': opt->min_match = atoi(optarg); break;
@@ -429,30 +475,40 @@ int main(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] indexing exon sequneces ... \n",__func__);
 	if((KMER_HT = kmer_uthash_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
-   //
+
 	fprintf(stderr, "[%s] constructing graph ... \n", __func__);
 	if((BAGR_HT = BAG_uthash_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_match, opt->k)) == NULL)	die("[%s] can't construct BAG graph", __func__); 	
-    //
-	fprintf(stderr, "[%s] identifying junction sites from graph... \n", __func__);
-	if((JUNC_HT = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);
+
+	fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
+	if((junc_ht = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);
     
+	fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
+	//if((JUNC_HT = junction_score(junc_ht, opt))==NULL) die("[%s] can't score junctions", __func__);
+	
 	junction_t *cur_junction, *tmp_junction;
-	HASH_ITER(hh, JUNC_HT, cur_junction, tmp_junction) {
-			printf("exon1=%s\texon2=%s\thits=%zu\tlikelihood=%f\nstr=%s\texon=%s\n", cur_junction->exon1, cur_junction->exon2, cur_junction->hits,cur_junction->likehood, cur_junction->s, cur_junction->concat_exon_str);
+	HASH_ITER(hh, junc_ht, cur_junction, tmp_junction) {
+		printf("exon1=%s\texon2=%s\thits=%zu\tlikelihood=%f\nstr=%s\texon=%s\n", cur_junction->exon1, cur_junction->exon2, cur_junction->hits,cur_junction->likehood, cur_junction->s, cur_junction->concat_exon_str);
+		junction_score(cur_junction, opt);
 	}
-	//fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
+    
+		
+		
+	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
+	if(junc_ht)       junction_destory(&junc_ht);
 	if(JUNC_HT)       junction_destory(&JUNC_HT);
 	if(BAGR_HT)     BAG_uthash_destroy(&BAGR_HT);
 	if(KMER_HT)    kmer_uthash_destroy(&KMER_HT);
 	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
 	//if(GENO_HT)   fasta_uthash_destroy(&GENO_HT);
-    //
-	//fprintf(stderr, "[%s] Version: %s\n", __func__, PACKAGE_VERSION);
-	//fprintf(stderr, "[%s] CMD:", __func__);
-	//for (i = 0; i < argc; ++i)
-	//	fprintf(stderr, " %s", argv[i]);
-	//	fprintf(stderr, "\n");
-    //
+    
+	fprintf(stderr, "[%s] Version: %s\n", __func__, PACKAGE_VERSION);
+	fprintf(stderr, "[%s] CMD:", __func__);
+	for (i = 0; i < argc; ++i)
+		fprintf(stderr, " %s", argv[i]);
+	fprintf(stderr, "\n");
+	
+	
+	
 	///* load kmer hash table in the memory */
 	///* load kmer_uthash table */
 	//fprintf(stderr, "[%s] generating kmer hash table (K=%d) ... \n",__func__, opt->k);

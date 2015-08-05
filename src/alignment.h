@@ -70,7 +70,6 @@
 #define JUMP                    800
 #define GENE1                   900
 #define GENE2                   1000
-#define HALF_JUNCTION_LEN       20
 
 // dynamic programming matrices
 typedef struct {
@@ -85,30 +84,6 @@ typedef struct {
   int  **pointerU;
   int  **pointerJ;
 } matrix_t;
-
-// junction of gene fusion
-typedef struct {
-	char* idx; // determined by chr1.start1.chr2.start2
-	char* exon1;
-	char* exon2;
-	char* gene1;
-	char* gene2;
-	char *name;  // name of edge
-	int start;         
-	int end;
-	char s[HALF_JUNCTION_LEN*2+1];         // string flanking junction site 
-	char *concat_exon_str;        // concated exon string 
-	size_t hits;         
-	double likehood;       // alignment probability
-    UT_hash_handle hh;
-} junction_t;
-
-static inline void junction_destory(junction_t **s){
-	junction_t *cur, *tmp;
-	HASH_ITER(hh, *s, cur, tmp) {
-		HASH_DEL(*s, cur);
-	}
-}
 
 // alingment of a single read
 typedef struct
