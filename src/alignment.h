@@ -456,4 +456,5 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t *opt){
 	return s;
 }
 
+
 #endif

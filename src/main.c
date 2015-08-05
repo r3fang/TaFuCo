@@ -401,14 +401,12 @@ static junction_t *junction_score(junction_t *junc, opt_t *opt){
 		_read2 = seq2->seq.s;		
 		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
-		if((min_mismatch(_read1, junc->s)) <= mismatch ){
+		if((min_mismatch(_read1, junc->s)) <= mismatch || (min_mismatch(_read2, junc->s)) <= mismatch ){
 			sol1 = align_with_no_jump(_read1, junc->transcript, opt);
 			printf("%s\n%s\n", sol1->s1, sol1->s2);
-		}
-		if((min_mismatch(_read2, junc->s)) <= mismatch ){
 			sol2 = align_with_no_jump(_read2, junc->transcript, opt);
 			printf("%s\n%s\n", sol2->s1, sol2->s2);
-		}		
+		}
 	}
 	if(sol1)     solution_destory(sol1);
 	if(sol2)     solution_destory(sol2);
