@@ -19,7 +19,7 @@ typedef struct {
 	char* exon1;
 	char* exon2;
 	char s[HALF_JUNCTION_LEN*2+1];         // string flanking junction site 
-	char *concat_exon_str;        // concated exon string 
+	char *transcript;        // concated exon string 
 	size_t hits;         
 	double likehood;       // alignment probability
     UT_hash_handle hh;
