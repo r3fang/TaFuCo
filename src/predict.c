@@ -497,35 +497,34 @@ static junction_t
 	return junc_ht;
 }
 
-static int exon_seq_usage(){
-	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc seq [options] <genes.txt> <genes.gff> <in.fa> <out.fa>\n\n");
-			return 1;
-}
-
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc [options] <target.bed> <genome.fa> <R1.fq> <R2.fq>\n\n");
-			fprintf(stderr, "Options: -k INT   kmer length [%d]\n", opt->k);
-			fprintf(stderr, "         -n INT   min number kmer matches [%d]\n", opt->min_match);
-			fprintf(stderr, "         -w INT   min weight for an edge [%d]\n", opt->min_weight);
-			fprintf(stderr, "         -m INT   match score [%d]\n", opt->match);
-			fprintf(stderr, "         -u INT   penality for mismatch [%d]\n", opt->mismatch);
-			fprintf(stderr, "         -o INT   penality for gap open [%d]\n", opt->gap);
-			fprintf(stderr, "         -e INT   penality for gap extension [%d]\n", opt->extension);
-			fprintf(stderr, "         -j INT   penality for jump between genes [%d]\n", opt->jump_gene);
-			fprintf(stderr, "         -s INT   penality for jump between exons [%d]\n", opt->jump_exon);
-			fprintf(stderr, "         -h INT   min number of hits for a junction to be called [%d]\n", opt->min_hits);					
-			fprintf(stderr, "         -l INT   length of exact match seed for junction rediscovery [%d]\n", opt->seed_len);					
-			fprintf(stderr, "         -x INT   max number of mismatches of seed exact match for junction rediscovery [%d]\n", opt->max_mismatch);					
-			fprintf(stderr, "         -a FLOAT min alignment score [%.2f]\n", opt->min_align_score);
+			fprintf(stderr, "Usage:   tfc -pred [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
+			fprintf(stderr, "Options: -k INT    kmer length [%d]\n", opt->k);
+			fprintf(stderr, "         -n INT    min number kmer matches [%d]\n", opt->min_match);
+			fprintf(stderr, "         -w INT    min weight for an edge [%d]\n", opt->min_weight);
+			fprintf(stderr, "         -m INT    match score [%d]\n", opt->match);
+			fprintf(stderr, "         -u INT    penality for mismatch [%d]\n", opt->mismatch);
+			fprintf(stderr, "         -o INT    penality for gap open [%d]\n", opt->gap);
+			fprintf(stderr, "         -e INT    penality for gap extension [%d]\n", opt->extension);
+			fprintf(stderr, "         -j INT    penality for jump between genes [%d]\n", opt->jump_gene);
+			fprintf(stderr, "         -s INT    penality for jump between exons [%d]\n", opt->jump_exon);
+			fprintf(stderr, "         -h INT    min number of hits for a junction to be called [%d]\n", opt->min_hits);					
+			fprintf(stderr, "         -l INT    length of exact match seed for junction rediscovery [%d]\n", opt->seed_len);					
+			fprintf(stderr, "         -x INT    max number of mismatches of seed exact match for junction rediscovery [%d]\n", opt->max_mismatch);					
+			fprintf(stderr, "         -a FLOAT  min alignment score [%.2f]\n", opt->min_align_score);
 			fprintf(stderr, "\n");
+			fprintf(stderr, "Inputs:  exon.fa   fasta file that contains exon sequences of targeted \n");
+			fprintf(stderr, "                   genes with no flanking sequence which can be generated: \n");
+			fprintf(stderr, "                   tfc -seq <genes.txt> <genes.gff> <in.fa> <exon.fa> \n");
+			fprintf(stderr, "         R1.fq     5'->3' end of pair-end sequencing reads\n");
+			fprintf(stderr, "         R2.fq     the other end of pair-end sequencing reads\n");
 			return 1;
 }
 /*--------------------------------------------------------------------*/
 /* main function. */
 int main_prefict(int argc, char *argv[]) {
-	opt_t *opt = init_opt(); // initlize options with default settings
+	opt_t *opt = opt_init(); // initlize options with default settings
 	int c, i;
 	srand48(11);
 	junction_t *junc_ht;
@@ -547,11 +546,10 @@ int main_prefict(int argc, char *argv[]) {
 				default: return 1;
 		}
 	}
-	if (optind + 4 > argc) return pred_usage(opt);
-	opt->bed = argv[optind];
-	opt->fa  = argv[optind+1];
-	opt->fq1 = argv[optind+2];
-	opt->fq2 = argv[optind+3];
+	if (optind + 3 > argc) return pred_usage(opt);
+	opt->fa  = argv[optind];
+	opt->fq1 = argv[optind+1];
+	opt->fq2 = argv[optind+2];
 	
 	fprintf(stderr, "[%s] loading reference exon sequences ... \n",__func__);
 	if((EXON_HT = fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference genome %s", __func__, opt->fa);	
@@ -586,8 +584,17 @@ int main_prefict(int argc, char *argv[]) {
 	return 0;
 }
 
-/*--------------------------------------------------------------------*/
-/* main function. */
+
+static int exon_seq_usage(){
+	fprintf(stderr, "\n");
+			fprintf(stderr, "Usage:   tfc -seq <genes.txt> <genes.gff> <in.fa> <exon.fa>\n\n");
+			fprintf(stderr, "Inputs:  genes.txt   plain txt file contains names of targeted genes\n");
+			fprintf(stderr, "         genes.gff   gff files contains information of all genes\n");
+			fprintf(stderr, "         in.fa       fasta file contains the entire genome sequence [hg19.fa]\n");
+			fprintf(stderr, "         exon.fa     output fasta files that contains exon sequences of targeted genes\n");
+			return 1;
+}
+
 int main_exon_seq(int argc, char *argv[]) {
 	int c, i;
 	srand48(11);
@@ -600,10 +607,10 @@ int main_exon_seq(int argc, char *argv[]) {
 	
 	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	if((GENO_HT = fasta_uthash_load(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
-    
 	fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
 	if((EXON_HT = extract_exon_seq(gene_name, gff_name, GENO_HT))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
+	fasta_uthash_display(EXON_HT);
 	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
 	if(GENO_HT)   fasta_uthash_destroy(&GENO_HT);    
 	return 0;
