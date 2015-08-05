@@ -77,7 +77,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 			idx = idx2str(concat(concat(ename1, "."), ename2), a->jump_start, a->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m = mycalloc(1, junction_t);				
+				m = junction_init();				
 				m->idx    = idx;
 				m->exon1  = ename1;
 				m->exon2  = ename2;				
@@ -102,7 +102,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 			idx = idx2str(concat(concat(ename1, "."), ename2), b->jump_start, b->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m = mycalloc(1, junction_t);				
+				m = junction_init();				
 				m->idx   = idx;
 				m->exon1  = ename1;
 				m->exon2  = ename2;				
@@ -432,27 +432,44 @@ static junction_t
 	exon1_fa = exon2_fa = NULL;
 	char *exon1_seq, *exon2_seq;
 	int i, j;
+	int *S1, *S2;
+	int str1_l, str2_l, str3_l;
 	HASH_ITER(hh, junc_ht, cur_junction, tmp_junction) {
 		exon1_seq = exon2_seq = NULL;
+		S1 = S2 = NULL;
+		cur_junction->S1_num = cur_junction->S2_num = 0;
+		cur_junction->S1 = cur_junction->S2 = NULL;
+		
 		fields1 = strsplit(cur_junction->exon1, '.', &num1);
 		fields2 = strsplit(cur_junction->exon2, '.', &num2);
 		if(num1 != 2 || num2 != 2) continue;
 		gname1 = fields1[0]; enum1 = atoi(fields1[1]);
 		gname2 = fields2[0]; enum2 = atoi(fields2[1]);
+		S1 = mycalloc(enum1+1, int);
 		for(i=1; i<enum1; i++){
 			sprintf(enum1_str, "%d", i);
 			ename1 = concat(concat(gname1, "."), enum1_str);
 			if((exon1_fa = find_fasta(exon_ht, ename1))!=NULL){
 				exon1_seq = concat(exon1_seq, exon1_fa->seq);
+				S1[i-1] = strlen(exon1_seq);
+				cur_junction->S1_num = i;
 			}
 		}
-		for(i=(enum2+1); i<INFINITY; i++){
+		str1_l = (exon1_seq == NULL) ? 0 : strlen(exon1_seq);
+		str2_l = (cur_junction->transcript == NULL) ? 0 : strlen(cur_junction->transcript);
+		S2 = mycalloc(100, int); memset(S2, INFINITY, 100);
+		S2[0] = str1_l + str2_l;
+		j = 1;for(i=(enum2+1); i<INFINITY; i++){
 			sprintf(enum2_str, "%d", i);
 			ename2 = concat(concat(gname2, "."), enum2_str);
 			if((exon2_fa = find_fasta(exon_ht, ename2))==NULL) break;
 			exon2_seq = concat(exon2_seq, exon2_fa->seq);
+			cur_junction->S2_num = j;
+			S2[j++] = str1_l + str2_l + strlen(exon2_seq);
 		}
 		cur_junction->transcript = concat(concat(exon1_seq, cur_junction->transcript), exon2_seq);
+		cur_junction->S1 = S1;
+		cur_junction->S2 = S2;
 	}	
 	if(fields1)       free(fields1);
 	if(fields2)       free(fields2);
@@ -528,9 +545,20 @@ int main(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
 	if((JUNC_HT = transcript_construct(JUNC_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
-		
+	
+	junction_t *cur_junction, *tmp_junction;
+	HASH_ITER(hh, JUNC_HT, cur_junction, tmp_junction) {
+		for(i=0; i<cur_junction->S1_num; i++){
+			printf("%d\t%d\n", i, cur_junction->S1[i]);
+		}		
+		for(i=0; i<cur_junction->S2_num; i++){
+			printf("%d\t%d\n", i, cur_junction->S2[i]);
+		}		
+		break;
+	}
+	
 	fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
-	//if((JUNC_HT = junction_score(junc_ht, opt))==NULL) die("[%s] can't score junctions", __func__);		
+	if((JUNC_HT = junction_score(JUNC_HT, opt))==NULL) die("[%s] can't score junctions", __func__);		
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(JUNC_HT)       junction_destory(&JUNC_HT);
