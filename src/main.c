@@ -91,7 +91,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 				m->transcript = mycalloc(strlen2, char);
 				memset(m->transcript, '\0', strlen2);
 				memcpy( m->transcript, str2, a->jump_start);
-				memcpy( &m->transcript[a->jump_start], &str2[a->jump_end], strlen(str2)-a->jump_end);				
+				memcpy( &m->transcript[a->jump_start], &str2[a->jump_end+1], strlen(str2)-a->jump_end);				
 				HASH_ADD_STR(*ret, idx, m);
 			}else{
 				m->hits ++;
@@ -422,21 +422,43 @@ static junction_t
 *transcript_construct(junction_t *junc_ht, struct fasta_uthash *exon_ht){
 	if(junc_ht==NULL || exon_ht==NULL) return NULL;
 	junction_t *cur_junction, *tmp_junction;
-	char* gname1, *gname2;
-	gname1 = gname2 = NULL;
+	char* gname1, *gname2, *ename1, *ename2;
+	gname1 = gname2 = ename1 = ename2 = NULL;
 	int enum1, enum2;
+	char enum1_str[10], enum2_str[10];
 	int num1, num2;
 	char** fields1, **fields2;
+	struct fasta_uthash *exon1_fa,  *exon2_fa;
+	exon1_fa = exon2_fa = NULL;
+	char *exon1_seq, *exon2_seq;
+	int i, j;
 	HASH_ITER(hh, junc_ht, cur_junction, tmp_junction) {
+		exon1_seq = exon2_seq = NULL;
 		fields1 = strsplit(cur_junction->exon1, '.', &num1);
 		fields2 = strsplit(cur_junction->exon2, '.', &num2);
 		if(num1 != 2 || num2 != 2) continue;
 		gname1 = fields1[0]; enum1 = atoi(fields1[1]);
 		gname2 = fields2[0]; enum2 = atoi(fields2[1]);
-	}
-	if(gname1)   free(gname1);
-	if(gname2)   free(gname2);
-	return NULL;
+		for(i=1; i<enum1; i++){
+			sprintf(enum1_str, "%d", i);
+			ename1 = concat(concat(gname1, "."), enum1_str);
+			if((exon1_fa = find_fasta(exon_ht, ename1))!=NULL){
+				exon1_seq = concat(exon1_seq, exon1_fa->seq);
+			}
+		}
+		for(i=(enum2+1); i<INFINITY; i++){
+			sprintf(enum2_str, "%d", i);
+			ename2 = concat(concat(gname2, "."), enum2_str);
+			if((exon2_fa = find_fasta(exon_ht, ename2))==NULL) break;
+			exon2_seq = concat(exon2_seq, exon2_fa->seq);
+		}
+		cur_junction->transcript = concat(concat(exon1_seq, cur_junction->transcript), exon2_seq);
+	}	
+	if(fields1)       free(fields1);
+	if(fields2)       free(fields2);
+	if(gname1)        free(gname1);
+	if(gname2)        free(gname2);
+	return junc_ht;
 }
 
 static int tfc_usage(opt_t *opt){
@@ -503,14 +525,14 @@ int main(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
 	if((JUNC_HT = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);
-    
-	if((transcript_construct(JUNC_HT, EXON_HT)==NULL)) die("[%s] can't construct transcript", __func__);
-	
-	//fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
-	//if((JUNC_HT = junction_score(junc_ht, opt))==NULL) die("[%s] can't score junctions", __func__);		
+
+	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
+	if((JUNC_HT = transcript_construct(JUNC_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
 		
+	fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
+	//if((JUNC_HT = junction_score(junc_ht, opt))==NULL) die("[%s] can't score junctions", __func__);		
+	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
-	//if(junc_ht)       junction_destory(&junc_ht);
 	if(JUNC_HT)       junction_destory(&JUNC_HT);
 	if(BAGR_HT)     BAG_uthash_destroy(&BAGR_HT);
 	if(KMER_HT)    kmer_uthash_destroy(&KMER_HT);
