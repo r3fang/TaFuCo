@@ -79,10 +79,15 @@ typedef struct {
   double **M;
   double **U;
   double **J;
+  double **G1;
+  double **G2;
   int  **pointerL;
   int  **pointerM;
   int  **pointerU;
   int  **pointerJ;
+  int  **pointerG1;
+  int  **pointerG2;
+  
 } matrix_t;
 
 // alingment of a single read
@@ -124,22 +129,31 @@ static inline matrix_t
 	S->M = mycalloc(m, double*);
 	S->U = mycalloc(m, double*);
 	S->J = mycalloc(m, double*);
+	S->G1= mycalloc(m, double*);
+	S->G2= mycalloc(m, double*);
+	
 	for (i = 0; i < m; i++) {
       S->M[i] = mycalloc(n, double);
       S->L[i] = mycalloc(n, double);
       S->U[i] = mycalloc(n, double);
       S->J[i] = mycalloc(n, double);
+      S->G1[i] = mycalloc(n, double);
+      S->G2[i] = mycalloc(n, double);
     }
 	S->pointerM = mycalloc(m, int*);
 	S->pointerU = mycalloc(m, int*);
 	S->pointerL = mycalloc(m, int*);
 	S->pointerJ = mycalloc(m, int*);
+	S->pointerG1 = mycalloc(m, int*);
+	S->pointerG2 = mycalloc(m, int*);
 	
 	for (i = 0; i < m; i++) {
        	S->pointerU[i] = mycalloc(n, int);
         S->pointerM[i] = mycalloc(n, int);
         S->pointerL[i] = mycalloc(n, int);
 		S->pointerJ[i] = mycalloc(n, int);
+		S->pointerG1[i] = mycalloc(n, int);
+		S->pointerG2[i] = mycalloc(n, int);
     }
 	return S;
 }
@@ -156,12 +170,16 @@ destory_matrix(matrix_t *S){
 		if(S->M[i]) free(S->M[i]);
 		if(S->U[i]) free(S->U[i]);
 		if(S->J[i]) free(S->J[i]);
+		if(S->G1[i]) free(S->G1[i]);
+		if(S->G2[i]) free(S->G2[i]);
 	}
 	for(i = 0; i < S->m; i++){
 		if(S->pointerL[i]) free(S->pointerL[i]);
 		if(S->pointerM[i]) free(S->pointerM[i]);
 		if(S->pointerU[i]) free(S->pointerU[i]);
 		if(S->pointerJ[i]) free(S->pointerJ[i]);
+		if(S->pointerG1[i]) free(S->pointerG1[i]);
+		if(S->pointerG2[i]) free(S->pointerG2[i]);
 	}
 	free(S);
 }
@@ -176,7 +194,6 @@ idx2str(char* name, int i, int j){
 	sprintf(jstr, "%d", j);
 	return concat(concat(concat(concat(name, "."), istr), "."), jstr); 
 }
-
 
 // initilize solution_t
 static inline solution_t 
@@ -352,8 +369,8 @@ static inline solution_t
 }
 
 static inline solution_t
-*trace_back_no_jump(matrix_t *S, char *s1, char *s2, int state, int i, int j){
-	if(S == NULL || s1 == NULL || s2 == NULL) die("trace_back: paramter error");
+*trace_back_exon_jump(matrix_t *S, char *s1, char *s2, int state, int i, int j){
+	if(S == NULL || s1 == NULL || s2 == NULL) return NULL;
 	solution_t *s = solution_init();
 	char *res_ks1 = mycalloc(strlen(s1)+strlen(s2), char); 
 	char *res_ks2 = mycalloc(strlen(s1)+strlen(s2), char); 
@@ -361,22 +378,29 @@ static inline solution_t
 	while(i>0){
 		switch(state){
 			case LOW:
-				s->deletion ++;
 				state = S->pointerL[i][j]; // change to next state
 				res_ks1[cur] = s1[--i];
 				res_ks2[cur++] = '-';
 				break;
 			case MID:
-				s->match ++;
 				state = S->pointerM[i][j]; // change to next state
                 res_ks1[cur] = s1[--i];
                 res_ks2[cur++] = s2[--j];
 				break;
 			case UPP:
-				s->insertion ++;
 				state = S->pointerU[i][j];
 				res_ks1[cur] = '-';
             	res_ks2[cur++] = s2[--j];
+				break;
+			case GENE1:
+				state = S->pointerG1[i][j];
+				res_ks1[cur] = '-';
+				res_ks2[cur++] = s2[--j];
+				break;
+			case GENE2:
+				state = S->pointerG2[i][j];
+				res_ks1[cur] = '-';
+				res_ks2[cur++] = s2[--j];
 				break;
 			default:
 				break;
@@ -388,10 +412,10 @@ static inline solution_t
 	return s;
 }
 
-static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t *opt){
-	if(s1 == NULL || s2 == NULL || opt==NULL) die("align: parameter error\n");
-	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
-
+static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, int S1_num, int S2_num, opt_t *opt){
+	if(s1 == NULL || s2 == NULL || opt==NULL) return NULL;
+	if(strlen(s1) > strlen(s2)) return NULL; 
+	
 	size_t m   = strlen(s1) + 1; 
 	size_t n   = strlen(s2) + 1;
 	matrix_t *S = create_matrix(m, n);
@@ -401,24 +425,34 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t *opt){
 		S->M[i][0] = -INFINITY;
 		S->U[i][0] = -INFINITY;
 		S->L[i][0] = -INFINITY;
+		S->G1[i][0] = -INFINITY;
+		S->G2[i][0] = -INFINITY;
 	}
 	// initlize first row
 	for(j=0; j<S->n; j++){
 		S->M[0][j] = 0.0;
 		S->U[0][j] = 0.0;
 		S->L[0][j] = -INFINITY;
+		S->G1[0][j]  = -INFINITY;
+		S->G2[0][j]  = -INFINITY;
 	}
-	double delta, tmp_J, tmp_M;
+	double delta, tmp_M, tmp_G1, tmp_G2; 
 	int idx;
 	// recurrance relation
 	for(i=1; i<=strlen(s1); i++){
 		for(j=1; j<=strlen(s2); j++){
 			// MID any state can goto MID
 			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? opt->match : opt->mismatch;
-			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, -INFINITY, -INFINITY, -INFINITY);
+			tmp_G1 = -INFINITY;
+			tmp_G2 = -INFINITY;
+			//tmp_G1 = (isvalueinarray(j, S1, S1_num)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
+			//tmp_G2 = (isvalueinarray(j, S2, S2_num)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
+			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, tmp_G1, tmp_G2, -INFINITY);
 			if(idx == 0) S->pointerM[i][j]=LOW;
 			if(idx == 1) S->pointerM[i][j]=MID;
 			if(idx == 2) S->pointerM[i][j]=UPP;
+			if(idx == 3) S->pointerM[i][j]=GENE1;
+			if(idx == 4) S->pointerM[i][j]=GENE2;
 			// LOW
 			idx = max6(&S->L[i][j], S->L[i-1][j]+opt->extension, S->M[i-1][j]+opt->gap, -INFINITY, -INFINITY, -INFINITY,  -INFINITY);
 			if(idx == 0) S->pointerL[i][j]=LOW;
@@ -427,6 +461,18 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t *opt){
 			idx = max6(&S->U[i][j], S->M[i][j-1]+opt->gap, S->U[i][j-1]+opt->extension,  -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerU[i][j]=MID;
 			if(idx == 1) S->pointerU[i][j]=UPP;
+			// G1
+			//tmp_M = (isvalueinarray(j, S1, S1_num)) ?  S->M[i][j-1]+opt->jump_exon : -INFINITY;
+			tmp_M = -INFINITY;
+			idx = max6(&S->G1[i][j], tmp_M, S->G1[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
+			if(idx == 0) S->pointerG1[i][j] = MID;			
+			if(idx == 1) S->pointerG1[i][j] = GENE1;
+			//G2
+			//tmp_M = (isvalueinarray(j, S2, S2_num)) ?  S->M[i][j-1]+opt->jump_exon : -INFINITY;
+			tmp_M = -INFINITY;
+			idx = max6(&S->G2[i][j], tmp_M, S->G2[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
+			if(idx == 0) S->pointerG2[i][j] = MID;			
+			if(idx == 1) S->pointerG2[i][j] = GENE2;
 		}
 	}
 	// find trace-back start point
@@ -449,7 +495,7 @@ static inline solution_t *align_with_no_jump(char *s1, char *s2, opt_t *opt){
 			max_state = LOW;
 		}
 	}
-	solution_t *s = trace_back_no_jump(S, s1, s2, max_state, i_max, j_max);	
+	solution_t *s = trace_back_exon_jump(S, s1, s2, max_state, i_max, j_max);	
 	destory_matrix(S);
 	s->score = max_score;	
 	//s->prob = max_score/(MATCH*strlen(s1));	

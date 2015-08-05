@@ -382,7 +382,6 @@ static struct BAG_uthash
 	return bag;
 }
 
-
 static junction_t *junction_score(junction_t *junc, opt_t *opt){
 	if(junc==NULL || opt==NULL) return NULL;
 	int mismatch = 2;
@@ -391,7 +390,7 @@ static junction_t *junction_score(junction_t *junc, opt_t *opt){
 	kseq_t *seq1, *seq2;
 	register char *_read1, *_read2;
 	solution_t *sol1, *sol2;
-	
+	sol1 = sol2 = NULL;
 	if((fp1  = gzopen(opt->fq1, "r")) == NULL)   die("[%s] fail to read fastq files\n",  __func__);
 	if((fp2  = gzopen(opt->fq2, "r")) == NULL)   die("[%s] fail to read fastq files\n",  __func__);	
 	if((seq1 = kseq_init(fp1))   == NULL)   die("[%s] fail to read fastq files\n",  __func__);
@@ -402,10 +401,14 @@ static junction_t *junction_score(junction_t *junc, opt_t *opt){
 		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
 		if((min_mismatch(_read1, junc->s)) <= mismatch || (min_mismatch(_read2, junc->s)) <= mismatch ){
-			sol1 = align_with_no_jump(_read1, junc->transcript, opt);
-			printf("%s\n%s\n", sol1->s1, sol1->s2);
-			sol2 = align_with_no_jump(_read2, junc->transcript, opt);
-			printf("%s\n%s\n", sol2->s1, sol2->s2);
+			if(junc->S1_num >0 && junc->S1_num >0){
+				printf("%d\t%d\n", junc->S1_num, junc->S2_num);
+				if((sol1 = align_exon_jump(_read1, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt))==NULL) continue;
+				if((sol2 = align_exon_jump(_read2, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt))==NULL) continue;
+				printf("%s\n%s\n%s\n",seq1->name.s, sol1->s1, sol1->s2);				
+				printf("%s\n%s\n", sol2->s1, sol2->s2);				
+				
+			}
 		}
 	}
 	if(sol1)     solution_destory(sol1);
@@ -544,19 +547,15 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
 	if((JUNC_HT = transcript_construct(JUNC_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
 	
+	
 	junction_t *cur_junction, *tmp_junction;
+	fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
 	HASH_ITER(hh, JUNC_HT, cur_junction, tmp_junction) {
-		for(i=0; i<cur_junction->S1_num; i++){
-			printf("%d\t%d\n", i, cur_junction->S1[i]);
-		}		
-		for(i=0; i<cur_junction->S2_num; i++){
-			printf("%d\t%d\n", i, cur_junction->S2[i]);
-		}		
-		break;
+		printf("%s\t%s\n", cur_junction->exon1, cur_junction->exon2);
+		junction_score(cur_junction, opt);
 	}
 	
-	fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
-	if((JUNC_HT = junction_score(JUNC_HT, opt))==NULL) die("[%s] can't score junctions", __func__);		
+	//if((JUNC_HT = junction_score(JUNC_HT, opt))==NULL) die("[%s] can't score junctions", __func__);		
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(JUNC_HT)       junction_destory(&JUNC_HT);

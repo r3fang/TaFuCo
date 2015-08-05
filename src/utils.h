@@ -234,6 +234,7 @@ static inline void destory_opt(opt_t *opt){
 }
 static inline bool 
 isvalueinarray(int val, int *arr, int size){
+	if(arr==NULL) return false;
     int i;
     for (i=0; i < size; i++) {
         if (arr[i] == val)
