@@ -12,7 +12,7 @@ int main_prefict(int argc, char *argv[]);
 static int usage()
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "Program: tfc (targeted gene gusion calling)\n");
+	fprintf(stderr, "Program: tfc (targeted gene fusion calling)\n");
 	fprintf(stderr, "Version: %s\n", PACKAGE_VERSION);
 	fprintf(stderr, "Contact: Rongxin Fang <r3fang@ucsd.edu>\n\n");
 	fprintf(stderr, "Usage:   tfc <command> [options]\n\n");
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 	int i, ret;
 	double t_real;
 	kstring_t pg = {0,0,0};
-	ksprintf(&pg, "@PG\tID:bwa\tPN:bwa\tVN:%s\tCL:%s", PACKAGE_VERSION, argv[0]);
+	ksprintf(&pg, "@PG\tID:tfc\tPN:tfc\tVN:%s\tCL:%s", PACKAGE_VERSION, argv[0]);
 	for (i = 1; i < argc; ++i) ksprintf(&pg, " %s", argv[i]);
 	if (argc < 2) return usage();
 	else if (strcmp(argv[1], "-seq") == 0) ret = main_exon_seq(argc-1, argv+1);

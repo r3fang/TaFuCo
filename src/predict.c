@@ -381,7 +381,7 @@ static solution_pair_t *junction_rediscover(junction_t *junc, opt_t *opt){
 	solution_pair_t *res = NULL;
 	junction_t *cur_junction, *tmp_junction;
 	HASH_ITER(hh, junc, cur_junction, tmp_junction) {
-		fprintf(stderr, "junction between %s and %s\n", cur_junction->exon1, cur_junction->exon2);
+		fprintf(stderr, "junction between %s and %s are being tested ... \n", cur_junction->exon1, cur_junction->exon2);
 		if((junction_rediscover_unit(cur_junction, opt, &res))!=0) return NULL;
 	}
 	return res;
@@ -458,7 +458,6 @@ static junction_t
 		S1 = S2 = NULL;
 		cur_junction->S1_num = cur_junction->S2_num = 0;
 		cur_junction->S1 = cur_junction->S2 = NULL;
-		
 		fields1 = strsplit(cur_junction->exon1, '.', &num1);
 		fields2 = strsplit(cur_junction->exon2, '.', &num2);
 		if(num1 != 2 || num2 != 2) continue;
@@ -569,11 +568,11 @@ int main_prefict(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] rediscover junctions from the reads ... \n", __func__);    	
 	if((SOLU_HT = junction_rediscover(JUNC_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
 
-	solution_pair_t *cur_sop, *tmp_sop;
-	fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
-	HASH_ITER(hh, SOLU_HT, cur_sop, tmp_sop) {
-		printf("%s\t%f\n", cur_sop->junc_name, cur_sop->prob);
-	}	
+	//solution_pair_t *cur_sop, *tmp_sop;
+	//fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
+	//HASH_ITER(hh, SOLU_HT, cur_sop, tmp_sop) {
+	//	printf("%s\t%f\n", cur_sop->junc_name, cur_sop->prob);
+	//}	
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
@@ -607,10 +606,15 @@ int main_exon_seq(int argc, char *argv[]) {
 	
 	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	if((GENO_HT = fasta_uthash_load(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
+
 	fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
 	if((EXON_HT = extract_exon_seq(gene_name, gff_name, GENO_HT))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
+
+	fprintf(stderr, "[%s] writing down sequences ... \n",__func__);
+	if((fasta_uthash_write(EXON_HT, oname))!=0) die("[%s] can't write down to %s", __func__, oname);
+
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
-	fasta_uthash_display(EXON_HT);
+
 	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
 	if(GENO_HT)   fasta_uthash_destroy(&GENO_HT);    
 	return 0;

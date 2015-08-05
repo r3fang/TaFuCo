@@ -45,6 +45,19 @@ fasta_uthash_display(struct fasta_uthash *tb) {
 	return FA_ERR_NONE;
 }
 
+static inline int
+fasta_uthash_write(struct fasta_uthash *tb, char* fname) {
+	if(tb==NULL || fname==NULL) return -1;
+	FILE *fp = fopen(fname, "w");
+	if(fp==NULL) die("[%s] can't open %s", __func__, fname);
+   	struct fasta_uthash *cur, *tmp;
+	HASH_ITER(hh, tb, cur, tmp) {
+		fprintf(fp, ">%s\n%s\n", cur->name, cur->seq);
+	}	
+	fclose(fp);
+	return 0;
+}
+
 static inline struct fasta_uthash
 *fasta_uthash_load(char *fname){
 	if(fname == NULL) die("fasta_uthash_load: parameter error\n"); 
