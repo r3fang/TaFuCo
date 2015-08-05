@@ -11,14 +11,13 @@
 #include "uthash.h"
 
 
-#define HALF_JUNCTION_LEN       10
 
 // junction of gene fusion
 typedef struct {
 	char* idx; // determined by exon1.exon2.jump_start.jump_end
 	char* exon1;
 	char* exon2;
-	char s[HALF_JUNCTION_LEN*2+1];         // string flanking junction site 
+	char* s;         // string flanking junction site 
 	char *transcript;        // concated exon string 
 	int *S1;
 	int *S2;
@@ -29,20 +28,22 @@ typedef struct {
     UT_hash_handle hh;
 } junction_t;
 
-junction_t *junction_init(){
+junction_t *junction_init(int seed_len){
 	junction_t *junc = mycalloc(1, junction_t);
 	junc->idx = NULL;
 	junc->exon1 = NULL;
 	junc->exon2 = NULL;
 	junc->transcript = NULL;
 	junc->S1 = NULL;
-	junc->S2 = NULL;	
+	junc->S2 = NULL;
+	junc->s = mycalloc(seed_len+1, char);	
 	junc->S1_num = 0;
 	junc->S2_num = 0;	
 	junc->hits = 0;	
 	junc->likehood = 0.0;	
 	return junc;
 }
+
 static inline void junction_destory(junction_t **s){
 	junction_t *cur, *tmp;
 	HASH_ITER(hh, *s, cur, tmp) {

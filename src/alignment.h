@@ -110,6 +110,7 @@ typedef struct
 typedef struct
 {
 	char* idx;
+	char* junc_name;
 	solution_t *r1;
 	solution_t *r2;
 	double prob;
@@ -222,18 +223,31 @@ static inline void solution_destory(solution_t *s){
 static inline solution_pair_t 
 *solution_pair_init(){
 	solution_pair_t* s = mycalloc(1, solution_pair_t);
+	s->idx = NULL;
+	s->junc_name = NULL;
 	s->r1 = solution_init();
 	s->r2 = solution_init();
 	return s;
 }
 
+
+static inline solution_pair_t 
+*find_solution_pair(solution_pair_t *tb, char* quary){
+	if(tb==NULL || quary == NULL) return NULL;
+	solution_pair_t *s;
+	HASH_FIND_STR( tb, quary, s);
+	return s;
+}
+
+
 static inline void 
-solution_pair_destory(solution_pair_t *s){
-	if(s==NULL) die("[%s] input error", __func__);	
-	if(s->idx) free(s->idx);
-	if(s->r1) solution_destory(s->r1);
-	if(s->r2) solution_destory(s->r2);
-	free(s);
+solution_pair_destory(solution_pair_t **s){
+	if(*s==NULL) die("[%s] input error", __func__);	
+	solution_pair_t *cur, *tmp;
+	HASH_ITER(hh, *s, cur, tmp) {
+		HASH_DEL(*s,cur);  /* delete; users advances to next */
+		free(cur);            /* optional- if you want to free  */
+	}
 }
 
 static inline solution_t* 
@@ -414,8 +428,7 @@ static inline solution_t
 
 static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, int S1_num, int S2_num, opt_t *opt){
 	if(s1 == NULL || s2 == NULL || opt==NULL) return NULL;
-	if(strlen(s1) > strlen(s2)) return NULL; 
-	
+	if(strlen(s1) > strlen(s2)) return NULL; 	
 	size_t m   = strlen(s1) + 1; 
 	size_t n   = strlen(s2) + 1;
 	matrix_t *S = create_matrix(m, n);
@@ -443,10 +456,8 @@ static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, 
 		for(j=1; j<=strlen(s2); j++){
 			// MID any state can goto MID
 			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? opt->match : opt->mismatch;
-			tmp_G1 = -INFINITY;
-			tmp_G2 = -INFINITY;
-			//tmp_G1 = (isvalueinarray(j, S1, S1_num)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
-			//tmp_G2 = (isvalueinarray(j, S2, S2_num)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
+			tmp_G1 = (isvalueinarray(j, S1, S1_num)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
+			tmp_G2 = (isvalueinarray(j, S2, S2_num)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
 			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, tmp_G1, tmp_G2, -INFINITY);
 			if(idx == 0) S->pointerM[i][j]=LOW;
 			if(idx == 1) S->pointerM[i][j]=MID;
@@ -462,14 +473,12 @@ static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, 
 			if(idx == 0) S->pointerU[i][j]=MID;
 			if(idx == 1) S->pointerU[i][j]=UPP;
 			// G1
-			//tmp_M = (isvalueinarray(j, S1, S1_num)) ?  S->M[i][j-1]+opt->jump_exon : -INFINITY;
-			tmp_M = -INFINITY;
+			tmp_M = (isvalueinarray(j, S1, S1_num)) ?  S->M[i][j-1]+opt->jump_exon : -INFINITY;
 			idx = max6(&S->G1[i][j], tmp_M, S->G1[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerG1[i][j] = MID;			
 			if(idx == 1) S->pointerG1[i][j] = GENE1;
 			//G2
-			//tmp_M = (isvalueinarray(j, S2, S2_num)) ?  S->M[i][j-1]+opt->jump_exon : -INFINITY;
-			tmp_M = -INFINITY;
+			tmp_M = (isvalueinarray(j, S2, S2_num)) ?  S->M[i][j-1]+opt->jump_exon : -INFINITY;
 			idx = max6(&S->G2[i][j], tmp_M, S->G2[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerG2[i][j] = MID;			
 			if(idx == 1) S->pointerG2[i][j] = GENE2;
@@ -498,7 +507,7 @@ static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, 
 	solution_t *s = trace_back_exon_jump(S, s1, s2, max_state, i_max, j_max);	
 	destory_matrix(S);
 	s->score = max_score;	
-	//s->prob = max_score/(MATCH*strlen(s1));	
+	s->prob = max_score/(opt->match*strlen(s1));	
 	return s;
 }
 

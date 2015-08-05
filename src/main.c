@@ -40,6 +40,7 @@ static struct kmer_uthash  *KMER_HT     = NULL;  // kmer hash table
 static struct fasta_uthash *EXON_HT     = NULL;  // extracted exon sequences
 static struct BAG_uthash   *BAGR_HT     = NULL;  // Breakend Associated Graph
 static        junction_t   *JUNC_HT     = NULL;  // Identified Junction sites
+static   solution_pair_t   *SOLU_HT     = NULL;  // Identified Junction sites
 
 static char* concat_exons(char*, struct fasta_uthash *, struct kmer_uthash *, int, char *, char* ,  char **, char **, int *);
 static int find_junction_one_edge(struct BAG_uthash*, struct fasta_uthash *, opt_t *, junction_t **);
@@ -47,6 +48,7 @@ static junction_t *junction_construct(struct BAG_uthash *, struct fasta_uthash *
 static struct fasta_uthash *extract_exon_seq(char*, struct fasta_uthash *);
 static struct kmer_uthash  *kmer_uthash_construct(struct fasta_uthash *, int);
 static struct BAG_uthash   *BAG_uthash_construct(struct kmer_uthash *, char*, char*, int, int);
+static int junction_rediscover_unit(junction_t *, opt_t *, solution_pair_t **);
 
 static inline int
 find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret){
@@ -77,15 +79,15 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 			idx = idx2str(concat(concat(ename1, "."), ename2), a->jump_start, a->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m = junction_init();				
+				m = junction_init(opt->seed_len);				
 				m->idx    = idx;
 				m->exon1  = ename1;
 				m->exon2  = ename2;				
 				m->hits  = 1;
 				m->likehood = 10*log(a->prob); 				
 				// 20bp junction flanking sequence 
-				memcpy( m->s, &str2[a->jump_start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
-				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[a->jump_end], HALF_JUNCTION_LEN);
+				memcpy( m->s, &str2[a->jump_start-opt->seed_len/2-1], opt->seed_len/2);
+				memcpy( &m->s[opt->seed_len/2], &str2[a->jump_end], opt->seed_len/2);
 				// junction flanking sequence 
 				strlen2 = a->jump_start + strlen(str2)-a->jump_end+1;				
 				m->transcript = mycalloc(strlen2, char);
@@ -102,14 +104,14 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 			idx = idx2str(concat(concat(ename1, "."), ename2), b->jump_start, b->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
 			if(m==NULL){ // this junction not in ret
-				m = junction_init();				
+				m = junction_init(opt->seed_len);				
 				m->idx   = idx;
 				m->exon1  = ename1;
 				m->exon2  = ename2;				
 				m->hits  = 1;
 				m->likehood = 10*log(b->prob); 				
-				memcpy( m->s, &str2[b->jump_start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
-				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[b->jump_end], HALF_JUNCTION_LEN);
+				memcpy( m->s, &str2[b->jump_start-opt->seed_len/2-1], opt->seed_len/2);
+				memcpy( &m->s[opt->seed_len/2], &str2[b->jump_end], opt->seed_len/2);
 				strlen2 = b->jump_start + strlen(str2)-b->jump_end+1;
 				m->transcript = mycalloc(strlen2, char);
 				memset(m->transcript, '\0', strlen2);
@@ -382,15 +384,27 @@ static struct BAG_uthash
 	return bag;
 }
 
-static junction_t *junction_score(junction_t *junc, opt_t *opt){
+static solution_pair_t *junction_rediscover(junction_t *junc, opt_t *opt){
 	if(junc==NULL || opt==NULL) return NULL;
-	int mismatch = 2;
+	solution_pair_t *res = NULL;
+	junction_t *cur_junction, *tmp_junction;
+	HASH_ITER(hh, junc, cur_junction, tmp_junction) {
+		fprintf(stderr, "junction between %s and %s\n", cur_junction->exon1, cur_junction->exon2);
+		if((junction_rediscover_unit(cur_junction, opt, &res))!=0) return NULL;
+	}
+	return res;
+}
+
+static int junction_rediscover_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair){
+	if(junc==NULL || opt==NULL) return -1;
+	int mismatch = opt->max_mismatch;
 	gzFile fp1, fp2;
 	int l1, l2;
 	kseq_t *seq1, *seq2;
 	register char *_read1, *_read2;
 	solution_t *sol1, *sol2;
 	sol1 = sol2 = NULL;
+	solution_pair_t *s_sp, *tmp_sp;
 	if((fp1  = gzopen(opt->fq1, "r")) == NULL)   die("[%s] fail to read fastq files\n",  __func__);
 	if((fp2  = gzopen(opt->fq2, "r")) == NULL)   die("[%s] fail to read fastq files\n",  __func__);	
 	if((seq1 = kseq_init(fp1))   == NULL)   die("[%s] fail to read fastq files\n",  __func__);
@@ -401,13 +415,25 @@ static junction_t *junction_score(junction_t *junc, opt_t *opt){
 		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
 		if((min_mismatch(_read1, junc->s)) <= mismatch || (min_mismatch(_read2, junc->s)) <= mismatch ){
-			if(junc->S1_num >0 && junc->S1_num >0){
-				printf("%d\t%d\n", junc->S1_num, junc->S2_num);
-				if((sol1 = align_exon_jump(_read1, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt))==NULL) continue;
-				if((sol2 = align_exon_jump(_read2, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt))==NULL) continue;
-				printf("%s\n%s\n%s\n",seq1->name.s, sol1->s1, sol1->s2);				
-				printf("%s\n%s\n", sol2->s1, sol2->s2);				
-				
+			if((sol1 = align_exon_jump(_read1, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt))==NULL) continue;
+			if((sol2 = align_exon_jump(_read2, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt))==NULL) continue;
+			s_sp = find_solution_pair(*sol_pair, seq1->name.s);
+			if(s_sp!=NULL){ // if exists
+				if(s_sp->prob < sol1->prob*sol2->prob){
+					s_sp->r1 = sol1; s_sp->r2=sol2; 
+					s_sp->prob = sol1->prob*sol2->prob; 
+					s_sp->junc_name = junc->idx;
+				}				
+			}else{
+				if(sol1->prob >= opt->min_align_score && sol2->prob >= opt->min_align_score){
+					s_sp = solution_pair_init();
+					s_sp->idx = strdup(seq1->name.s); 
+					s_sp->junc_name = junc->idx;
+					s_sp->r1 = sol1;			
+					s_sp->r2 = sol2;
+					s_sp->prob = sol1->prob*sol2->prob;
+					HASH_ADD_STR(*sol_pair, idx, s_sp);
+				}
 			}
 		}
 	}
@@ -417,7 +443,7 @@ static junction_t *junction_score(junction_t *junc, opt_t *opt){
 	if(seq2)     kseq_destroy(seq2);	
 	if(fp1)      gzclose(fp1);
 	if(fp2)      gzclose(fp2);
-	return NULL;	
+	return 0;	
 }
 static junction_t 
 *transcript_construct(junction_t *junc_ht, struct fasta_uthash *exon_ht){
@@ -482,8 +508,7 @@ static junction_t
 static int tfc_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc [options] <target.bed> <genome.fa> <R1.fq> <R2.fq>\n\n");
-			fprintf(stderr, "Options: --------------------   Graph Options  -----------------------\n");
-			fprintf(stderr, "         -k INT   kmer length [%d]\n", opt->k);
+			fprintf(stderr, "Options: -k INT   kmer length [%d]\n", opt->k);
 			fprintf(stderr, "         -n INT   min number kmer matches [%d]\n", opt->min_match);
 			fprintf(stderr, "         -w INT   min weight for an edge [%d]\n", opt->min_weight);
 			fprintf(stderr, "         -m INT   match score [%d]\n", opt->match);
@@ -493,6 +518,8 @@ static int tfc_usage(opt_t *opt){
 			fprintf(stderr, "         -j INT   penality for jump between genes [%d]\n", opt->jump_gene);
 			fprintf(stderr, "         -s INT   penality for jump between exons [%d]\n", opt->jump_exon);
 			fprintf(stderr, "         -h INT   min number of hits for a junction to be called [%d]\n", opt->min_hits);					
+			fprintf(stderr, "         -l INT   length of exact match seed for junction rediscovery [%d]\n", opt->seed_len);					
+			fprintf(stderr, "         -x INT   max number of mismatches of seed exact match for junction rediscovery [%d]\n", opt->max_mismatch);					
 			fprintf(stderr, "         -a FLOAT min alignment score [%.2f]\n", opt->min_align_score);
 			fprintf(stderr, "\n");
 			return 1;
@@ -516,6 +543,8 @@ int main(int argc, char *argv[]) {
 				case 'j': opt->jump_gene = atoi(optarg); break;
 				case 's': opt->jump_exon = atoi(optarg); break;
 				case 'h': opt->min_hits = atoi(optarg); break;
+				case 'l': opt->seed_len = atoi(optarg); break;
+				case 'x': opt->max_mismatch = atoi(optarg); break;
 				case 'a': opt->min_align_score = atof(optarg); break;
 				default: return 1;
 		}
@@ -547,17 +576,17 @@ int main(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
 	if((JUNC_HT = transcript_construct(JUNC_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
 	
-	
-	junction_t *cur_junction, *tmp_junction;
+	fprintf(stderr, "[%s] rediscover junctions from the reads ... \n", __func__);    	
+	if((SOLU_HT = junction_rediscover(JUNC_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
+
+	solution_pair_t *cur_sop, *tmp_sop;
 	fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
-	HASH_ITER(hh, JUNC_HT, cur_junction, tmp_junction) {
-		printf("%s\t%s\n", cur_junction->exon1, cur_junction->exon2);
-		junction_score(cur_junction, opt);
-	}
-	
-	//if((JUNC_HT = junction_score(JUNC_HT, opt))==NULL) die("[%s] can't score junctions", __func__);		
+	HASH_ITER(hh, SOLU_HT, cur_sop, tmp_sop) {
+		printf("%s\t%f\n", cur_sop->junc_name, cur_sop->prob);
+	}	
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
+	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	if(JUNC_HT)       junction_destory(&JUNC_HT);
 	if(BAGR_HT)     BAG_uthash_destroy(&BAGR_HT);
 	if(KMER_HT)    kmer_uthash_destroy(&KMER_HT);
@@ -569,34 +598,5 @@ int main(int argc, char *argv[]) {
 	for (i = 0; i < argc; ++i)
 		fprintf(stderr, " %s", argv[i]);
 	fprintf(stderr, "\n");
-	
-	
-	
-	///* load kmer hash table in the memory */
-	///* load kmer_uthash table */
-	//fprintf(stderr, "[%s] generating kmer hash table (K=%d) ... \n",__func__, opt->k);
-	//KMER_HT = kmer_uthash_construct(opt->fa, opt->k);	
-	//if(KMER_HT == NULL) die("Fail to load the index\n");	
-	/////* load fasta_uthash table */
-	//fprintf(stderr, "[%s] loading fasta hash table ... \n", __func__);
-	//// load fasta sequences
-	//if((FASTA_HT=fasta_uthash_load(opt->fa)) == NULL) die("main: fasta_uthash_load fails\n");	
-	//// construct break-end associated graph
-	//fprintf(stderr, "[%s] constructing break-end associated graph ... \n", __func__);
-	//if((construct_BAG(&BAG_HT, KMER_HT, opt->fq1, opt->fq2, opt->min_match, opt->k)) != PR_ERR_NONE)	die("main: construct_BAG fails\n");		
-	//// delete edges with weight < opt->min_weight
-	//if(BAG_uthash_trim(&BAG_HT, opt->min_weight) != PR_ERR_NONE)	die("main: BAG_uthash_trim\n");		
-	//
-	//fprintf(stderr, "[%s] identifying junction sites ... \n", __func__);
-	//JUNCTION_HT = find_junction(BAG_HT, FASTA_HT, opt);
-	//junction_t *cur_junction, *tmp_junction;
-	//HASH_ITER(hh, JUNCTION_HT, cur_junction, tmp_junction) {
-	//	printf("name=%s: start=%d\tend=%d\thits=%zu\tlikelihood=%f\nstr=%s\n", cur_junction->name, cur_junction->start, cur_junction->end, cur_junction->hits,cur_junction->likehood,cur_junction->s);
-	//}
-	////*--------------------------------------------------------------------*/	
-	//// clear up the masses
-	//if(kmer_uthash_destroy(&KMER_HT)   != PR_ERR_NONE)	die("main: kmer_uthash_destroy\n");	
-	//if(fasta_uthash_destroy(&FASTA_HT) != PR_ERR_NONE)	die("main: fasta_uthash_destroy fails\n");		
-	//if(BAG_uthash_destroy(&BAG_HT)     != PR_ERR_NONE)	die("main: BAG_uthash_destroy\n");	
 	return 0;
 }

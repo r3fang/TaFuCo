@@ -202,6 +202,8 @@ typedef struct {
 	int jump_gene;
 	int jump_exon;
 	int min_hits;
+	int seed_len;
+	int max_mismatch;
 	double min_align_score;
 } opt_t;
 
@@ -222,6 +224,8 @@ static inline opt_t *init_opt(){
 	opt->jump_exon = -8.0;
 	opt->min_hits = 3;
 	opt->min_align_score = 0.8;
+	opt->seed_len = 20;
+	opt->max_mismatch = 2;
 	return opt;
 }
 
