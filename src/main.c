@@ -73,7 +73,6 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 		
 		a = align(_read1, str2, junction, opt);
 		b = align(_read2, str2, junction, opt);
-		printf("%s\n%s\n", a->s1, a->s2);
 		if(a->jump == true && a->prob >= opt->min_align_score){
 			idx = idx2str(concat(concat(ename1, "."), ename2), a->jump_start, a->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
@@ -84,9 +83,11 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 				m->exon2  = ename2;				
 				m->hits  = 1;
 				m->likehood = 10*log(a->prob); 				
+				// 20bp junction flanking sequence 
 				memcpy( m->s, &str2[a->jump_start-HALF_JUNCTION_LEN-1], HALF_JUNCTION_LEN);
 				memcpy( &m->s[HALF_JUNCTION_LEN], &str2[a->jump_end], HALF_JUNCTION_LEN);
-				strlen2 = a->jump_start + strlen(str2)-a->jump_end+1;
+				// junction flanking sequence 
+				strlen2 = a->jump_start + strlen(str2)-a->jump_end+1;				
 				m->concat_exon_str = mycalloc(strlen2, char);
 				memset(m->concat_exon_str, '\0', strlen2);
 				memcpy( m->concat_exon_str, str2, a->jump_start);
@@ -412,8 +413,8 @@ static junction_t *junction_score(junction_t *junc, opt_t *opt){
 	if(sol2)     solution_destory(sol2);
 	if(seq1)     kseq_destroy(seq1);
 	if(seq2)     kseq_destroy(seq2);	
-	gzclose(fp1);
-	gzclose(fp2);
+	if(fp1)      gzclose(fp1);
+	if(fp2)      gzclose(fp2);
 	return NULL;	
 }
 
