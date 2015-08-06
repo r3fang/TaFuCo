@@ -10,22 +10,24 @@ $ ./tfc -predict exon.fa reads1.fq.gz reads2.fq.gz > tfc.out
 
 ##Introduction
 
-TFC is a lightwieght, stand-alone, ultrafast, C-implemented, mapping-free and highly sensitive software desgined for detection of fusion between candiate genes using Illumina RNA-seq data. It consists of two major components: 
+TFC is a super lightwieght, stand-alone, ultrafast, C-implemented, mapping-free and highly sensitive software desgined for detection of fusion between candiate genes using Illumina RNA-seq data. It consists of two major components: 
  
- - name2fasta is to extract genomic sequences of genes candiates that only requires user to provide the names of targeted genes.
+ - name2fasta
 
 ```
 $./tfc name2fasta
 
-Usage:   tfc name2fasta <genes.txt> <genes.gff> <in.fa> <exon.fa>
+Usage:   tfc name2fasta <gname.txt> <genes.gff> <in.fa> <exon.fa>
 
-Inputs:  genes.txt   plain txt file contains names of targeted genes
-         genes.gff   gff files contains information of all genes
+Details: name2fasta is to extract genomic sequence of gene candiates
+
+Inputs:  gname.txt   plain txt file contains names of genes candiates
+         genes.gff   standard gff files contains genes annotation
          in.fa       fasta file contains the entire genome sequence [hg19.fa]
-         exon.fa     output fasta files that contains exon sequences of targeted genes
+         exon.fa     output fasta files that contains sequences of targeted genes
 ```
 
-  - predict is to predict gene fusion from RNA-seq data.
+  - predict
 	
 ```
 $./tfc predict
