@@ -6,3 +6,4 @@ tmp.*
 tfc.dSYM/*
 tfc
 test.sh
+*.graffle
