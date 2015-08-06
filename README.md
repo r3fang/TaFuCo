@@ -70,6 +70,11 @@ Inputs:  exon.fa   fasta file that contains exon sequences of targeted
          R2.fq     the other end of pair-end sequencing reads
 ```
 
+
+#### Workflow
+
+![workflow](https://github.com/r3fang/tfc/blob/master/workflow.jpg)
+
 #### Version
 0.8.05-r15
 
