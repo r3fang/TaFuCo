@@ -3,3 +3,4 @@ bin/
 sample_data/A431-1-ABGHI_S1_L001_R1_001.fastq.gz
 sample_data/A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 tmp.*
+*.dSYM
