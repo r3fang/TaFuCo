@@ -498,7 +498,8 @@ static junction_t
 
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc -pred [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
+			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
+			fprintf(stderr, "Details: predict gene fusion from RNA-seq data\n\n");
 			fprintf(stderr, "Options: -k INT    kmer length [%d]\n", opt->k);
 			fprintf(stderr, "         -n INT    min number kmer matches [%d]\n", opt->min_match);
 			fprintf(stderr, "         -w INT    min weight for an edge [%d]\n", opt->min_weight);
@@ -508,9 +509,9 @@ static int pred_usage(opt_t *opt){
 			fprintf(stderr, "         -e INT    penality for gap extension [%d]\n", opt->extension);
 			fprintf(stderr, "         -j INT    penality for jump between genes [%d]\n", opt->jump_gene);
 			fprintf(stderr, "         -s INT    penality for jump between exons [%d]\n", opt->jump_exon);
-			fprintf(stderr, "         -h INT    min number of hits for a junction to be called [%d]\n", opt->min_hits);					
-			fprintf(stderr, "         -l INT    length of exact match seed for junction rediscovery [%d]\n", opt->seed_len);					
-			fprintf(stderr, "         -x INT    max number of mismatches of seed exact match for junction rediscovery [%d]\n", opt->max_mismatch);					
+			fprintf(stderr, "         -h INT    min hits for a junction [%d]\n", opt->min_hits);					
+			fprintf(stderr, "         -l INT    seed length for junction rediscovery [%d]\n", opt->seed_len);					
+			fprintf(stderr, "         -x INT    max mismatches of seed match [%d]\n", opt->max_mismatch);					
 			fprintf(stderr, "         -a FLOAT  min alignment score [%.2f]\n", opt->min_align_score);
 			fprintf(stderr, "\n");
 			fprintf(stderr, "Inputs:  exon.fa   fasta file that contains exon sequences of targeted \n");
@@ -586,11 +587,12 @@ int main_prefict(int argc, char *argv[]) {
 
 static int exon_seq_usage(){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc -seq <genes.txt> <genes.gff> <in.fa> <exon.fa>\n\n");
-			fprintf(stderr, "Inputs:  genes.txt   plain txt file contains names of targeted genes\n");
-			fprintf(stderr, "         genes.gff   gff files contains information of all genes\n");
+			fprintf(stderr, "Usage:   tfc name2fasta <gname.txt> <genes.gff> <in.fa> <exon.fa>\n\n");
+			fprintf(stderr, "Details: name2fasta is to extract genomic sequence of gene candiates\n\n");
+			fprintf(stderr, "Inputs:  gname.txt   plain txt file contains names of genes candiates\n");
+			fprintf(stderr, "         genes.gff   standard gff files contains genes annotation\n");
 			fprintf(stderr, "         in.fa       fasta file contains the entire genome sequence [hg19.fa]\n");
-			fprintf(stderr, "         exon.fa     output fasta files that contains exon sequences of targeted genes\n");
+			fprintf(stderr, "         exon.fa     output fasta files that contains sequences of targeted genes\n");
 			return 1;
 }
 

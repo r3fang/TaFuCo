@@ -16,8 +16,8 @@ static int usage()
 	fprintf(stderr, "Version: %s\n", PACKAGE_VERSION);
 	fprintf(stderr, "Contact: Rongxin Fang <r3fang@ucsd.edu>\n\n");
 	fprintf(stderr, "Usage:   tfc <command> [options]\n\n");
-	fprintf(stderr, "Command: -seq        extract exon sequences by gene name\n");
-	fprintf(stderr, "         -pred       predict gene fusion\n");
+	fprintf(stderr, "Command: name2fasta     extract exon sequences by gene name\n");
+	fprintf(stderr, "         predict        predict gene fusion\n");
 	fprintf(stderr, "\n");
 	return 1;
 }
@@ -30,8 +30,8 @@ int main(int argc, char *argv[])
 	ksprintf(&pg, "@PG\tID:tfc\tPN:tfc\tVN:%s\tCL:%s", PACKAGE_VERSION, argv[0]);
 	for (i = 1; i < argc; ++i) ksprintf(&pg, " %s", argv[i]);
 	if (argc < 2) return usage();
-	else if (strcmp(argv[1], "-seq") == 0) ret = main_exon_seq(argc-1, argv+1);
-	else if (strcmp(argv[1], "-pred") == 0) ret = main_prefict(argc-1, argv+1);
+	else if (strcmp(argv[1], "name2fasta") == 0) ret = main_exon_seq(argc-1, argv+1);
+	else if (strcmp(argv[1], "predict") == 0) ret = main_prefict(argc-1, argv+1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);
 		return 1;
