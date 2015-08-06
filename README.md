@@ -1,37 +1,23 @@
-# TFC (Targeted Gene Fusion Calling)
-
-TFC is a lightwieght, stand-alone, ultrafast and highly sensitive tool to detect fusion of candiate genes by Illumina high throughput sequencing reads.
-
-## Version
-0.8.05-r15
-
-## Get Started
-
-  - Install
+##Get Started
 
 ```
 $ git clone git@github.com:r3fang/tfc.git
 $ cd tfc
 $ make
-$ ./bin/tfc
-
-Program: tfc (targeted gene fusion calling)
-Version: 0.7.30-r15
-Contact: Rongxin Fang <r3fang@ucsd.edu>
-
-Usage:   tfc <command> [options]
-
-Command: -seq        extract exon sequences by gene name
-         -pred       predict gene fusion
+$ ./tfc -predict exon.fa reads1.fq.gz reads2.fq.gz > tfc.out
 ```
 
-  - seq (extract exon sequences of gene name)
 
+##Introduction
+
+TFC is a lightwieght, stand-alone, ultrafast, C-implemented, mapping-free and highly sensitive software desgined for detection of fusion between candiate genes using Illumina RNA-seq data. It consists of two major components: 
+ 
+ - name2fasta is to extract genomic sequences of genes candiates that only requires user to provide the names of targeted genes.
 
 ```
-$./bin/tfc -seq
+$./tfc name2fasta
 
-Usage:   tfc -seq <genes.txt> <genes.gff> <in.fa> <exon.fa>
+Usage:   tfc name2fasta <genes.txt> <genes.gff> <in.fa> <exon.fa>
 
 Inputs:  genes.txt   plain txt file contains names of targeted genes
          genes.gff   gff files contains information of all genes
@@ -39,13 +25,12 @@ Inputs:  genes.txt   plain txt file contains names of targeted genes
          exon.fa     output fasta files that contains exon sequences of targeted genes
 ```
 
-  - pred (predict gene fusion)
-
-
+  - predict is to predict gene fusion from RNA-seq data.
+	
 ```
-$./bin/tfc -pred
+$./tfc predict
 
-Usage:   tfc -pred [options] <exon.fa> <R1.fq> <R2.fq>
+Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>
 
 Options: -k INT    kmer length [15]
          -n INT    min number kmer matches [10]
@@ -68,6 +53,10 @@ Inputs:  exon.fa   fasta file that contains exon sequences of targeted
          R2.fq     the other end of pair-end sequencing reads
 ```
 
-## Author
+#### Version
+0.8.05-r15
+
+
+#### Author
 Rongxin Fang (r3fang@eng.ucsd.edu)
 
