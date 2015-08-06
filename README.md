@@ -12,6 +12,19 @@ $ ./tfc -predict exon.fa reads1.fq.gz reads2.fq.gz > tfc.out
 
 TFC is a super lightwieght, stand-alone, ultrafast, C-implemented, mapping-free and highly sensitive software desgined for detection of fusion between candiate genes using Illumina RNA-seq data. It consists of two major components: 
  
+```
+$./tfc
+
+Program: tfc (targeted gene fusion calling)
+Version: 0.8.05-r15
+Contact: Rongxin Fang <r3fang@ucsd.edu>
+
+Usage:   tfc <command> [options]
+
+Command: name2fasta     extract exon sequences by gene name
+         predict        predict gene fusion
+```
+
  - name2fasta
 
 ```
