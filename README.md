@@ -71,7 +71,7 @@ Inputs:  exon.fa   fasta file that contains exon sequences of targeted
 ```
 
 
-#### Workflow
+## Workflow
 
 ![workflow](https://github.com/r3fang/tfc/blob/master/workflow.jpg)
 
