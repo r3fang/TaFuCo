@@ -30,7 +30,8 @@ static struct fasta_uthash *GENO_HT     = NULL;  // reference genome "hg19"
 static struct fasta_uthash *EXON_HT     = NULL;  // extracted exon sequences
 static struct kmer_uthash  *KMER_HT     = NULL;  // kmer hash table
 static struct BAG_uthash   *BAGR_HT     = NULL;  // Breakend Associated Graph
-static        junction_t   *JUNC_HT     = NULL;  // Identified Junction sites
+static        junction_t   *JUN0_HT     = NULL;  // rough junctions identified from BAG
+static        junction_t   *JUN1_HT     = NULL;  // final junctions
 static   solution_pair_t   *SOLU_HT     = NULL;  // Identified Junction sites
 
 static char* concat_exons(char*, struct fasta_uthash *, struct kmer_uthash *, int, char *, char* ,  char **, char **, int *);
@@ -376,7 +377,7 @@ static struct BAG_uthash
 	return bag;
 }
 
-static solution_pair_t *junction_rediscover(junction_t *junc, opt_t *opt){
+static solution_pair_t *align_to_transcript(junction_t *junc, opt_t *opt){
 	if(junc==NULL || opt==NULL) return NULL;
 	solution_pair_t *res = NULL;
 	junction_t *cur_junction, *tmp_junction;
@@ -496,6 +497,30 @@ static junction_t
 	return junc_ht;
 }
 
+static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, opt_t *opt){
+	if(sol==NULL || opt==NULL || junc==NULL) return NULL;
+	junction_t *junc_cur1, *junc_cur2, *junc_res = NULL;
+	solution_pair_t *sol_cur, *sol_tmp;
+	double th = opt->min_align_score * opt->min_align_score;
+	HASH_ITER(hh, sol, sol_cur, sol_tmp) {
+		if(sol_cur->prob < th) continue;
+		if((junc_cur1 = find_junction(junc, sol_cur->junc_name))==NULL) continue;
+		if((junc_cur2 = find_junction(junc_res, sol_cur->junc_name))==NULL){
+			junc_cur2 = junction_init(opt->seed_len);
+			junc_cur2->idx = junc_cur1->idx;
+			junc_cur2->exon1 = junc_cur1->exon1;
+			junc_cur2->exon2 = junc_cur1->exon2;			
+			junc_cur2->hits = 1;	
+			junc_cur2->likehood = 10*log(sol_cur->prob);	
+			HASH_ADD_STR(junc_res, idx, junc_cur2);
+		}else{
+			junc_cur2->hits++;	
+			junc_cur2->likehood += 10*log(sol_cur->prob);			
+		}
+	}
+	return junc_res;
+}
+
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -561,23 +586,27 @@ int main_prefict(int argc, char *argv[]) {
 	if((BAGR_HT = BAG_uthash_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_match, opt->k)) == NULL)	die("[%s] can't construct BAG graph", __func__); 	
 
 	fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
-	if((JUNC_HT = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);
+	if((JUN0_HT = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);
 
 	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
-	if((JUNC_HT = transcript_construct(JUNC_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
+	if((JUN0_HT = transcript_construct(JUN0_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
 	
-	fprintf(stderr, "[%s] rediscover junctions from the reads ... \n", __func__);    	
-	if((SOLU_HT = junction_rediscover(JUNC_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
+	fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
+	if((SOLU_HT = align_to_transcript(JUN0_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
 
-	//solution_pair_t *cur_sop, *tmp_sop;
-	//fprintf(stderr, "[%s] scoring junction ... \n", __func__);	
-	//HASH_ITER(hh, SOLU_HT, cur_sop, tmp_sop) {
-	//	printf("%s\t%f\n", cur_sop->junc_name, cur_sop->prob);
-	//}	
+	fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
+	if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
+	
+	junction_t *junc_cur, *junc_tmp;
+	HASH_ITER(hh, JUN0_HT, junc_cur, junc_tmp) {
+		printf("-------------------------------------------------------------\n");
+		printf("%s\t%s\t%s\n", junc_cur->exon1, junc_cur->exon2, junc_cur->transcript);
+	}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
-	if(JUNC_HT)       junction_destory(&JUNC_HT);
+	if(JUN0_HT)       junction_destory(&JUN0_HT);
+	if(JUN1_HT)       junction_destory(&JUN1_HT);
 	if(BAGR_HT)     BAG_uthash_destroy(&BAGR_HT);
 	if(KMER_HT)    kmer_uthash_destroy(&KMER_HT);
 	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);

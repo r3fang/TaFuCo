@@ -51,6 +51,14 @@ static inline void junction_destory(junction_t **s){
 	}
 }
 
+static inline junction_t 
+*find_junction(junction_t *jc, char* quary) {
+	if(quary == NULL) return NULL;
+	junction_t *s;
+    HASH_FIND_STR(jc, quary, s);  /* s: output pointer */
+	return s;
+}
+
 static inline int min_mismatch(char* str, char* pattern){
 	if(str == NULL || pattern == NULL) die("[%s] input error"); 
 	register int i, j, n;
