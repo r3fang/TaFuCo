@@ -73,7 +73,7 @@ Inputs:  exon.fa   fasta file that contains exon sequences of targeted
 
 ## Workflow
 
-![workflow](https://github.com/r3fang/tfc/blob/master/img/workflow.jpg)
+![workflow](https://github.com/r3fang/tfc/blob/master/img/workflow.V2.jpg)
 
 #### Version
 08.05-r15
