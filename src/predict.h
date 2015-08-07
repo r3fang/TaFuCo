@@ -183,7 +183,7 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc_ht, opt
  */
 static int pred_usage(opt_t *opt);
 /*
- * main function
+ * main function, called by main.c
  */
 int predict(int argc, char *argv[]);
 
