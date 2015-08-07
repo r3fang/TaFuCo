@@ -6,6 +6,10 @@
 /*--------------------------------------------------------------------*/
 #include "predict.h"
 
+static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction);
+static int find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret);
+static int junction_rediscover_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
+
 static struct kmer_uthash 
 *kmer_uthash_construct(struct fasta_uthash *tb, int k){
 	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;

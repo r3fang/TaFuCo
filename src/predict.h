@@ -113,13 +113,71 @@ static struct kmer_uthash *kmer_uthash_construct(struct fasta_uthash *tb, int k)
  * BAG_uthash object that contains the graph.
  */
 static struct BAG_uthash *BAG_uthash_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
-static int find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret);
-static junction_t *junction_construct(struct BAG_uthash *, struct fasta_uthash *, opt_t *);
-static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction);
-static solution_pair_t *align_to_transcript(junction_t *junc, opt_t *opt);
-static int junction_rediscover_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
+/*
+ * Description:
+ *------------
+ * find junction sites by aligning supportive reads to concatnated string of gene1 and gene2
+
+ * Input: 
+ *-------
+ * bag        - BAG_utash object: breakend associated graph returned by BAG_uthash_construct
+ * fa         - fasta_uthash object: input sequence returned by fasta_uthash_load
+ * opt        - opt_t object: contains all input parameters
+
+ * Output: 
+ *-------
+ * junction_t object that contains identified junctions.
+ */
+static junction_t *junction_construct(struct BAG_uthash *bag, struct fasta_uthash *fa, opt_t *opt);
+/*
+ * Description:
+ *------------
+ * construct fused transcript by identified fusion
+
+ * Input: 
+ *-------
+ * junc_ht        - junction_t object: return by junction_construct
+ * exon_ht        - fasta_uthash object: input sequence returned by fasta_uthash_load
+
+ * Output: 
+ *-------
+ * junction_t object that contains identified junctions with one more property -> transcript.
+ */
 static junction_t *transcript_construct(junction_t *junc_ht, struct fasta_uthash *exon_ht);
-static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, opt_t *opt);
+/*
+ * Description:
+ *------------
+ * 1) find subset of pairs that contain 20bp junction string by at most 2 mismatches
+ * 2) align those reads to constructed transcript returned by transcript_construct
+
+ * Input: 
+ *-------
+ * junc_ht        - junction_t object: return by transcript_construct
+ * opt            - opt_t object: contains all input parameters
+
+ * Output: 
+ *-------
+ * solution_pair_t object that contains alignment results of all reads.
+ */
+static solution_pair_t *align_to_transcript(junction_t *junc_ht, opt_t *opt);
+
+/*
+ * Description:
+ *------------
+ * revisit junction sites and score them based on alignment results
+ 
+ * Input: 
+ *-------
+ * sol        - alignment results returned by align_to_transcript
+ * junc_ht    - previously identified junction
+ * opt            - opt_t object: contains all input parameters
+
+ * Output: 
+ *-------
+ * junction_t object that contains identified junctions with one more property -> transcript.
+ */
+
+static junction_t *junction_score(solution_pair_t *sol, junction_t *junc_ht, opt_t *opt);
 /*
  * usage info
  */
