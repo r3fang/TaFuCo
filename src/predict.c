@@ -399,7 +399,7 @@ static junction_t
 		}
 		str1_l = (exon1_seq == NULL) ? 0 : strlen(exon1_seq);
 		str2_l = (cur_junction->transcript == NULL) ? 0 : strlen(cur_junction->transcript);
-		S2 = mycalloc(100, int); memset(S2, INFINITY, 100);
+		S2 = mycalloc(100, int); memset(S2, UINT_MAX, 100);
 		S2[0] = str1_l + str2_l;
 		j = 1;for(i=(enum2+1); i<INFINITY; i++){
 			sprintf(enum2_str, "%d", i);

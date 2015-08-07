@@ -36,7 +36,6 @@ struct fasta_uthash *extract_exon_seq(char* fname, char *EXON_FILE, struct fasta
 	while ((read = getline(&line, &len, fp0)) != -1) {
 		if((fields = strsplit(line, 0, &num))==NULL) continue; // get rid of \n 
 		str_ctr_add(&gene_name_ctr, strToUpper(fields[0]));		
-		printf("%s\n",  fields[0]);
 	}
 	fclose(fp0);
 	printf("asfaskdflnaslkfaslkdfjlak\n");

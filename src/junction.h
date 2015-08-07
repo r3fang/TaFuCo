@@ -10,8 +10,6 @@
 #include "utils.h"
 #include "uthash.h"
 
-
-
 // junction of gene fusion
 typedef struct {
 	char* idx; // determined by exon1.exon2.jump_start.jump_end
@@ -28,7 +26,8 @@ typedef struct {
     UT_hash_handle hh;
 } junction_t;
 
-junction_t *junction_init(int seed_len){
+static inline junction_t 
+*junction_init(int seed_len){
 	junction_t *junc = mycalloc(1, junction_t);
 	junc->idx = NULL;
 	junc->exon1 = NULL;

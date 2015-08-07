@@ -58,17 +58,6 @@ find_str_ctr(str_ctr *tb, const char *quary){
 	return s;
 }
 
-unsigned long
-hash(char *str)
-{
-    unsigned long hash = 5381;
-    int c;
-
-    while (c == *str++)
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-    return hash;
-}
-
 static inline int 
 mystrcmp(const void * a, const void * b)
 {
