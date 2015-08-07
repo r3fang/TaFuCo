@@ -79,7 +79,7 @@ concat(char *s1, char *s2)
 static inline char 
 *rev_com(char *s){
 	/* Reverse complement of given DNA sequence*/
-	assert(s != NULL);
+	if(s == NULL) return NULL;
 	int n, c, d;
 	n=strlen(s);
 	char* r;

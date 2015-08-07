@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 #include "kstring.h"
-#include "name2fasta.h"
+#include "name2fasta.h" 
 #include "predict.h"
 
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "0.7.30-r15"
+#define PACKAGE_VERSION "08.05-r15"
 #endif
 
 int name2fasta(int argc, char *argv[]);
@@ -18,7 +18,7 @@ static int usage()
 	fprintf(stderr, "Version: %s\n", PACKAGE_VERSION);
 	fprintf(stderr, "Contact: Rongxin Fang <r3fang@ucsd.edu>\n\n");
 	fprintf(stderr, "Usage:   tfc <command> [options]\n\n");
-	fprintf(stderr, "Command: name2fasta     extract exon sequences by gene name\n");
+	fprintf(stderr, "Command: name2fasta     extract exon sequences\n");
 	fprintf(stderr, "         predict        predict gene fusion\n");
 	fprintf(stderr, "\n");
 	return 1;
