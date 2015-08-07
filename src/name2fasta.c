@@ -84,10 +84,10 @@ int name2fasta_usage(){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc name2fasta [options] <gname.txt> <in.fa.gz> <exons.fa> \n\n");
 			fprintf(stderr, "Details: name2fasta is to extract genomic sequence of gene candiates\n\n");
-			fprintf(stderr, "Options: -g          organism; 0 for human and 1 for mouse\n\n");
-			fprintf(stderr, "Inputs:  gname.txt   plain txt file contains names of genes candiates\n");
-			fprintf(stderr, "         in.fa       fasta file contains the entire genome sequence [hg19.fa]\n");
-			fprintf(stderr, "         exon.fa     output fasta files that contains sequences of targeted genes\n");
+			fprintf(stderr, "Options: -g          organism - 0 for human; 1 for mouse\n\n");
+			fprintf(stderr, "Inputs:  gname.txt   plain txt file contains names of gene candiates e.g. [genes.txt]\n");
+			fprintf(stderr, "         hg19.fa     fasta file contains the whole genome sequence   e.g. [hg19.fa.gz]\n");
+			fprintf(stderr, "         out.fa      output fasta files contains extracted seq of targeted genes\n");
 			return 1;
 }
 

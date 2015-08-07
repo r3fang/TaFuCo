@@ -298,13 +298,8 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 }
 
 static inline solution_t 
-*align(char *s1, char *s2, int junction, opt_t* opt){
-	if(s1 == NULL || s2 == NULL || opt==NULL) die("[%s] parameter error", __func__);
-	double MATCH = opt->match;
-	double MISMATCH = opt->mismatch;
-	double GAP = opt->gap;
-	double EXTENSION = opt->extension;
-	double JUMP_GENE = opt->jump_gene;
+*align(char *s1, char *s2, int junction, double MATCH, double MISMATCH, double GAP, double EXTENSION, double JUMP_GENE){
+	if(s1 == NULL || s2 == NULL) die("[%s] parameter error", __func__);
 	
 	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
 	size_t m   = strlen(s1) + 1; 
@@ -426,8 +421,8 @@ static inline solution_t
 	return s;
 }
 
-static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, int S1_num, int S2_num, opt_t *opt){
-	if(s1 == NULL || s2 == NULL || opt==NULL) return NULL;
+static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, int S1_num, int S2_num, double MATCH, double MISMATCH, double GAP, double EXTENSION, double JUMP_EXON){
+	if(s1 == NULL || s2 == NULL) return NULL;
 	if(strlen(s1) > strlen(s2)) return NULL; 	
 	size_t m   = strlen(s1) + 1; 
 	size_t n   = strlen(s2) + 1;
@@ -455,7 +450,7 @@ static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, 
 	for(i=1; i<=strlen(s1); i++){
 		for(j=1; j<=strlen(s2); j++){
 			// MID any state can goto MID
-			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? opt->match : opt->mismatch;
+			delta = ((toupper(s1[i-1]) - toupper(s2[j-1])) == 0) ? MATCH : MISMATCH;
 			tmp_G1 = (isvalueinarray(j, S1, S1_num)) ?  S->G1[i-1][j-1]+delta : -INFINITY;
 			tmp_G2 = (isvalueinarray(j, S2, S2_num)) ?  S->G2[i-1][j-1]+delta : -INFINITY;
 			idx = max6(&S->M[i][j], S->L[i-1][j-1]+delta, S->M[i-1][j-1]+delta, S->U[i-1][j-1]+delta, tmp_G1, tmp_G2, -INFINITY);
@@ -465,20 +460,20 @@ static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, 
 			if(idx == 3) S->pointerM[i][j]=GENE1;
 			if(idx == 4) S->pointerM[i][j]=GENE2;
 			// LOW
-			idx = max6(&S->L[i][j], S->L[i-1][j]+opt->extension, S->M[i-1][j]+opt->gap, -INFINITY, -INFINITY, -INFINITY,  -INFINITY);
+			idx = max6(&S->L[i][j], S->L[i-1][j]+EXTENSION, S->M[i-1][j]+GAP, -INFINITY, -INFINITY, -INFINITY,  -INFINITY);
 			if(idx == 0) S->pointerL[i][j]=LOW;
 			if(idx == 1) S->pointerL[i][j]=MID;
 			// UPP
-			idx = max6(&S->U[i][j], S->M[i][j-1]+opt->gap, S->U[i][j-1]+opt->extension,  -INFINITY, -INFINITY, -INFINITY, -INFINITY);
+			idx = max6(&S->U[i][j], S->M[i][j-1]+GAP, S->U[i][j-1]+EXTENSION,  -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerU[i][j]=MID;
 			if(idx == 1) S->pointerU[i][j]=UPP;
 			// G1
-			tmp_M = (isvalueinarray(j, S1, S1_num)) ?  S->M[i][j-1]+opt->jump_exon : -INFINITY;
+			tmp_M = (isvalueinarray(j, S1, S1_num)) ?  S->M[i][j-1]+JUMP_EXON : -INFINITY;
 			idx = max6(&S->G1[i][j], tmp_M, S->G1[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerG1[i][j] = MID;			
 			if(idx == 1) S->pointerG1[i][j] = GENE1;
 			//G2
-			tmp_M = (isvalueinarray(j, S2, S2_num)) ?  S->M[i][j-1]+opt->jump_exon : -INFINITY;
+			tmp_M = (isvalueinarray(j, S2, S2_num)) ?  S->M[i][j-1]+JUMP_EXON : -INFINITY;
 			idx = max6(&S->G2[i][j], tmp_M, S->G2[i][j-1], -INFINITY, -INFINITY, -INFINITY, -INFINITY);
 			if(idx == 0) S->pointerG2[i][j] = MID;			
 			if(idx == 1) S->pointerG2[i][j] = GENE2;
@@ -507,7 +502,7 @@ static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, 
 	solution_t *s = trace_back_exon_jump(S, s1, s2, max_state, i_max, j_max);	
 	destory_matrix(S);
 	s->score = max_score;	
-	s->prob = max_score/(opt->match*strlen(s1));	
+	s->prob = max_score/MATCH*strlen(s1);	
 	return s;
 }
 

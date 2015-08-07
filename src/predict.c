@@ -1,45 +1,101 @@
 /*--------------------------------------------------------------------*/
-/* main.c                                                             */
+/* predict.c                                                          */
 /* Author: Rongxin Fang                                               */
 /* E-mail: r3fang@ucsd.edu                                            */
 /* Predict Gene Fusion by given fastq files.                          */
 /*--------------------------------------------------------------------*/
-#include <stdio.h>  
-#include <stdlib.h>  
-#include <string.h> 
-#include <zlib.h>  
-#include <assert.h>
-#include <math.h>
-#include <regex.h>
-#include "kseq.h"
-#include "kmer_uthash.h"
-#include "BAG_uthash.h"
-#include "fasta_uthash.h"
-#include "utils.h"
-#include "alignment.h"
-#include "junction.h"
 #include "predict.h"
 
-/* error code */
-#define MAX_ALLOWED_K                   50
-#define EXON_HALF_FLANK                 0
+static struct kmer_uthash 
+*kmer_uthash_construct(struct fasta_uthash *tb, int k){
+	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;
+	register char *kmer;
+	char *name = NULL;	
+	char *seq = NULL;	
+	register int i, j;
+	struct kmer_uthash  *s_kmer, *tmp_kmer, *ret = NULL;
+	struct fasta_uthash *s_fasta, *tmp_fasta;
+	HASH_ITER(hh, tb, s_fasta, tmp_fasta) {
+		seq = strToUpper(s_fasta->seq);
+		name = s_fasta->name;
+		if(seq == NULL || name == NULL || strlen(seq) <= k){
+			continue;
+		}
+		for(i=0; i < strlen(seq)-k+1; i++){
+			kmer = mycalloc(k+1, char);
+			memset(kmer, '\0', k+1);
+			strncpy(kmer, strToUpper(s_fasta->seq)+i, k);
+			kmer_uthash_insert(&ret, kmer, name); 
+		}
+	}
+	if(kmer) free(kmer);
+	if(seq)  free(seq);
+	if(name)  free(name);
+	kmer_uthash_uniq(&ret);
+	return ret;
+}
 
-/*--------------------------------------------------------------------*/
-/*Global paramters.*/
-static struct fasta_uthash *GENO_HT     = NULL;  // reference genome "hg19"
-static struct fasta_uthash *EXON_HT     = NULL;  // extracted exon sequences
-static struct kmer_uthash  *KMER_HT     = NULL;  // kmer hash table
-static struct BAG_uthash   *BAGR_HT     = NULL;  // Breakend Associated Graph
-static        junction_t   *JUN0_HT     = NULL;  // rough junctions identified from BAG
-static        junction_t   *JUN1_HT     = NULL;  // final junctions
-static   solution_pair_t   *SOLU_HT     = NULL;  // Identified Junction sites
+static struct BAG_uthash
+*BAG_uthash_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
+	if(kmer_uthash == NULL || fq1 == NULL || fq2 == NULL) return NULL;
+	struct BAG_uthash *bag = NULL;
+	gzFile fp1, fp2;
+	register int l1, l2;
+	register kseq_t *seq1, *seq2;
+	register char *_read1, *_read2;
+	register char *edge_name;
+	_read1 = _read2 = edge_name = NULL;
+	
+	if((fp1 = gzopen(fq1, "r"))==NULL) die("[%s] fail to read fastq files", __func__);
+	if((fp2 = gzopen(fq2, "r"))==NULL) die("[%s] fail to read fastq files", __func__);	
+	if((seq1 = kseq_init(fp1))==NULL)  die("[%s] fail to read fastq files", __func__);
+	if((seq2 = kseq_init(fp2))==NULL)  die("[%s] fail to read fastq files", __func__);
 
-static char* concat_exons(char*, struct fasta_uthash *, struct kmer_uthash *, int, char *, char* ,  char **, char **, int *);
-static int find_junction_one_edge(struct BAG_uthash*, struct fasta_uthash *, opt_t *, junction_t **);
-static junction_t *junction_construct(struct BAG_uthash *, struct fasta_uthash *, opt_t *);
-static struct kmer_uthash  *kmer_uthash_construct(struct fasta_uthash *, int);
-static struct BAG_uthash   *BAG_uthash_construct(struct kmer_uthash *, char*, char*, int, int);
-static int junction_rediscover_unit(junction_t *, opt_t *, solution_pair_t **);
+	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
+		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
+		_read2 = seq2->seq.s;		
+		if(_read1 == NULL || _read2 == NULL) continue;
+		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched", __func__);		
+		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
+		str_ctr* gene_counter = NULL;
+		str_ctr *s, *tmp;
+		find_all_genes(&gene_counter, kmer_uthash, _read1, _k);
+		find_all_genes(&gene_counter, kmer_uthash, _read2, _k);
+		
+		HASH_SORT(gene_counter, str_ctr_sort);
+		unsigned int num = HASH_COUNT(gene_counter);
+		
+		char** hits = mycalloc(num, char*);
+		int i=0; if(num > 1){
+			HASH_ITER(hh, gene_counter, s, tmp) { 
+				if(s->SIZE >= min_kmer_matches){hits[i++] = strdup(s->KEY);}
+			}			
+		}
+		int m, n; for(m=0; m < i; m++){for(n=m+1; n < i; n++){
+				int rc = strcmp(hits[m], hits[n]);
+				if(rc<0)  edge_name = concat(concat(hits[m], "_"), hits[n]);
+				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
+				if(rc==0) edge_name = NULL;
+				if(edge_name!=NULL){
+					if(BAG_uthash_add(&bag, edge_name, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
+				}
+		}}
+		if(hits)		 free(hits);
+		if(gene_counter) free(gene_counter);
+	}
+	// remove the edges with weight < min_edge_weight	
+	register struct BAG_uthash *cur, *tmp;
+	HASH_ITER(hh, bag, cur, tmp) {
+		if(cur->weight < min_edge_weight) {HASH_DEL(bag, cur); free(cur);}
+    }
+	
+	kseq_destroy(seq1);
+	kseq_destroy(seq2);	
+	gzclose(fp1);
+	gzclose(fp2);
+	return bag;
+}
+
 
 static int
 find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret){
@@ -63,8 +119,10 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
 		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
 		if((str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &ename1, &ename2, &junction))==NULL) continue;
-		a = align(_read1, str2, junction, opt);
-		b = align(_read2, str2, junction, opt);
+
+		a = align(_read1, str2, junction, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
+		b = align(_read2, str2, junction, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
+
 		if(a->jump == true && a->prob >= opt->min_align_score){
 			idx = idx2str(concat(concat(ename1, "."), ename2), a->jump_start, a->jump_end);
 			HASH_FIND_STR(*ret, idx, m);
@@ -207,99 +265,6 @@ static char
 	return ret;
 }
 
-static struct kmer_uthash 
-*kmer_uthash_construct(struct fasta_uthash *tb, int k){
-	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;
-	register char *kmer;
-	char *name = NULL;	
-	char *seq = NULL;	
-	register int i, j;
-	struct kmer_uthash  *s_kmer, *tmp_kmer, *ret = NULL;
-	struct fasta_uthash *s_fasta, *tmp_fasta;
-	HASH_ITER(hh, tb, s_fasta, tmp_fasta) {
-		seq = strToUpper(s_fasta->seq);
-		name = s_fasta->name;
-		if(seq == NULL || name == NULL || strlen(seq) <= k){
-			continue;
-		}
-		for(i=0; i < strlen(seq)-k+1; i++){
-			kmer = mycalloc(k+1, char);
-			memset(kmer, '\0', k+1);
-			strncpy(kmer, strToUpper(s_fasta->seq)+i, k);
-			kmer_uthash_insert(&ret, kmer, name); 
-		}
-	}
-	if(kmer) free(kmer);
-	if(seq)  free(seq);
-	if(name)  free(name);
-	kmer_uthash_uniq(&ret);
-	return ret;
-}
-
-/* 
- * Construct breakend associated graph.             
- * fq_file1 - fastq file name for R1
- * fq_file2 - fastq file name for R2
- * _k       - kmer length for hash table
- * cutoff   - min number of kmer matches between a read again a gene.
- * bag      - BAG_uthash object (breakend associated graph)
- */
-static struct BAG_uthash
-*BAG_uthash_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq2, int _min_match, int _k){
-	if(kmer_uthash == NULL || fq1 == NULL || fq2 == NULL) return NULL;
-	struct BAG_uthash *bag = NULL;
-	int error;
-	gzFile fp1, fp2;
-	register int l1, l2;
-	register kseq_t *seq1, *seq2;
-	register char *_read1, *_read2;
-	register char *edge_name;
-	_read1 = _read2 = edge_name = NULL;
-	
-	if((fp1 = gzopen(fq1, "r"))==NULL) die("[%s] fail to read fastq files", __func__);
-	if((fp2 = gzopen(fq2, "r"))==NULL) die("[%s] fail to read fastq files", __func__);	
-	if((seq1 = kseq_init(fp1))==NULL)  die("[%s] fail to read fastq files", __func__);
-	if((seq2 = kseq_init(fp2))==NULL)  die("[%s] fail to read fastq files", __func__);
-
-	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
-		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
-		_read2 = seq2->seq.s;		
-		if(_read1 == NULL || _read2 == NULL) continue;
-		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched", __func__);		
-		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
-		str_ctr* gene_counter = NULL;
-		str_ctr *s, *tmp;
-		find_all_genes(&gene_counter, kmer_uthash, _read1, _k);
-		find_all_genes(&gene_counter, kmer_uthash, _read2, _k);
-		
-		HASH_SORT(gene_counter, str_ctr_sort);
-		unsigned int num = HASH_COUNT(gene_counter);
-		
-		char** hits = mycalloc(num, char*);
-		int i=0; if(num > 1){
-			HASH_ITER(hh, gene_counter, s, tmp) { 
-				if(s->SIZE >= _min_match){hits[i++] = strdup(s->KEY);}
-			}			
-		}
-		int m, n; for(m=0; m < i; m++){for(n=m+1; n < i; n++){
-				int rc = strcmp(hits[m], hits[n]);
-				if(rc<0)  edge_name = concat(concat(hits[m], "_"), hits[n]);
-				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
-				if(rc==0) edge_name = NULL;
-				if(edge_name!=NULL){
-					if(BAG_uthash_add(&bag, edge_name, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
-				}
-		}}
-		if(hits)		 free(hits);
-		if(gene_counter) free(gene_counter);
-	}
-	kseq_destroy(seq1);
-	kseq_destroy(seq2);	
-	gzclose(fp1);
-	gzclose(fp2);
-	return bag;
-}
-
 static solution_pair_t *align_to_transcript(junction_t *junc, opt_t *opt){
 	if(junc==NULL || opt==NULL) return NULL;
 	solution_pair_t *res = NULL;
@@ -331,8 +296,10 @@ static int junction_rediscover_unit(junction_t *junc, opt_t *opt, solution_pair_
 		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
 		if((min_mismatch(_read1, junc->s)) <= mismatch || (min_mismatch(_read2, junc->s)) <= mismatch ){
-			if((sol1 = align_exon_jump(_read1, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt))==NULL) continue;
-			if((sol2 = align_exon_jump(_read2, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt))==NULL) continue;
+			
+			if((sol1 = align_exon_jump(_read1, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if((sol2 = align_exon_jump(_read2, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			
 			s_sp = find_solution_pair(*sol_pair, seq1->name.s);
 			if(s_sp!=NULL){ // if exists
 				if(s_sp->prob < sol1->prob*sol2->prob){
@@ -450,8 +417,8 @@ static int pred_usage(opt_t *opt){
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
 			fprintf(stderr, "Details: predict gene fusion from RNA-seq data\n\n");
 			fprintf(stderr, "Options: -k INT    kmer length [%d]\n", opt->k);
-			fprintf(stderr, "         -n INT    min number kmer matches [%d]\n", opt->min_match);
-			fprintf(stderr, "         -w INT    min weight for an edge [%d]\n", opt->min_weight);
+			fprintf(stderr, "         -n INT    min number kmer matches [%d]\n", opt->min_kmer_match);
+			fprintf(stderr, "         -w INT    min weight for an edge [%d]\n", opt->min_edge_weight);
 			fprintf(stderr, "         -m INT    match score [%d]\n", opt->match);
 			fprintf(stderr, "         -u INT    penality for mismatch [%d]\n", opt->mismatch);
 			fprintf(stderr, "         -o INT    penality for gap open [%d]\n", opt->gap);
@@ -479,8 +446,8 @@ int predict(int argc, char *argv[]) {
 	junction_t *junc_ht;
 	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s:h:l:x:a")) >= 0) {
 				switch (c) {
-				case 'n': opt->min_match = atoi(optarg); break;
-				case 'w': opt->min_weight = atoi(optarg); break;
+				case 'n': opt->min_kmer_match = atoi(optarg); break;
+				case 'w': opt->min_edge_weight = atoi(optarg); break;
 				case 'k': opt->k = atoi(optarg); break;
 				case 'm': opt->match = atoi(optarg); break;
 				case 'u': opt->mismatch = atoi(optarg); break;
@@ -506,7 +473,7 @@ int predict(int argc, char *argv[]) {
 	if((KMER_HT = kmer_uthash_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
 
 	fprintf(stderr, "[%s] constructing graph ... \n", __func__);
-	if((BAGR_HT = BAG_uthash_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_match, opt->k)) == NULL)	die("[%s] can't construct BAG graph", __func__); 	
+	if((BAGR_HT = BAG_uthash_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL)	die("[%s] can't construct BAG graph", __func__); 	
 
 	fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
 	if((JUN0_HT = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);

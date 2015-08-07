@@ -10,19 +10,21 @@ $ ./tfc -predict exon.fa reads1.fq.gz reads2.fq.gz > tfc.out
 
 ##Introduction
 
-TFC is a super lightwieght, stand-alone, ultrafast, C-implemented, mapping-free and highly sensitive software desgined for detection of fusion between candiate genes using Illumina RNA-seq data. It consists of two major components: 
+TFC is a super lightwieght, stand-alone, ultrafast, C-implemented, mapping-free and highly sensitive and precise software desgined for fusion detection between candiate genes by RNA-seq data. It consists of two major components: 
  
 ```
-$./tfc
+$ ./tfc
 
 Program: tfc (targeted gene fusion calling)
-Version: 0.8.05-r15
+Version: 08.05-r15
 Contact: Rongxin Fang <r3fang@ucsd.edu>
 
 Usage:   tfc <command> [options]
 
-Command: name2fasta     extract exon sequences by gene name
+Command: name2fasta     extract exon sequences
          predict        predict gene fusion
+
+
 ```
 
  - name2fasta
@@ -30,14 +32,15 @@ Command: name2fasta     extract exon sequences by gene name
 ```
 $./tfc name2fasta
 
-Usage:   tfc name2fasta <gname.txt> <genes.gff> <in.fa> <exon.fa>
+Usage:   tfc name2fasta [options] <gname.txt> <in.fa.gz> <out.fa> 
 
 Details: name2fasta is to extract genomic sequence of gene candiates
 
-Inputs:  gname.txt   plain txt file contains names of genes candiates
-         genes.gff   standard gff files contains genes annotation
-         in.fa       fasta file contains the entire genome sequence [hg19.fa]
-         exon.fa     output fasta files that contains sequences of targeted genes
+Options: -g          organism - 0 for human; 1 for mouse
+
+Inputs:  gname.txt   plain txt file contains names of gene candiates e.g. [genes.txt]
+         hg19.fa     fasta file contains the whole genome sequence   e.g. [hg19.fa]
+         out.fa      output fasta files contains extracted seq of targeted genes
 ```
 
   - predict
@@ -69,7 +72,6 @@ Inputs:  exon.fa   fasta file that contains exon sequences of targeted
          R1.fq     5'->3' end of pair-end sequencing reads
          R2.fq     the other end of pair-end sequencing reads
 ```
-
 
 ## Workflow
 

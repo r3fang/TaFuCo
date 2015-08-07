@@ -175,53 +175,6 @@ static inline str_ctr
 	return s;
 }
 
-//opt
-typedef struct {
-	char* fq1; // gap open
-	char* fq2; // gap open
-	char* fa; // gap open
-	int k; // gap extension
-	int min_match; // match
-	int min_weight; // unmatch
-	int match;
-	int mismatch;
-	int gap;
-	int extension;
-	int jump_gene;
-	int jump_exon;
-	int min_hits;
-	int seed_len;
-	int max_mismatch;
-	double min_align_score;
-} opt_t;
-
-static inline opt_t *opt_init(){
-	opt_t *opt = mycalloc(1, opt_t);
-	opt->fq1 = NULL;
-	opt->fq2 = NULL;
-	opt->fa = NULL;
-	opt->k = 15;
-	opt->min_match = 10;
-	opt->min_weight = 3;	
-	opt->match = 2;
-	opt->mismatch = -2.0;
-	opt->gap = -5.0;
-	opt->extension = -1.0;
-	opt->jump_gene = -10.0;
-	opt->jump_exon = -8.0;
-	opt->min_hits = 3;
-	opt->min_align_score = 0.8;
-	opt->seed_len = 20;
-	opt->max_mismatch = 2;
-	return opt;
-}
-static inline void destory_opt(opt_t *opt){
-	if(opt->fq1) free(opt->fq1);
-	if(opt->fq2) free(opt->fq2);
-	if(opt->fa)  free(opt->fa);
-	free(opt);
-}
-
 static inline bool 
 isvalueinarray(int val, int *arr, int size){
 	if(arr==NULL) return false;
