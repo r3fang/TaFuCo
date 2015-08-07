@@ -6,7 +6,7 @@
 #define PACKAGE_VERSION "0.7.30-r15"
 #endif
 
-int main_exon_seq(int argc, char *argv[]);
+int name2fasta(int argc, char *argv[]);
 int main_prefict(int argc, char *argv[]);
 
 static int usage()
@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 	ksprintf(&pg, "@PG\tID:tfc\tPN:tfc\tVN:%s\tCL:%s", PACKAGE_VERSION, argv[0]);
 	for (i = 1; i < argc; ++i) ksprintf(&pg, " %s", argv[i]);
 	if (argc < 2) return usage();
-	else if (strcmp(argv[1], "name2fasta") == 0) ret = main_exon_seq(argc-1, argv+1);
+	else if (strcmp(argv[1], "name2fasta") == 0) ret = name2fasta(argc-1, argv+1);
 	else if (strcmp(argv[1], "predict") == 0) ret = main_prefict(argc-1, argv+1);
 	else {
 		fprintf(stderr, "[main] unrecognized command '%s'\n", argv[1]);

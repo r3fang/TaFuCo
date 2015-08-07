@@ -42,7 +42,8 @@ static struct BAG_uthash   *BAG_uthash_construct(struct kmer_uthash *, char*, ch
 static int junction_rediscover_unit(junction_t *, opt_t *, solution_pair_t **);
 
 
-static struct fasta_uthash *extract_exon_seq(char* fname, char *EXON_FILE, struct fasta_uthash *HG19_HT){
+static struct fasta_uthash 
+*extract_exon_seq(char* fname, char *EXON_FILE, struct fasta_uthash *HG19_HT){
 	if(fname == NULL || HG19_HT == NULL) return NULL;
 	struct fasta_uthash *s_fasta, *cur_fasta, *ret_fasta = NULL;
 	str_ctr *s_ctr, *ctr = NULL, *gene_name_ctr = NULL;
@@ -61,14 +62,16 @@ static struct fasta_uthash *extract_exon_seq(char* fname, char *EXON_FILE, struc
 	struct fasta_uthash *s;
 	char *seq;
 	char exon_idx[50];
-	FILE *fp0 = fopen(fname, "r");
+	
+	FILE * fp0 = fopen (fname, "r");
 	if(fp0==NULL) die("[%s] can't open %s", __func__, fname); 
 	while ((read = getline(&line, &len, fp0)) != -1) {
 		if((fields = strsplit(line, 0, &num))==NULL) continue; // get rid of \n 
-		str_ctr_add(&gene_name_ctr, fields[0]);		
+		str_ctr_add(&gene_name_ctr, strToUpper(fields[0]));		
+		printf("%s\n",  fields[0]);
 	}
 	fclose(fp0);
-	
+	printf("asfaskdflnaslkfaslkdfjlak\n");
 	FILE *fp = fopen(EXON_FILE, "r");
 	if(fp==NULL) die("[%s] can't open %s", __func__, EXON_FILE);
 	while ((read = getline(&line, &len, fp)) != -1) {
@@ -80,7 +83,7 @@ static struct fasta_uthash *extract_exon_seq(char* fname, char *EXON_FILE, struc
 		if((start = atoi(fields[3]))<0) continue;
 		if((end = atoi(fields[4]))<0) continue;
 		if((strand = fields[5])==NULL) continue;
-		if((gname = fields[6])==NULL) continue;
+		if((gname = strToUpper(fields[6]))==NULL) continue;
 		if(strcmp(category, "exon")!=0) continue;
 		if((find_str_ctr(gene_name_ctr, gname)) == NULL) continue; // only for targetted genes
 		if((end - start)<=0) continue;
@@ -139,7 +142,6 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
 		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
 		if((str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &ename1, &ename2, &junction))==NULL) continue;
-		
 		a = align(_read1, str2, junction, opt);
 		b = align(_read2, str2, junction, opt);
 		if(a->jump == true && a->prob >= opt->min_align_score){
@@ -152,7 +154,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 				m->exon2  = ename2;				
 				m->hits  = 1;
 				m->likehood = 10*log(a->prob); 				
-				// 20bp junction flanking sequence 
+				// junction flanking sequence 
 				memcpy( m->s, &str2[a->jump_start-opt->seed_len/2-1], opt->seed_len/2);
 				memcpy( &m->s[opt->seed_len/2], &str2[a->jump_end], opt->seed_len/2);
 				// junction flanking sequence 
@@ -510,6 +512,7 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, opt_t 
 			junc_cur2->idx = junc_cur1->idx;
 			junc_cur2->exon1 = junc_cur1->exon1;
 			junc_cur2->exon2 = junc_cur1->exon2;			
+			junc_cur2->s = junc_cur1->s;			
 			junc_cur2->hits = 1;	
 			junc_cur2->likehood = 10*log(sol_cur->prob);	
 			HASH_ADD_STR(junc_res, idx, junc_cur2);
@@ -553,7 +556,7 @@ int main_prefict(int argc, char *argv[]) {
 	int c, i;
 	srand48(11);
 	junction_t *junc_ht;
-	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s")) >= 0) {
+	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s:h:l:x:a")) >= 0) {
 				switch (c) {
 				case 'n': opt->min_match = atoi(optarg); break;
 				case 'w': opt->min_weight = atoi(optarg); break;
@@ -575,7 +578,6 @@ int main_prefict(int argc, char *argv[]) {
 	opt->fa  = argv[optind];
 	opt->fq1 = argv[optind+1];
 	opt->fq2 = argv[optind+2];
-	
 	fprintf(stderr, "[%s] loading reference exon sequences ... \n",__func__);
 	if((EXON_HT = fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference genome %s", __func__, opt->fa);	
 
@@ -596,11 +598,10 @@ int main_prefict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
 	if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
-	
+
 	junction_t *junc_cur, *junc_tmp;
-	HASH_ITER(hh, JUN0_HT, junc_cur, junc_tmp) {
-		printf("-------------------------------------------------------------\n");
-		printf("%s\t%s\t%s\n", junc_cur->exon1, junc_cur->exon2, junc_cur->transcript);
+	HASH_ITER(hh, JUN1_HT, junc_cur, junc_tmp) {
+		printf("%s\t%s\t%zu\t%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->likehood);
 	}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
@@ -616,28 +617,48 @@ int main_prefict(int argc, char *argv[]) {
 
 static int exon_seq_usage(){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc name2fasta <gname.txt> <genes.gff> <in.fa> <exon.fa>\n\n");
+			fprintf(stderr, "Usage:   tfc name2fasta [options] <gname.txt> <in.fa.gz> <exon.fa>\n\n");
 			fprintf(stderr, "Details: name2fasta is to extract genomic sequence of gene candiates\n\n");
+			fprintf(stderr, "Options: -g          organism; 0 for human and 1 for mouse\n\n");
 			fprintf(stderr, "Inputs:  gname.txt   plain txt file contains names of genes candiates\n");
-			fprintf(stderr, "         genes.gff   standard gff files contains genes annotation\n");
 			fprintf(stderr, "         in.fa       fasta file contains the entire genome sequence [hg19.fa]\n");
 			fprintf(stderr, "         exon.fa     output fasta files that contains sequences of targeted genes\n");
 			return 1;
 }
 
-int main_exon_seq(int argc, char *argv[]) {
+int name2fasta(int argc, char *argv[]) {
 	int c, i;
 	srand48(11);
-	if (optind + 4 > argc) return exon_seq_usage();
 	char *gene_name, *gff_name, *oname, *iname;
+	int orgsm = -1;
+	while ((c = getopt(argc, argv, "g:c")) >= 0) {
+				switch (c) {
+				case 'g': orgsm = atoi(optarg); break;
+				default: return 1;
+		}
+	}
+
+	if (optind + 3 > argc) return exon_seq_usage();
 	gene_name = argv[optind];
-	gff_name = argv[optind+1];
-	iname = argv[optind+2];
-	oname = argv[optind+3];
+	iname = argv[optind+1];
+	oname = argv[optind+2];
+
+	if(orgsm==-1) {
+		fprintf(stderr, "[%s] organism missing\n", __func__);
+		return 1;
+	}
+		
+	if(orgsm != 0 && orgsm != 1) {
+		fprintf(stderr, "[%s] unrecognized organism, must be 0 or 1\n", __func__);
+		return 1;
+	}
+	
+	if(orgsm==0) gff_name = "hg.bed";
+	if(orgsm==1) gff_name = "mm.bed";	
 	
 	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	if((GENO_HT = fasta_uthash_load(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
-
+	printf("%s\t%s\n", gene_name, gff_name);
 	fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
 	if((EXON_HT = extract_exon_seq(gene_name, gff_name, GENO_HT))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
 
