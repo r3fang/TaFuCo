@@ -53,18 +53,20 @@ Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>
 Details: predict gene fusion from RNA-seq data
 
 Options: -k INT    kmer length for indexing genome [15]
-         -n INT    min number of uniq kmer matches for a gene-read match [10]
+         -n INT    min number of uniq kmer matches for a gene-read hit [10]
          -w INT    min weight for an edge in BAG [3]
-         -m INT    score for match in alignment [2]
+         
+		 -m INT    score for match in alignment [2]
          -u INT    score for mismatch in alignment [-2]
          -o INT    penality for gap open [-5]
          -e INT    penality for gap extension [-1]
          -j INT    penality for jump between genes [-10]
          -s INT    penality for jump between exons [-8]
-         -a FLOAT  min identity score for alignment [0.80]
-         -h INT    min hits for a junction [3]
-         -l INT    length for junction string [20]
-         -x INT    max mismatches of junction string match [2]
+         -a FLOAT  min identity for an alignment [0.80]
+         
+		 -h INT    min unique read hits for a junction [3]
+		 -l INT    length for junction string [20]         
+		 -x INT    max mismatches of junction string match [2]
 
 Inputs:  exon.fa   fasta file that contains exon sequences of targeted 
                    genes with no flanking sequence which can be generated: 
@@ -76,6 +78,14 @@ Inputs:  exon.fa   fasta file that contains exon sequences of targeted
 ## Workflow
 
 ![workflow](https://github.com/r3fang/tfc/blob/master/img/workflow.jpg)
+
+## FAQ
+
+1. How fast is tfc?
+2. Does tfc need reads to be mapped in advance?
+3. How precise is tfc?
+4. Does tfc work for single-end reads?
+5. How to give credits to tfc?
 
 #### Version
 08.05-r15
