@@ -653,8 +653,8 @@ int name2fasta(int argc, char *argv[]) {
 		return 1;
 	}
 	
-	if(orgsm==0) gff_name = "hg.bed";
-	if(orgsm==1) gff_name = "mm.bed";	
+	if(orgsm==0) gff_name = "data/hg.bed";
+	if(orgsm==1) gff_name = "data/mm.bed";	
 	
 	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	if((GENO_HT = fasta_uthash_load(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
