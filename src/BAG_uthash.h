@@ -25,6 +25,7 @@
 struct BAG_uthash {
 	char *edge;
 	size_t weight;
+	char **read_names;
 	char **evidence;    
     UT_hash_handle hh;         /* makes this structure hashable */
 };
@@ -39,6 +40,7 @@ static inline struct BAG_uthash
 	t->edge = NULL;
 	t->weight = 0;
 	t->evidence = mycalloc(1, char*);
+	t->read_names = mycalloc(1, char*);
 	return t;
 }
 
@@ -70,13 +72,13 @@ static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
 	HASH_ITER(hh, graph_ht, cur, tmp) {
 		if(cur == NULL) die("BAG_uthash_display: HASH_ITER fails\n");
 		int i; for(i=0; i < cur->weight; i++){
-			printf(">%s\n%s\n", cur->edge, cur->evidence[i]);
+			printf(">%s\t%s\n%s\n", cur->edge, cur->read_names[i], cur->evidence[i]);
 		}
 	}
 	return BA_ERR_NONE;
 }
 
-static inline struct BAG_uthash 
+static inline struct BAG_uthash
 *find_edge(struct BAG_uthash *tb, char* quary_name) {
 	if(quary_name == NULL) die("[%s] input error", __func__);
 	struct BAG_uthash* s = NULL;	
@@ -88,7 +90,7 @@ static inline struct BAG_uthash
  * add one edge to graph
  */
 static inline int 
-BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
+BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* read_name, char* evidence){
 	/* check parameters */
 	if(edge_name == NULL || evidence == NULL) die("[%s]: parameter error\n", __func__);
 	struct BAG_uthash *s;
@@ -97,6 +99,7 @@ BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
 		s = BAG_uthash_init();
 		s->edge = strdup(edge_name);
 		s->weight = 1;
+		s->read_names[0] = strdup(read_name);
 		s->evidence[0] = strdup(evidence); /* first and only 1 element*/
 		HASH_ADD_STR(*graph_ht, edge, s);								
 	}else{
@@ -108,6 +111,14 @@ BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* evidence){
 	 	tmp[n] = strdup(evidence);
 	 	free(s->evidence);
 	 	s->evidence = tmp;
+		
+		tmp = mycalloc(s->weight, char*);
+	 	for (n = 0; n < s->weight-1; n++){
+	 		tmp[n] = strdup(s->read_names[n]);
+	 	}
+	 	tmp[n] = strdup(read_name);
+	 	free(s->read_names);
+	 	s->read_names = tmp;
 	}
 	return BA_ERR_NONE;
 }
@@ -168,35 +179,6 @@ BAG_uthash_uniq(struct BAG_uthash **tb){
 		}
     }	
 	return BA_ERR_NONE;
-}
-
-///*
-// * trim edges with evidence less than min_weight
-// */
-static inline struct BAG_uthash 
-*BAG_uthash_load(char* fname){
-	if(fname == NULL) die("[%s] input error", __func__);
-	struct BAG_uthash *tb = NULL;
-	struct BAG_uthash *cur = NULL;
-	
-	gzFile fp;
-	kseq_t *seq;
-	int l;
-	fp = gzopen(fname, "r");
-	if(fp == NULL) die("[%s] fail to open %s", __func__, fname);		
-
-	struct fasta_uthash *s;	
-	if((seq = kseq_init(fp))==NULL) die("[%s] kseq_init fails", __func__);
-
-	while ((l = kseq_read(seq)) >= 0){
-		if(seq->name.s == NULL || seq->seq.s==NULL)
-			continue;
-		BAG_uthash_add(&tb, seq->name.s, seq->seq.s);		
-	}	
-	//if(cur) BAG_uthash_destroy(&cur);
-	if(seq) kseq_destroy(seq);
-	gzclose(fp);
-	return tb;
 }
 
 /* 

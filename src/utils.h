@@ -216,7 +216,7 @@ static inline void printf_line(char *s, int l){
 	if(s==NULL) die("[%s] string is empty", __func__);
 	int i; for(i=1; i<=strlen(s); i++){
 		printf("%c", s[i-1]);
-		if (i % l == 0) printf("\n");
+		if (i % l == 0) printf("\t%d\n", (i/l-1)*l);
 	}
 	printf("\n");
 }

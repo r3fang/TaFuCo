@@ -80,7 +80,7 @@ static struct BAG_uthash
 				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
 				if(rc==0) edge_name = NULL;
 				if(edge_name!=NULL){
-					if(BAG_uthash_add(&bag, edge_name, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
+					if(BAG_uthash_add(&bag, edge_name, seq1->name.s, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
 				}
 		}}
 		if(hits)		 free(hits);
@@ -270,6 +270,64 @@ static char
 	return ret;
 }
 
+static solution_pair_t 
+*align_edge_to_transcript(junction_t *junc_ht, struct BAG_uthash *bag_ht, opt_t *opt){
+	if(junc_ht==NULL || bag_ht==NULL || opt==NULL) return NULL;
+    struct BAG_uthash *edge;
+   	junction_t *junc_cur;
+	char *gene1, *gene2, *edge_name;
+	gene1 = gene2 = NULL;
+	int num, rc;
+	solution_t *sol1, *sol2;
+	solution_pair_t *sol_cur, *res = NULL;
+	char *read1, *read2;
+	read1 = read2 = NULL;
+	int i, j;
+	// iterate every junction
+	for(junc_cur=junc_ht; junc_cur != NULL; junc_cur=junc_cur->hh.next){
+		gene1 = strsplit(junc_cur->exon1, '.', &num)[0];
+		gene2 = strsplit(junc_cur->exon2, '.', &num)[0];
+		rc = strcmp(gene1, gene2);
+		if(rc<0)  edge_name = concat(concat(gene1, "_"), gene2);
+		if(rc>0)  edge_name = concat(concat(gene1, "_"), gene2);
+		if(rc==0) continue;
+		if((edge = find_edge(bag_ht, edge_name))==NULL) continue;
+		for(i=0; i<edge->weight; i++){
+			printf("%s\t%d\n", edge->edge, i);
+			read1 = strsplit(edge->evidence[i], '_', &num)[0];
+			if(num != 2) continue;
+			read2 = strsplit(edge->evidence[i], '_', &num)[1];
+			if((sol1 = align_exon_jump(read1, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if((sol2 = align_exon_jump(read2, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if(sol1->prob < opt->min_align_score || sol2->prob < opt->min_align_score) continue;
+			
+			sol_cur = find_solution_pair(res, edge->read_names[i]);
+			if(sol_cur!=NULL){ // if exists
+				if(sol_cur->prob < sol1->prob*sol2->prob){
+					sol_cur->r1        = sol1; 
+					sol_cur->r2        = sol2; 
+					sol_cur->prob      = (sol1->prob)*(sol2->prob); 
+					sol_cur->junc_name = junc_cur->idx;
+				}				
+			}else{
+					sol_cur = solution_pair_init();
+					sol_cur->idx = strdup(edge->read_names[i]); 
+					sol_cur->junc_name = junc_cur->idx;
+					sol_cur->r1 = sol1;			
+					sol_cur->r2 = sol2;
+					sol_cur->prob = sol1->prob*sol2->prob;
+					HASH_ADD_STR(res, idx, sol_cur);
+			}	
+		}
+	}
+	if(gene2)      free(gene2);
+	if(gene1)      free(gene1);
+	if(edge_name)  free(edge_name);
+	if(read1)      free(read1);
+	if(read2)      free(read2);	
+	return res;
+}
+
 /*
  * Description:
  *------------
@@ -285,15 +343,14 @@ static char
  *-------
  * solution_pair_t object that contains alignment results of all reads.
  */
-static solution_pair_t *align_to_transcript(junction_t *junc, opt_t *opt){
-	if(junc==NULL || opt==NULL) return NULL;
-	solution_pair_t *res = NULL;
+static int align_reads_to_transcript(solution_pair_t **res, junction_t *junc, opt_t *opt){
+	if(junc==NULL || opt==NULL) return -1;
 	junction_t *cur_junction, *tmp_junction;
 	HASH_ITER(hh, junc, cur_junction, tmp_junction) {
 		fprintf(stderr, "[predict] fusion between %s and %s are being tested ... \n", cur_junction->exon1, cur_junction->exon2);
-		if((align_to_transcript_unit(cur_junction, opt, &res))!=0) return NULL;
+		if((align_to_transcript_unit(cur_junction, opt, res))!=0) return -1;
 	}
-	return res;
+	return 0;
 }
 
 /*
@@ -349,8 +406,6 @@ static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_
 			}
 		}
 	}
-	if(sol1)     solution_destory(sol1);
-	if(sol2)     solution_destory(sol2);
 	if(seq1)     kseq_destroy(seq1);
 	if(seq2)     kseq_destroy(seq2);	
 	if(fp1)      gzclose(fp1);
@@ -460,32 +515,47 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 }
 
 static int 
-junction_display(junction_t *junc){
-	if(junc == NULL){
+junction_display(junction_t *junc, solution_pair_t *sol){
+	if(junc==NULL || sol==NULL){
 		fprintf(stderr, "[%s] junction is empty \n", __func__);
 		return -1;	
 	} 
 	junction_t *junc_cur, *junc_tmp;
-	char *left, *right;
-	left = right = NULL;
-	int str1_len, str2_len;
-	int line_chr = 50;
-	int i;	
+	int i, j;
+	solution_pair_t *sol_cur;
+	char** tmp = mycalloc(3, char*);
 	HASH_ITER(hh, junc, junc_cur, junc_tmp) {
 		if(junc_cur->transcript == NULL) continue;
-		str1_len = junc_cur->junc_pos;
-		str2_len = strlen(junc_cur->transcript) - junc_cur->junc_pos;
-		left  = mycalloc(str1_len+1, char);
-		right = mycalloc(str2_len+1, char);
-		memset(left, '\0', str1_len + 1);
-		memset(right, '\0', str2_len + 1);		
-		strncpy(left,  junc_cur->transcript, junc_cur->junc_pos);
-		strncpy(right, &junc_cur->transcript[str1_len], str2_len);
-		printf("fusion=%s-%s\thits=%zu\tlikelihood=%.2f\n",junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->likehood);
-		printf_line(concat(concat(left, "------------"), right), 60);
+		printf("fusion=%s-%s\thits=%zu\tjunction_pos=%d\tlikelihood=%.2f\n",junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
+		printf_line(junc_cur->transcript, 75);
+		for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next) {
+			if(sol_cur->junc_name == NULL) continue;
+			if(strcmp(sol_cur->junc_name, junc_cur->idx)==0){
+				printf(">%s\n", sol_cur->idx);
+				if(sol_cur->r1->s1 == NULL || sol_cur->r1->s2 == NULL) continue;
+				i = 1;
+				tmp[0] = tmp[1] = tmp[2] = mycalloc(51, char);
+				memset(tmp[0], '\0', 50);
+				memset(tmp[1], '\0', 50);
+				memset(tmp[2], '\0', 50);
+				while(i<=strlen(sol_cur->r1->s1)){
+					j = i%50;
+					tmp[0][j-1] = sol_cur->r1->s1[i-1]; 
+					tmp[2][j-1] = sol_cur->r1->s2[i-1]; 
+					if(j == 0){
+						printf("%s\n%s\n", tmp[0], tmp[2]);
+						memset(tmp[0], '\0', 50);
+						memset(tmp[1], '|',  50);
+						memset(tmp[2], '\0', 50);
+					}
+					i++;
+				}
+				printf("%s\n%s\n", tmp[0], tmp[2]);
+				printf("%s\t%d\n%s\n", sol_cur->r1->s2, sol_cur->r1->pos, sol_cur->r1->s1);
+				//printf("%s\t%d\n%s\n", sol_cur->r2->s2, sol_cur->r2->pos, sol_cur->r2->s1);		
+			}
+		 }		
 	}
-	if(left)   free(left);
-	if(right)  free(right);
 	return 0;
 }
 
@@ -552,21 +622,25 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] constructing graph ... \n", __func__);
 	if((BAGR_HT = BAG_uthash_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL)	die("[%s] can't construct BAG graph", __func__); 	
-
+	
+	
 	fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
 	if((JUN0_HT = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);
+	//BAG_uthash_display(BAGR_HT);
 		
 	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
 	if((JUN0_HT = transcript_construct(JUN0_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
-	if((junction_display(JUN0_HT)) != 0) die("[%s] can't display junctions", __func__);
-    //
-	//fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
-	//if((SOLU_HT = align_to_transcript(JUN0_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
-    //
-	//fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
-	//if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
-    //
 	
+	fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
+	if((SOLU_HT = align_edge_to_transcript(JUN0_HT, BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
+		
+	fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
+	if((align_reads_to_transcript(&SOLU_HT, JUN0_HT, opt)) != 0) die("[%s] can't rediscover any junction", __func__);;
+
+	fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
+	if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
+	
+	if((junction_display(JUN1_HT, SOLU_HT)) != 0) die("[%s] can't display junctions", __func__);
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
