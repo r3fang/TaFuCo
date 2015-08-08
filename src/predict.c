@@ -290,7 +290,7 @@ static solution_pair_t *align_to_transcript(junction_t *junc, opt_t *opt){
 	solution_pair_t *res = NULL;
 	junction_t *cur_junction, *tmp_junction;
 	HASH_ITER(hh, junc, cur_junction, tmp_junction) {
-		fprintf(stderr, "fusion between %s and %s are being tested ... \n", cur_junction->exon1, cur_junction->exon2);
+		fprintf(stderr, "[predict] fusion between %s and %s are being tested ... \n", cur_junction->exon1, cur_junction->exon2);
 		if((align_to_transcript_unit(cur_junction, opt, &res))!=0) return NULL;
 	}
 	return res;
@@ -407,7 +407,6 @@ static junction_t
 		}
 		cur_junction->junc_pos = str1_l + cur_junction->junc_pos;
 		cur_junction->transcript = concat(concat(exon1_seq, cur_junction->transcript), exon2_seq);
-		
 		cur_junction->S1 = S1;
 		cur_junction->S2 = S2;
 	}	
@@ -448,6 +447,7 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 			junc_cur2->exon2 = junc_cur1->exon2;			
 			junc_cur2->s = junc_cur1->s;			
 			junc_cur2->junc_pos = junc_cur1->junc_pos;			
+			junc_cur2->transcript = junc_cur1->transcript;			
 			junc_cur2->hits = 1;	
 			junc_cur2->likehood = 10*log(sol_cur->prob);
 			HASH_ADD_STR(junc_res, idx, junc_cur2);
@@ -459,11 +459,34 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 	return junc_res;
 }
 
-static void junction_display(junction_t *junc){
+static int 
+junction_display(junction_t *junc){
+	if(junc == NULL){
+		fprintf(stderr, "[%s] junction is empty \n", __func__);
+		return -1;	
+	} 
 	junction_t *junc_cur, *junc_tmp;
-	HASH_ITER(hh, JUN1_HT, junc_cur, junc_tmp) {
-		printf("%s\t%s\t%zu\t%d\t%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
+	char *left, *right;
+	left = right = NULL;
+	int str1_len, str2_len;
+	int line_chr = 50;
+	int i;	
+	HASH_ITER(hh, junc, junc_cur, junc_tmp) {
+		if(junc_cur->transcript == NULL) continue;
+		str1_len = junc_cur->junc_pos;
+		str2_len = strlen(junc_cur->transcript) - junc_cur->junc_pos;
+		left  = mycalloc(str1_len+1, char);
+		right = mycalloc(str2_len+1, char);
+		memset(left, '\0', str1_len + 1);
+		memset(right, '\0', str2_len + 1);		
+		strncpy(left,  junc_cur->transcript, junc_cur->junc_pos);
+		strncpy(right, &junc_cur->transcript[str1_len], str2_len);
+		printf("fusion=%s-%s\thits=%zu\tlikelihood=%.2f\n",junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->likehood);
+		printf_line(concat(concat(left, "------------"), right), 60);
 	}
+	if(left)   free(left);
+	if(right)  free(right);
+	return 0;
 }
 
 static int pred_usage(opt_t *opt){
@@ -535,14 +558,15 @@ int predict(int argc, char *argv[]) {
 		
 	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
 	if((JUN0_HT = transcript_construct(JUN0_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
+	if((junction_display(JUN0_HT)) != 0) die("[%s] can't display junctions", __func__);
+    //
+	//fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
+	//if((SOLU_HT = align_to_transcript(JUN0_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
+    //
+	//fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
+	//if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
+    //
 	
-	fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
-	if((SOLU_HT = align_to_transcript(JUN0_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
-
-	fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
-	if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
-
-	junction_display(JUN1_HT);
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);

@@ -211,4 +211,13 @@ max6(double *res, double a1, double a2, double a3, double a4, double a5, double 
 	if(a6 > *res){*res = a6; state = 5;}	
 	return state;
 }
+
+static inline void printf_line(char *s, int l){
+	if(s==NULL) die("[%s] string is empty", __func__);
+	int i; for(i=1; i<=strlen(s); i++){
+		printf("%c", s[i-1]);
+		if (i % l == 0) printf("\n");
+	}
+	printf("\n");
+}
 #endif
