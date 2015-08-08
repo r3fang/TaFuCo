@@ -8,7 +8,7 @@
 
 static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction);
 static int find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret);
-static int junction_rediscover_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
+static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
 
 static struct kmer_uthash 
 *kmer_uthash_construct(struct fasta_uthash *tb, int k){
@@ -38,7 +38,6 @@ static struct kmer_uthash
 	kmer_uthash_uniq(&ret);
 	return ret;
 }
-
 static struct BAG_uthash
 *BAG_uthash_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
 	if(kmer_uthash == NULL || fq1 == NULL || fq2 == NULL) return NULL;
@@ -269,18 +268,33 @@ static char
 	return ret;
 }
 
+/*
+ * Description:
+ *------------
+ * 1) find subset of pairs that contain 20bp junction string by at most 2 mismatches
+ * 2) align those reads to constructed transcript returned by transcript_construct
+
+ * Input: 
+ *-------
+ * junc_ht        - junction_t object: return by transcript_construct
+ * opt            - opt_t object: contains all input parameters
+
+ * Output: 
+ *-------
+ * solution_pair_t object that contains alignment results of all reads.
+ */
 static solution_pair_t *align_to_transcript(junction_t *junc, opt_t *opt){
 	if(junc==NULL || opt==NULL) return NULL;
 	solution_pair_t *res = NULL;
 	junction_t *cur_junction, *tmp_junction;
 	HASH_ITER(hh, junc, cur_junction, tmp_junction) {
-		fprintf(stderr, "junction between %s and %s are being tested ... \n", cur_junction->exon1, cur_junction->exon2);
-		if((junction_rediscover_unit(cur_junction, opt, &res))!=0) return NULL;
+		fprintf(stderr, "fusion between %s and %s are being tested ... \n", cur_junction->exon1, cur_junction->exon2);
+		if((align_to_transcript_unit(cur_junction, opt, &res))!=0) return NULL;
 	}
 	return res;
 }
 
-static int junction_rediscover_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair){
+static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair){
 	if(junc==NULL || opt==NULL) return -1;
 	int mismatch = opt->max_mismatch;
 	gzFile fp1, fp2;
@@ -308,7 +322,7 @@ static int junction_rediscover_unit(junction_t *junc, opt_t *opt, solution_pair_
 			if(s_sp!=NULL){ // if exists
 				if(s_sp->prob < sol1->prob*sol2->prob){
 					s_sp->r1 = sol1; s_sp->r2=sol2; 
-					s_sp->prob = sol1->prob*sol2->prob; 
+					s_sp->prob = (sol1->prob)*(sol2->prob); 
 					s_sp->junc_name = junc->idx;
 				}				
 			}else{
@@ -390,27 +404,44 @@ static junction_t
 	if(gname2)        free(gname2);
 	return junc_ht;
 }
+/*
+ * Description:
+ *------------
+ * revisit junction sites and score them based on alignment results
+ 
+ * Input: 
+ *-------
+ * sol        - alignment results returned by align_to_transcript
+ * junc       - previously identified junction
+ * opt        - opt_t object: contains all input parameters
 
-static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, opt_t *opt){
-	if(sol==NULL || opt==NULL || junc==NULL) return NULL;
+ * Output: 
+ *-------
+ * junction_t object that contains identified junctions with one more property -> transcript.
+ */
+static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double min_align_score, int junc_str_len){
+	if(sol==NULL || junc==NULL) return NULL;
 	junction_t *junc_cur1, *junc_cur2, *junc_res = NULL;
 	solution_pair_t *sol_cur, *sol_tmp;
-	double th = opt->min_align_score * opt->min_align_score;
+	double th = min_align_score * min_align_score;
+	// iterate every alignment solution pair
 	HASH_ITER(hh, sol, sol_cur, sol_tmp) {
-		if(sol_cur->prob < th) continue;
-		if((junc_cur1 = find_junction(junc, sol_cur->junc_name))==NULL) continue;
+		if(sol_cur->prob < th) continue; // filter read pairs with alignment identity smaller than th
+		if((junc_cur1 = find_junction(junc, sol_cur->junc_name))==NULL) continue; // continue if junction not exists
 		if((junc_cur2 = find_junction(junc_res, sol_cur->junc_name))==NULL){
-			junc_cur2 = junction_init(opt->seed_len);
+			junc_cur2 = junction_init(junc_str_len);
 			junc_cur2->idx = junc_cur1->idx;
 			junc_cur2->exon1 = junc_cur1->exon1;
 			junc_cur2->exon2 = junc_cur1->exon2;			
 			junc_cur2->s = junc_cur1->s;			
 			junc_cur2->hits = 1;	
-			junc_cur2->likehood = 10*log(sol_cur->prob);	
+			junc_cur2->likehood = 10*log(sol_cur->prob);
+			printf("%f\n", sol_cur->prob);
 			HASH_ADD_STR(junc_res, idx, junc_cur2);
 		}else{
 			junc_cur2->hits++;	
 			junc_cur2->likehood += 10*log(sol_cur->prob);			
+			printf("%f\n", sol_cur->prob);
 		}
 	}
 	return junc_res;
@@ -467,9 +498,9 @@ int predict(int argc, char *argv[]) {
 		}
 	}
 	if (optind + 3 > argc) return pred_usage(opt);
-	opt->fa  = argv[optind];
-	opt->fq1 = argv[optind+1];
-	opt->fq2 = argv[optind+2];
+	opt->fa  = argv[optind];    // exon.fa
+	opt->fq1 = argv[optind+1];  // read1
+	opt->fq2 = argv[optind+2];  // read2
 	fprintf(stderr, "[%s] loading reference exon sequences ... \n",__func__);
 	if((EXON_HT = fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference genome %s", __func__, opt->fa);	
 
@@ -489,13 +520,12 @@ int predict(int argc, char *argv[]) {
 	if((SOLU_HT = align_to_transcript(JUN0_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
 
 	fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
-	if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
+	if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
 
 	junction_t *junc_cur, *junc_tmp;
 	HASH_ITER(hh, JUN1_HT, junc_cur, junc_tmp) {
 		printf("%s\t%s\t%zu\t%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->likehood);
 	}
-	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	if(JUN0_HT)       junction_destory(&JUN0_HT);

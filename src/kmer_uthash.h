@@ -21,6 +21,8 @@ struct kmer_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
+
+
 /*
  * delete duplicate seq_names 
  */

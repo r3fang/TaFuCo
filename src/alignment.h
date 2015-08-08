@@ -502,7 +502,7 @@ static inline solution_t *align_exon_jump(char *s1, char *s2, int *S1, int *S2, 
 	solution_t *s = trace_back_exon_jump(S, s1, s2, max_state, i_max, j_max);	
 	destory_matrix(S);
 	s->score = max_score;	
-	s->prob = max_score/MATCH*strlen(s1);	
+	s->prob = max_score/(MATCH*strlen(s1));	
 	return s;
 }
 

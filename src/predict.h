@@ -168,16 +168,17 @@ static solution_pair_t *align_to_transcript(junction_t *junc_ht, opt_t *opt);
  
  * Input: 
  *-------
- * sol        - alignment results returned by align_to_transcript
- * junc_ht    - previously identified junction
- * opt            - opt_t object: contains all input parameters
+ * sol              - alignment results returned by align_to_transcript
+ * junc             - previously identified junction
+ * min_align_score  - min accepted alignment identity, alignment with identity < min_align_score will be filtered
+ * junc_str_len     - length of junction string 
 
  * Output: 
  *-------
  * junction_t object that contains identified junctions with one more property -> transcript.
  */
 
-static junction_t *junction_score(solution_pair_t *sol, junction_t *junc_ht, opt_t *opt);
+static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double min_align_score, int junc_str_len);
 /*
  * usage info
  */
