@@ -459,6 +459,13 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 	return junc_res;
 }
 
+static void junction_display(junction_t *junc){
+	junction_t *junc_cur, *junc_tmp;
+	HASH_ITER(hh, JUN1_HT, junc_cur, junc_tmp) {
+		printf("%s\t%s\t%zu\t%d\t%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
+	}
+}
+
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -484,6 +491,7 @@ static int pred_usage(opt_t *opt){
 			fprintf(stderr, "         R2.fq     the other end of pair-end sequencing reads\n");
 			return 1;
 }
+
 /*--------------------------------------------------------------------*/
 /* main function. */
 int predict(int argc, char *argv[]) {
@@ -534,10 +542,8 @@ int predict(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
 	if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
 
-	junction_t *junc_cur, *junc_tmp;
-	HASH_ITER(hh, JUN1_HT, junc_cur, junc_tmp) {
-		printf("%s\t%s\t%zu\t%d\t%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
-	}
+	junction_display(JUN1_HT);
+	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	if(JUN0_HT)       junction_destory(&JUN0_HT);
