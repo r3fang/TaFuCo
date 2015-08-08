@@ -294,6 +294,14 @@ static solution_pair_t *align_to_transcript(junction_t *junc, opt_t *opt){
 	return res;
 }
 
+/*
+ * align reads to one junction transcript
+
+ * junc      - one junction identified before
+ * opt       - opt_t object
+ * *sol_pair - solution_pair_t object that contains alignment solutions for all read pair agains junc
+
+ */
 static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair){
 	if(junc==NULL || opt==NULL) return -1;
 	int mismatch = opt->max_mismatch;
@@ -306,15 +314,16 @@ static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_
 	solution_pair_t *s_sp, *tmp_sp;
 	if((fp1  = gzopen(opt->fq1, "r")) == NULL)   die("[%s] fail to read fastq files\n",  __func__);
 	if((fp2  = gzopen(opt->fq2, "r")) == NULL)   die("[%s] fail to read fastq files\n",  __func__);	
-	if((seq1 = kseq_init(fp1))   == NULL)   die("[%s] fail to read fastq files\n",  __func__);
-	if((seq2 = kseq_init(fp2))   == NULL)   die("[%s] fail to read fastq files\n",  __func__);	
+	if((seq1 = kseq_init(fp1))   == NULL)        die("[%s] fail to read fastq files\n",  __func__);
+	if((seq2 = kseq_init(fp2))   == NULL)        die("[%s] fail to read fastq files\n",  __func__);	
+	
 	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
 		_read2 = seq2->seq.s;		
 		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
 		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
-		if((min_mismatch(_read1, junc->s)) <= mismatch || (min_mismatch(_read2, junc->s)) <= mismatch ){
-			
+		if((min_mismatch(_read1, junc->s)) <= mismatch || (min_mismatch(_read2, junc->s)) <= mismatch ){	
+			// alignment with jump state between exons 
 			if((sol1 = align_exon_jump(_read1, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
 			if((sol2 = align_exon_jump(_read2, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
 			
