@@ -142,6 +142,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 				// junction flanking sequence 
 				strlen2 = a->jump_start + strlen(str2)-a->jump_end+1;				
 				m->transcript = mycalloc(strlen2, char);
+				m->junc_pos = a->jump_start;				
 				memset(m->transcript, '\0', strlen2);
 				memcpy( m->transcript, str2, a->jump_start);
 				memcpy( &m->transcript[a->jump_start], &str2[a->jump_end+1], strlen(str2)-a->jump_end);				
@@ -165,6 +166,7 @@ find_junction_one_edge(struct BAG_uthash *eg, struct fasta_uthash *fasta_u, opt_
 				memcpy( &m->s[opt->seed_len/2], &str2[b->jump_end], opt->seed_len/2);
 				strlen2 = b->jump_start + strlen(str2)-b->jump_end+1;
 				m->transcript = mycalloc(strlen2, char);
+				m->junc_pos = b->jump_start;
 				memset(m->transcript, '\0', strlen2);
 				memcpy( m->transcript, str2, b->jump_start);
 				memcpy( &m->transcript[b->jump_start], &str2[b->jump_end], strlen(str2)-b->jump_end);				
@@ -403,7 +405,9 @@ static junction_t
 			cur_junction->S2_num = j;
 			S2[j++] = str1_l + str2_l + strlen(exon2_seq);
 		}
+		cur_junction->junc_pos = str1_l + cur_junction->junc_pos;
 		cur_junction->transcript = concat(concat(exon1_seq, cur_junction->transcript), exon2_seq);
+		
 		cur_junction->S1 = S1;
 		cur_junction->S2 = S2;
 	}	
@@ -443,14 +447,13 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 			junc_cur2->exon1 = junc_cur1->exon1;
 			junc_cur2->exon2 = junc_cur1->exon2;			
 			junc_cur2->s = junc_cur1->s;			
+			junc_cur2->junc_pos = junc_cur1->junc_pos;			
 			junc_cur2->hits = 1;	
 			junc_cur2->likehood = 10*log(sol_cur->prob);
-			printf("%f\n", sol_cur->prob);
 			HASH_ADD_STR(junc_res, idx, junc_cur2);
 		}else{
 			junc_cur2->hits++;	
 			junc_cur2->likehood += 10*log(sol_cur->prob);			
-			printf("%f\n", sol_cur->prob);
 		}
 	}
 	return junc_res;
@@ -521,7 +524,7 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
 	if((JUN0_HT = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);
-
+		
 	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
 	if((JUN0_HT = transcript_construct(JUN0_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
 	
@@ -533,7 +536,7 @@ int predict(int argc, char *argv[]) {
 
 	junction_t *junc_cur, *junc_tmp;
 	HASH_ITER(hh, JUN1_HT, junc_cur, junc_tmp) {
-		printf("%s\t%s\t%zu\t%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->likehood);
+		printf("%s\t%s\t%zu\t%d\t%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
 	}
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);

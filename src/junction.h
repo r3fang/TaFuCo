@@ -17,6 +17,7 @@ typedef struct {
 	char* exon2;
 	char* s;         // string flanking junction site 
 	char *transcript;        // concated exon string 
+	int junc_pos;  // junction position on transcript
 	int *S1;
 	int *S2;
 	int S1_num;
@@ -33,6 +34,7 @@ static inline junction_t
 	junc->exon1 = NULL;
 	junc->exon2 = NULL;
 	junc->transcript = NULL;
+	junc->junc_pos = 0;
 	junc->S1 = NULL;
 	junc->S2 = NULL;
 	junc->s = mycalloc(seed_len+1, char);	
