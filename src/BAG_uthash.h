@@ -214,38 +214,34 @@ static inline bag_t
 /*
  * rm duplicate evidence for graph edge
  */
-static inline int 
-bag_uniq(bag_t **tb){
-	if(*tb == NULL) die("BAG_uthash_uniq: input error");
-	bag_t *cur, *tmp;
-	int i, j;
-	int before, del;
-	HASH_ITER(hh, *tb, cur, tmp) {
-		if(cur == NULL) die("kmer_uthash_uniq: HASH_ITER fails\n");
-		qsort(cur->evidence, cur->weight, sizeof(char*), mystrcmp);
-		before = cur->weight;
-		del = 0;
-		if(cur->weight > 1){
-			for(i=1; i<cur->weight; i++){
-				if(mystrcmp(cur->evidence[i], cur->evidence[i-1]) == 0){
-					cur->evidence[i-1] = NULL;
-					del++;
+static inline bag_t 
+*bag_uniq(bag_t *bag){
+	if(bag == NULL) return NULL;
+	bag_t *bag_cur, *bag_tmp, *bag_res=NULL;
+	int i, j, repeat;
+	/* iterate every edge and remove duplicates */
+	for(bag_cur=bag; bag_cur != NULL; bag_cur=bag_cur->hh.next){
+		if((bag_tmp = find_edge(bag_res, bag_cur->edge)) == NULL){
+			bag_tmp = bag_init();
+			bag_tmp->edge = strdup(bag_cur->edge);
+			bag_tmp->weight = 0;
+			bag_tmp->evidence = mycalloc(bag_cur->weight, char*);
+			bag_tmp->read_names = mycalloc(bag_cur->weight, char*);
+			for(i=0; i<bag_cur->weight; i++){ /* iterate every evidence */
+				repeat = false;
+				for(j=0; j<bag_tmp->weight; j++){
+					if(strcmp(bag_cur->evidence[i], bag_tmp->evidence[j])==0) repeat = true;
+				}
+				if(repeat==false){ // no duplicates
+					bag_tmp->evidence[bag_tmp->weight] = strdup(bag_cur->evidence[i]);
+					bag_tmp->read_names[bag_tmp->weight] = strdup(bag_cur->read_names[i]);
+					bag_tmp->weight ++;
 				}
 			}
+			HASH_ADD_STR(bag_res, edge, bag_tmp);
 		}		
-		if(del > 0){ // if any element has been deleted
-			char** tmp = mycalloc(before - del , char*);
-			j=0; for(i=0; i<cur->weight; i++){
-				if(cur->evidence[i] != NULL){
-					tmp[j++] = strdup(cur->evidence[i]);
-				}
-			}
-			free(cur->evidence);
-			cur->evidence = tmp;		
-			cur->weight = before - del;	
-		}
-    }	
-	return BA_ERR_NONE;
+	}
+	return bag_res;
 }
 
 /* 

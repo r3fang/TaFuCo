@@ -631,8 +631,12 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] constructing graph ... \n", __func__);
 	if((BAGR_HT = bag_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+	bag_display(BAGR_HT);
 
 	BAGR_HT = bag_trim(BAGR_HT, opt->min_edge_weight);
+	bag_display(BAGR_HT);
+
+	BAGR_HT = bag_uniq(BAGR_HT);
 	bag_display(BAGR_HT);
 	
 	//fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
