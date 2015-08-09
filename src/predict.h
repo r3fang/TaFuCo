@@ -17,7 +17,7 @@
 #include <regex.h>
 #include "kseq.h"
 #include "kmer_uthash.h"
-#include "BAG_uthash.h"
+#include "bag.h"
 #include "fasta_uthash.h"
 #include "utils.h"
 #include "alignment.h"
