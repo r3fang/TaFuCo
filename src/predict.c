@@ -622,32 +622,30 @@ int predict(int argc, char *argv[]) {
 	opt->fa  = argv[optind];    // exon.fa
 	opt->fq1 = argv[optind+1];  // read1
 	opt->fq2 = argv[optind+2];  // read2
+	
 	fprintf(stderr, "[%s] loading reference exon sequences ... \n",__func__);
-	if((EXON_HT = fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference genome %s", __func__, opt->fa);	
+	if((EXON_HT = fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference sequences %s", __func__, opt->fa);	
 
 	fprintf(stderr, "[%s] indexing exon sequneces ... \n",__func__);
 	if((KMER_HT = kmer_uthash_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
 
 	fprintf(stderr, "[%s] constructing graph ... \n", __func__);
-	if((BAGR_HT = BAG_uthash_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL)	die("[%s] can't construct BAG graph", __func__); 	
-	BAG_uthash_display(BAGR_HT);
-		
-	fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
-	if((JUN0_HT = junction_construct(BAGR_HT, EXON_HT, opt))==NULL) die("[%s] can't identify junctions", __func__);
-		
-	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
-	if((JUN0_HT = transcript_construct(JUN0_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);
+	if((BAGR_HT = BAG_uthash_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
 	
-	fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
-	if((SOLU_HT = align_edge_to_transcript(JUN0_HT, BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);;
-		
+	fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
+	if((JUN0_HT = junction_construct(BAGR_HT, EXON_HT, opt))!=NULL){ // if junction string identified
+		fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
+		if((JUN0_HT = transcript_construct(JUN0_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);		
+		fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
+		if((SOLU_HT = align_edge_to_transcript(JUN0_HT, BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
+	}
 	fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
 	if((align_reads_to_transcript(&SOLU_HT, JUN0_HT, opt)) != 0) die("[%s] can't rediscover any junction", __func__);;
 
-	fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
-	if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
-	
-	if((junction_display(JUN1_HT, SOLU_HT)) != 0) die("[%s] can't display junctions", __func__);
+	//fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
+	//if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
+	//
+	//if((junction_display(JUN1_HT, SOLU_HT)) != 0) die("[%s] can't display junctions", __func__);
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);

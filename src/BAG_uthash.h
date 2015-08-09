@@ -30,6 +30,71 @@ struct BAG_uthash {
     UT_hash_handle hh;         /* makes this structure hashable */
 };
 
+// junction of gene fusion
+typedef struct {
+	char* idx; // determined by exon1.exon2.jump_start.jump_end
+	char* exon1;
+	char* exon2;
+	char* s;         // string flanking junction site 
+	char *transcript;        // concated exon string 
+	int junc_pos;  // junction position on transcript
+	int *S1;
+	int *S2;
+	int S1_num;
+	int S2_num;
+	size_t hits;         
+	double likehood;       // alignment probability
+    UT_hash_handle hh;
+} junction_t;
+
+static inline junction_t 
+*junction_init(int seed_len){
+	junction_t *junc = mycalloc(1, junction_t);
+	junc->idx = NULL;
+	junc->exon1 = NULL;
+	junc->exon2 = NULL;
+	junc->transcript = NULL;
+	junc->junc_pos = 0;
+	junc->S1 = NULL;
+	junc->S2 = NULL;
+	junc->s = mycalloc(seed_len+1, char);	
+	junc->S1_num = 0;
+	junc->S2_num = 0;	
+	junc->hits = 0;	
+	junc->likehood = 0.0;	
+	return junc;
+}
+
+static inline void junction_destory(junction_t **s){
+	junction_t *cur, *tmp;
+	HASH_ITER(hh, *s, cur, tmp) {
+		HASH_DEL(*s, cur);
+	}
+}
+
+static inline junction_t 
+*find_junction(junction_t *jc, char* quary) {
+	if(quary == NULL) return NULL;
+	junction_t *s;
+    HASH_FIND_STR(jc, quary, s);  /* s: output pointer */
+	return s;
+}
+
+static inline int min_mismatch(char* str, char* pattern){
+	if(str == NULL || pattern == NULL) die("[%s] input error"); 
+	register int i, j, n;
+	int min_mis_match = strlen(pattern)+1;
+	char substring[strlen(pattern)+1];
+	for(i=0;i<strlen(str)-strlen(pattern);i++){
+		n = 0;
+		memset(substring, '\0', sizeof(substring));
+		strncpy(substring, &str[i], strlen(pattern));
+		for(j=0; j<strlen(pattern); j++){if(toupper(pattern[j]) != toupper(substring[j])){n++;}}
+		if (n < min_mis_match){min_mis_match = n;} // update min_mis_match
+	}
+	return min_mis_match;
+} 
+
 /*
  * intiate BAG_uthash
  *
