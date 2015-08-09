@@ -228,7 +228,9 @@ static inline bag_t
 	}
 	return bag_res;
 }
-
+/*
+ * min mismatch between long string and a short pattern
+ */
 static inline int min_mismatch(char* str, char* pattern){
 	if(str == NULL || pattern == NULL) return INT_MAX;
 	register int i, j, n;
