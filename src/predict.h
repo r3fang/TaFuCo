@@ -21,13 +21,12 @@
 #include "fasta_uthash.h"
 #include "utils.h"
 #include "alignment.h"
-#include "junction.h"
 
 #define MAX_ALLOWED_K                     50 // max allowed kmer length for kmer hash table 
 
 static struct fasta_uthash *EXON_HT     = NULL;  // stores sequences in in.fa
 static struct kmer_uthash  *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
-static struct BAG_uthash   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
+static             bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
 static        junction_t   *JUN0_HT     = NULL;  // rough junctions identified from BAG
 static   solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
 static        junction_t   *JUN1_HT     = NULL;  // refined junctions with scores
@@ -112,7 +111,7 @@ static struct kmer_uthash *kmer_uthash_construct(struct fasta_uthash *tb, int k)
  *-------
  * BAG_uthash object that contains the graph.
  */
-static struct BAG_uthash *BAG_uthash_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
+static bag_t *bag_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
 /*
  * Description:
  *------------
@@ -128,7 +127,7 @@ static struct BAG_uthash *BAG_uthash_construct(struct kmer_uthash *kmer_uthash, 
  *-------
  * junction_t object that contains identified junctions.
  */
-static junction_t *junction_construct(struct BAG_uthash *bag, struct fasta_uthash *fa, opt_t *opt);
+static junction_t *junction_construct(bag_t *bag, struct fasta_uthash *fa, opt_t *opt);
 /*
  * Description:
  *------------

@@ -3,7 +3,6 @@
 /* Author: Rongxin Fang                                               */
 /* Contact: r3fang@ucsd.edu                                           */
 /* Library for Breakend Associated Graph (BAG).                       */
-/* Functions it contain:                                              */
 /*--------------------------------------------------------------------*/
 
 #ifndef _BAG_UTHASH_H
@@ -19,33 +18,91 @@
 #include "kmer_uthash.h"
 /* error code */
 #define BA_ERR_NONE		     0 // no error
+
+/* defination of junction_t */
+typedef struct {
+	char* idx;          /* the key of this junction, determined by exon1.start.exon2.end, must be unique */
+	char* exon1;       
+	char* exon2;
+	char* s;            /* short junction string that flanks the junction sites*/
+	char *transcript;   /* constructed transcript */ 
+	int junc_pos;       /* junction position on transcript */ 
+	int *S1;            /* stores exon jump position of gene1 */
+	int *S2;            /* stores exon jump position of gene2 */
+	int S1_num;         /* number of exon jump positions of gene1 */
+	int S2_num;         /* number of exon jump positions of gene2 */
+	size_t hits;        /* number of times the junction is hitted by reads */
+	double likehood;    /* likelihood of the junction */
+    UT_hash_handle hh;
+} junction_t;
+
 /*
  * the BAG_uthash structure
  */
-struct BAG_uthash {
+typedef struct{
 	char *edge;
 	size_t weight;
-	char **read_names;
-	char **evidence;    
-    UT_hash_handle hh;         /* makes this structure hashable */
-};
+	char **read_names;  /* stores the name of read pair that support this edge*/
+	char **evidence;    /* stores the read pair that support this edge*/
+	junction_t *junc;   /* stores the junctions of the edge, NULL if no junction identified */
+    UT_hash_handle hh;  /* makes this structure hashable */
+} bag_t;
 
-// junction of gene fusion
-typedef struct {
-	char* idx; // determined by exon1.exon2.jump_start.jump_end
-	char* exon1;
-	char* exon2;
-	char* s;         // string flanking junction site 
-	char *transcript;        // concated exon string 
-	int junc_pos;  // junction position on transcript
-	int *S1;
-	int *S2;
-	int S1_num;
-	int S2_num;
-	size_t hits;         
-	double likehood;       // alignment probability
-    UT_hash_handle hh;
-} junction_t;
+static inline bag_t 
+*bag_init() {
+	bag_t *t = mycalloc(1, bag_t);
+	t->edge = NULL;
+	t->weight = 0;
+	t->evidence = mycalloc(1, char*);
+	t->read_names = mycalloc(1, char*);
+	t->junc = NULL;
+	return t;
+}
+
+static inline bag_t
+*find_edge(bag_t *bag, char* quary) {
+	if(quary == NULL) return NULL;
+	bag_t* edge = NULL;	
+    HASH_FIND_STR(bag, quary, edge);  /* s: output pointer */
+	return edge;
+}
+
+static inline int 
+bag_distory(bag_t **bag) {
+	if(*bag == NULL) return 0;
+	/*free the kmer_hash table*/
+	register bag_t *bag_cur, *bag_tmp;
+	junction_t *junc_cur, *junc_tmp;
+	HASH_ITER(hh, *bag, bag_cur, bag_tmp) {
+		if(bag_cur->junc != NULL){ // if the edge has junctions
+			HASH_ITER(hh, bag_cur->junc, junc_cur, junc_tmp){
+				HASH_DEL(bag_cur->junc, junc_cur); 			
+				free(junc_cur);	
+			}			
+		}
+		HASH_DEL(*bag, bag_cur); 
+		free(bag_cur);   
+    }
+	return 0;
+}
+
+/*
+ * display BAG_uthash table on the screen
+ *
+ * PARAMETERS:	bag_t *
+ * RETURN:	error code
+ */
+static inline int bag_display(bag_t *bag) {
+	if(bag == NULL) return -1;
+	/*free the kmer_hash table*/
+	register bag_t *bag_cur, *bag_tmp;
+	HASH_ITER(hh, bag, bag_cur, bag_tmp) {
+		int i; for(i=0; i < bag_cur->weight; i++){
+			printf(">%s\t%s\n%s\n", bag_cur->edge, bag_cur->read_names[i], bag_cur->evidence[i]);
+		}
+	}
+	return 0;
+}
 
 static inline junction_t 
 *junction_init(int seed_len){
@@ -65,19 +122,23 @@ static inline junction_t
 	return junc;
 }
 
-static inline void junction_destory(junction_t **s){
-	junction_t *cur, *tmp;
-	HASH_ITER(hh, *s, cur, tmp) {
-		HASH_DEL(*s, cur);
-	}
-}
-
 static inline junction_t 
-*find_junction(junction_t *jc, char* quary) {
+*find_junction(junction_t *junc, char* quary) {
 	if(quary == NULL) return NULL;
 	junction_t *s;
-    HASH_FIND_STR(jc, quary, s);  /* s: output pointer */
+    HASH_FIND_STR(junc, quary, s);  /* s: output pointer */
 	return s;
+}
+
+static inline int 
+junction_destory(junction_t **junc){
+	if(*junc==NULL) return -1;
+	junction_t *junc_cur, *junc_tmp;
+	HASH_ITER(hh, *junc, junc_cur, junc_tmp) {
+		HASH_DEL(*junc, junc_cur);
+		free(junc_cur);
+	}
+	return 0;
 }
 
 static inline int min_mismatch(char* str, char* pattern){
@@ -96,126 +157,67 @@ static inline int min_mismatch(char* str, char* pattern){
 } 
 
 /*
- * intiate BAG_uthash
- *
- */
-static inline struct BAG_uthash 
-*BAG_uthash_init() {
-	struct BAG_uthash *t = mycalloc(1, struct BAG_uthash);
-	t->edge = NULL;
-	t->weight = 0;
-	t->evidence = mycalloc(1, char*);
-	t->read_names = mycalloc(1, char*);
-	return t;
-}
-
-/*
- * destory 
- */
-static inline int 
-BAG_uthash_destroy(struct BAG_uthash **table) {
-	if(*table == NULL) die("BAG_uthash_destroy: parameter error\n");
-	/*free the kmer_hash table*/
-	register struct BAG_uthash *cur, *tmp;
-	HASH_ITER(hh, *table, cur, tmp) {
-		if(cur==NULL) die("BAG_uthash_destroy: HASH_ITER fails\n");
-		HASH_DEL(*table, cur); 
-		free(cur);   
-    }
-	return BA_ERR_NONE;
-}
-/*
- * display BAG_uthash table on the screen
- *
- * PARAMETERS:	struct BAG_uthash *
- * RETURN:	error code
- */
-static inline int BAG_uthash_display(struct BAG_uthash *graph_ht) {
-	if(graph_ht == NULL) die("BAG_uthash_display: parameter error\n");
-	/*free the kmer_hash table*/
-	register struct BAG_uthash *cur, *tmp;
-	HASH_ITER(hh, graph_ht, cur, tmp) {
-		if(cur == NULL) die("BAG_uthash_display: HASH_ITER fails\n");
-		int i; for(i=0; i < cur->weight; i++){
-			printf(">%s\t%s\n%s\n", cur->edge, cur->read_names[i], cur->evidence[i]);
-		}
-	}
-	return BA_ERR_NONE;
-}
-
-static inline struct BAG_uthash
-*find_edge(struct BAG_uthash *tb, char* quary_name) {
-	if(quary_name == NULL) die("[%s] input error", __func__);
-	struct BAG_uthash* s = NULL;	
-    HASH_FIND_STR(tb, quary_name, s);  /* s: output pointer */
-	return s;
-}
-
-/*
  * add one edge to graph
  */
 static inline int 
-BAG_uthash_add(struct BAG_uthash** graph_ht, char* edge_name, char* read_name, char* evidence){
-	/* check parameters */
-	if(edge_name == NULL || evidence == NULL) die("[%s]: parameter error\n", __func__);
-	struct BAG_uthash *s;
+BAG_uthash_add(bag_t** bag, char* edge_name, char* read_name, char* evidence){
+	if(edge_name == NULL || evidence == NULL) return -1;
+	bag_t *bag_cur;
 	register int n;
-	if((s = find_edge(*graph_ht, edge_name)) == NULL){
-		s = BAG_uthash_init();
-		s->edge = strdup(edge_name);
-		s->weight = 1;
-		s->read_names[0] = strdup(read_name);
-		s->evidence[0] = strdup(evidence); /* first and only 1 element*/
-		HASH_ADD_STR(*graph_ht, edge, s);								
+	if((bag_cur = find_edge(*bag, edge_name)) == NULL){ /* if edge does not exist */
+		bag_cur = bag_init();
+		bag_cur->edge = strdup(edge_name);
+		bag_cur->weight = 1;
+		bag_cur->read_names[0] = strdup(read_name);
+		bag_cur->evidence[0] = strdup(evidence);       /* first and only 1 element*/
+		HASH_ADD_STR(*bag, edge, bag_cur);								
 	}else{
-		s->weight++;
-		char **tmp = mycalloc(s->weight, char*);
-	 	for (n = 0; n < s->weight-1; n++){
-	 		tmp[n] = strdup(s->evidence[n]);
-	 	}
-	 	tmp[n] = strdup(evidence);
-	 	free(s->evidence);
-	 	s->evidence = tmp;
+		bag_cur->weight++;
+		char **tmp1 = mycalloc(bag_cur->weight, char*);
+		char **tmp2 = mycalloc(bag_cur->weight, char*);
 		
-		tmp = mycalloc(s->weight, char*);
-	 	for (n = 0; n < s->weight-1; n++){
-	 		tmp[n] = strdup(s->read_names[n]);
+	 	for (n = 0; n < bag_cur->weight-1; n++){
+	 		tmp1[n] = strdup(bag_cur->evidence[n]);
 	 	}
-	 	tmp[n] = strdup(read_name);
-	 	free(s->read_names);
-	 	s->read_names = tmp;
+	 	tmp1[n] = strdup(evidence);
+	 	free(bag_cur->evidence);
+	 	bag_cur->evidence = tmp1;
+		
+	 	for (n = 0; n < bag_cur->weight-1; n++){
+	 		tmp2[n] = strdup(bag_cur->read_names[n]);
+	 	}
+	 	tmp2[n] = strdup(read_name);
+	 	free(bag_cur->read_names);
+	 	bag_cur->read_names = tmp2;
 	}
-	return BA_ERR_NONE;
-}
-
-static inline int 
-cmpstr(void const *a, void const *b) { 
-    char const *aa = (char const *)a;
-    char const *bb = (char const *)b;
-    return strcmp(aa, bb);
+	return 0;
 }
 
 /*
- * trim edges with evidence less than min_weight
+ * delete edges in bag with evidence less than min_weight
  */
-static inline int 
-BAG_uthash_trim(struct BAG_uthash** tb, int min_weight){
-	if(*tb == NULL || min_weight < 0) die("BAG_uthash_tim: wrong parameters\n");
-	register struct BAG_uthash *cur, *tmp;
-	HASH_ITER(hh, *tb, cur, tmp) {
-		if(cur==NULL) die("BAG_uthash_tim: HASH_ITER fails\n");
-		if(cur->weight < min_weight) {HASH_DEL(*tb, cur); free(cur);}
+static inline bag_t
+*bag_trim(bag_t* bag, int min_weight){
+	if(bag == NULL) return NULL;	
+	
+	register bag_t *bag_cur, *bag_tmp, *bag_s, *bag_res=NULL;
+	HASH_ITER(hh, bag, bag_cur, bag_tmp) {
+		if(bag_cur->weight >= min_weight){
+			if((bag_s = find_edge(bag_res, bag_cur->edge))==NULL){ /* this edge not exist */
+				HASH_ADD_STR(bag_res, edge, bag_cur);
+			}
+		}
     }
-	return BA_ERR_NONE;
+	return bag_res;
 }
 
 /*
  * rm duplicate evidence for graph edge
  */
 static inline int 
-BAG_uthash_uniq(struct BAG_uthash **tb){
+bag_uniq(bag_t **tb){
 	if(*tb == NULL) die("BAG_uthash_uniq: input error");
-	struct BAG_uthash *cur, *tmp;
+	bag_t *cur, *tmp;
 	int i, j;
 	int before, del;
 	HASH_ITER(hh, *tb, cur, tmp) {
