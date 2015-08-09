@@ -27,9 +27,7 @@
 static struct fasta_uthash *EXON_HT     = NULL;  // stores sequences in in.fa
 static struct kmer_uthash  *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
 static             bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
-static        junction_t   *JUN0_HT     = NULL;  // rough junctions identified from BAG
 static   solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
-static        junction_t   *JUN1_HT     = NULL;  // refined junctions with scores
 
 //opt
 typedef struct {
@@ -127,7 +125,7 @@ static bag_t *bag_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq
  *-------
  * junction_t object that contains identified junctions.
  */
-static junction_t *junction_construct(bag_t *bag, struct fasta_uthash *fa, opt_t *opt);
+static bag_t *bag_junction_gen(bag_t *bag, struct fasta_uthash *fa, opt_t *opt);
 /*
  * Description:
  *------------

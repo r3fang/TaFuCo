@@ -132,7 +132,7 @@ static bag_t
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
 		_read2 = seq2->seq.s;		
 		if(_read1 == NULL || _read2 == NULL) continue;
-		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched", __func__);		
+		//if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched", __func__);		
 		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
 		str_ctr* gene_counter = NULL;
 		str_ctr *s, *tmp;
@@ -175,7 +175,7 @@ static bag_t
 
 
 static int
-find_junction_one_edge(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret){
+edge_junction_gen(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret){
 	if(eg==NULL || fasta_u==NULL || opt==NULL) return -1;
 	int _k = opt->k;
 	int num;
@@ -200,7 +200,6 @@ find_junction_one_edge(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junc
 	for(i=0; i<eg->weight; i++){
 		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
 		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
-		printf("%s\t%s\n", _read1, _read2);
 		if((str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &ename1, &ename2, &junction))==NULL) continue;
 		
 		a = align(_read1, str2, junction, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
@@ -282,14 +281,23 @@ find_junction_one_edge(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junc
 /*
  * generate junction sites from breakend associated graph 
  */
-static junction_t 
-*junction_construct(bag_t *tb, struct fasta_uthash *fa, opt_t *opt){
-	if(tb == NULL || fa == NULL || opt==NULL) die("[%s] input error", __func__);	
-	bag_t *edge, *tmp_bag;
+static bag_t 
+*bag_junction_gen(bag_t *tb, struct fasta_uthash *fa, opt_t *opt){
+	if(tb == NULL || fa == NULL || opt==NULL) return NULL;	
+	bag_t *edge, *bag_cur, *res=NULL;
 	register int i;
-	junction_t *junc_cur, *res = NULL;
+	junction_t *junc_cur = NULL;
 	for(edge=tb; edge != NULL; edge=edge->hh.next) {
-		find_junction_one_edge(edge, fa, opt, &res);
+		edge_junction_gen(edge, fa, opt, &junc_cur);
+		if((bag_cur=find_edge(res, edge->edge))==NULL){
+			bag_cur = bag_init();
+			bag_cur->edge = edge->edge;
+			bag_cur->weight = edge->weight;
+			bag_cur->read_names = edge->read_names;
+			bag_cur->evidence = edge->evidence;
+			bag_cur->junc = transcript_construct(junc_cur, fa);			
+			HASH_ADD_STR(res, edge, bag_cur);								
+		}
 	}
 	return res;
 }
@@ -492,6 +500,7 @@ static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_
 	if(fp2)      gzclose(fp2);
 	return 0;	
 }
+
 static junction_t 
 *transcript_construct(junction_t *junc_ht, struct fasta_uthash *exon_ht){
 	if(junc_ht==NULL || exon_ht==NULL) return NULL;
@@ -594,52 +603,52 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 	return junc_res;
 }
 
-static int 
-junction_display(junction_t *junc, solution_pair_t *sol){
-	if(junc==NULL || sol==NULL){
-		fprintf(stderr, "[%s] junction is empty \n", __func__);
-		return -1;	
-	} 
-	junction_t *junc_cur, *junc_tmp;
-	int i, j;
-	solution_pair_t *sol_cur;
-	char** tmp = mycalloc(3, char*);
-	
-	HASH_ITER(hh, junc, junc_cur, junc_tmp) {
-		if(junc_cur->transcript == NULL) continue;
-		printf("fusion=%s-%s\thits=%zu\tjunction_pos=%d\tlikelihood=%.2f\n",junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
-		for(i=0; i<junc_cur->junc_pos; i++) junc_cur->transcript[i] = tolower(junc_cur->transcript[i]);
-		printf_line(junc_cur->transcript, 50);
-		for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next) {
-			if(sol_cur->junc_name == NULL) continue;
-			if(strcmp(sol_cur->junc_name, junc_cur->idx)==0){
-				printf(">%s\n", sol_cur->idx);
-				if(sol_cur->r1->s1 == NULL || sol_cur->r1->s2 == NULL) continue;
-				i = 1;
-				tmp[0] = tmp[1] = tmp[2] = mycalloc(51, char);
-				memset(tmp[0], '\0', 50);
-				memset(tmp[1], '\0', 50);
-				memset(tmp[2], '\0', 50);
-				while(i<=strlen(sol_cur->r1->s1)){
-					j = i%50;
-					tmp[0][j-1] = sol_cur->r1->s1[i-1]; 
-					tmp[2][j-1] = sol_cur->r1->s2[i-1]; 
-					if(j == 0){
-						printf("%s\n%s\n", tmp[0], tmp[2]);
-						memset(tmp[0], '\0', 50);
-						memset(tmp[1], '|',  50);
-						memset(tmp[2], '\0', 50);
-					}
-					i++;
-				}
-				printf("%s\n%s\n", tmp[0], tmp[2]);
-				printf("%s\t%d\n%s\n", sol_cur->r1->s2, sol_cur->r1->pos, sol_cur->r1->s1);
-				//printf("%s\t%d\n%s\n", sol_cur->r2->s2, sol_cur->r2->pos, sol_cur->r2->s1);		
-			}
-		 }		
-	}
-	return 0;
-}
+//static int 
+//junction_display(junction_t *junc, solution_pair_t *sol){
+//	if(junc==NULL || sol==NULL){
+//		fprintf(stderr, "[%s] junction is empty \n", __func__);
+//		return -1;	
+//	} 
+//	junction_t *junc_cur, *junc_tmp;
+//	int i, j;
+//	solution_pair_t *sol_cur;
+//	char** tmp = mycalloc(3, char*);
+//	
+//	HASH_ITER(hh, junc, junc_cur, junc_tmp) {
+//		if(junc_cur->transcript == NULL) continue;
+//		printf("fusion=%s-%s\thits=%zu\tjunction_pos=%d\tlikelihood=%.2f\n",junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
+//		for(i=0; i<junc_cur->junc_pos; i++) junc_cur->transcript[i] = tolower(junc_cur->transcript[i]);
+//		printf_line(junc_cur->transcript, 50);
+//		for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next) {
+//			if(sol_cur->junc_name == NULL) continue;
+//			if(strcmp(sol_cur->junc_name, junc_cur->idx)==0){
+//				printf(">%s\n", sol_cur->idx);
+//				if(sol_cur->r1->s1 == NULL || sol_cur->r1->s2 == NULL) continue;
+//				i = 1;
+//				tmp[0] = tmp[1] = tmp[2] = mycalloc(51, char);
+//				memset(tmp[0], '\0', 50);
+//				memset(tmp[1], '\0', 50);
+//				memset(tmp[2], '\0', 50);
+//				while(i<=strlen(sol_cur->r1->s1)){
+//					j = i%50;
+//					tmp[0][j-1] = sol_cur->r1->s1[i-1]; 
+//					tmp[2][j-1] = sol_cur->r1->s2[i-1]; 
+//					if(j == 0){
+//						printf("%s\n%s\n", tmp[0], tmp[2]);
+//						memset(tmp[0], '\0', 50);
+//						memset(tmp[1], '|',  50);
+//						memset(tmp[2], '\0', 50);
+//					}
+//					i++;
+//				}
+//				printf("%s\n%s\n", tmp[0], tmp[2]);
+//				printf("%s\t%d\n%s\n", sol_cur->r1->s2, sol_cur->r1->pos, sol_cur->r1->s1);
+//				//printf("%s\t%d\n%s\n", sol_cur->r2->s2, sol_cur->r2->pos, sol_cur->r2->s1);		
+//			}
+//		 }		
+//	}
+//	return 0;
+//}
 
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
@@ -705,16 +714,25 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] constructing graph ... \n", __func__);
 	if((BAGR_HT = bag_construct(KMER_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-	bag_display(BAGR_HT);
 
-	BAGR_HT = bag_trim(BAGR_HT, opt->min_edge_weight);
-	bag_display(BAGR_HT);
+	fprintf(stderr, "[%s] deleting edges of low weight in the graph ... \n", __func__);
+	if((BAGR_HT = bag_trim(BAGR_HT, opt->min_edge_weight))==NULL) return 0;
 
-	BAGR_HT = bag_uniq(BAGR_HT);
-	bag_display(BAGR_HT);
+	fprintf(stderr, "[%s] deleting duplicate reads for every edge ... \n", __func__);
+	if((BAGR_HT = bag_uniq(BAGR_HT))==NULL) return 0;
 	
-	//fprintf(stderr, "[%s] identifying junction sites from graph ... \n", __func__);
-	//if((JUN0_HT = junction_construct(BAGR_HT, EXON_HT, opt))!=NULL){ // if junction string identified
+	fprintf(stderr, "[%s] identify fusion junctions and construct fused transcript for every fusion ... \n", __func__);
+	if((BAGR_HT = bag_junction_gen(BAGR_HT, EXON_HT, opt))==NULL) return 0;
+	
+	//fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
+	//if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
+
+		
+	//junction_t *s;
+	//for(s=JUN0_HT; s != NULL; s=s->hh.next){
+	//	printf("exon1=%s\texon2=%s\thits=%d\tstr=%s\n", s->exon1, s->exon2, s->hits, s->s);
+	//}
+	//{ // if junction string identified
 	//	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
 	//	if((JUN0_HT = transcript_construct(JUN0_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);		
 	//	fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
@@ -730,8 +748,6 @@ int predict(int argc, char *argv[]) {
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
-	if(JUN0_HT)       junction_destory(&JUN0_HT);
-	if(JUN1_HT)       junction_destory(&JUN1_HT);
 	if(BAGR_HT)            bag_distory(&BAGR_HT);
 	if(KMER_HT)    kmer_uthash_destroy(&KMER_HT);
 	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
