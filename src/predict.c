@@ -10,6 +10,80 @@ static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_u
 static int find_junction_one_edge(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret);
 static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
 
+/* 
+ * Find all genes uniquely matched with kmers on _read.          
+ * hash     - a hash table count number of matches between _read and every gene
+ * _read    - inqury read
+ * _k       - kmer length
+ */
+static inline int
+find_all_genes(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k){
+/*--------------------------------------------------------------------*/
+	/* check parameters */
+	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
+/*--------------------------------------------------------------------*/
+	/* declare vaiables */
+	str_ctr *s;
+	int _read_pos = 0;
+	int num;
+	char* gene = NULL;
+	register struct kmer_uthash *s_kmer = NULL; 
+	char buff[_k];
+/*--------------------------------------------------------------------*/
+	while(_read_pos<(strlen(_read)-_k+1)){
+		/* copy a kmer of string */
+		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
+		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
+		/*------------------------------------------------------------*/
+		if((s_kmer=find_kmer(KMER_HT, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
+		if(s_kmer->count == 1){ // only count the uniq match 
+			//gene = strdup(s_kmer->seq_names[0]);
+			gene = strsplit(s_kmer->seq_names[0], '.', &num)[0];
+			if(gene == NULL) die("find_next_match: get_exon_name fails\n");
+			if(str_ctr_add(hash, gene) != 0) die("find_all_MEKMs: str_ctr_add fails\n");
+		}
+		_read_pos++;
+	}
+	return 0;
+}
+
+
+/* 
+ * Find all exons uniquely matched with kmers on _read.          
+ * hash     - a hash table count number of matches between _read and every gene
+ * _read    - inqury read
+ * _k       - kmer length
+ */
+static inline int
+find_all_exons(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k){
+/*--------------------------------------------------------------------*/
+	/* check parameters */
+	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
+/*--------------------------------------------------------------------*/
+	/* declare vaiables */
+	str_ctr *s;
+	int _read_pos = 0;
+	char* exon = NULL;
+	register struct kmer_uthash *s_kmer = NULL; 
+	char buff[_k];
+/*--------------------------------------------------------------------*/
+	while(_read_pos<(strlen(_read)-_k+1)){
+		/* copy a kmer of string */
+		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
+		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
+		/*------------------------------------------------------------*/
+		if((s_kmer=find_kmer(KMER_HT, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
+		if(s_kmer->count == 1){ // only count the uniq match 
+			exon = strdup(s_kmer->seq_names[0]);
+			if(exon == NULL) die("find_next_match: get_exon_name fails\n");
+			if(str_ctr_add(hash, exon) != 0) die("find_all_MEKMs: str_ctr_add fails\n");
+		}
+		_read_pos++;
+	}
+	return 0;
+}
+
+
 static struct kmer_uthash 
 *kmer_uthash_construct(struct fasta_uthash *tb, int k){
 	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;
@@ -80,7 +154,7 @@ static bag_t
 				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
 				if(rc==0) edge_name = NULL;
 				if(edge_name!=NULL){
-					if(BAG_uthash_add(&bag, edge_name, seq1->name.s, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
+					if(bag_add(&bag, edge_name, seq1->name.s, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
 				}
 		}}
 		if(hits)		 free(hits);

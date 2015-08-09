@@ -2,7 +2,7 @@
 /* Created Date: 15JULY2015                                           */
 /* Author: Rongxin Fang                                               */
 /* Contact: r3fang@ucsd.edu                                           */
-/* Library for Breakend Associated Graph (BAG).                       */
+/* Library for Breakend Associated Graph (bag).                       */
 /*--------------------------------------------------------------------*/
 
 #ifndef _BAG_UTHASH_H
@@ -15,11 +15,10 @@
 #include <assert.h>
 #include "utils.h"
 #include "kseq.h"
-#include "kmer_uthash.h"
+
 /* error code */
 #define BA_ERR_NONE		     0 // no error
 
-/* defination of junction_t */
 typedef struct {
 	char* idx;          /* the key of this junction, determined by exon1.start.exon2.end, must be unique */
 	char* exon1;       
@@ -94,7 +93,6 @@ bag_distory(bag_t **bag) {
  */
 static inline int bag_display(bag_t *bag) {
 	if(bag == NULL) return -1;
-	/*free the kmer_hash table*/
 	register bag_t *bag_cur, *bag_tmp;
 	HASH_ITER(hh, bag, bag_cur, bag_tmp) {
 		int i; for(i=0; i < bag_cur->weight; i++){
@@ -141,26 +139,11 @@ junction_destory(junction_t **junc){
 	return 0;
 }
 
-static inline int min_mismatch(char* str, char* pattern){
-	if(str == NULL || pattern == NULL) die("[%s] input error"); 
-	register int i, j, n;
-	int min_mis_match = strlen(pattern)+1;
-	char substring[strlen(pattern)+1];
-	for(i=0;i<strlen(str)-strlen(pattern);i++){
-		n = 0;
-		memset(substring, '\0', sizeof(substring));
-		strncpy(substring, &str[i], strlen(pattern));
-		for(j=0; j<strlen(pattern); j++){if(toupper(pattern[j]) != toupper(substring[j])){n++;}}
-		if (n < min_mis_match){min_mis_match = n;} // update min_mis_match
-	}
-	return min_mis_match;
-} 
-
 /*
  * add one edge to graph
  */
 static inline int 
-BAG_uthash_add(bag_t** bag, char* edge_name, char* read_name, char* evidence){
+bag_add(bag_t** bag, char* edge_name, char* read_name, char* evidence){
 	if(edge_name == NULL || evidence == NULL) return -1;
 	bag_t *bag_cur;
 	register int n;
@@ -212,7 +195,8 @@ static inline bag_t
 }
 
 /*
- * rm duplicate evidence for graph edge
+ * remove duplicate reads that support graph edge, make sure read pairs 
+ * that support every egde is unique.
  */
 static inline bag_t 
 *bag_uniq(bag_t *bag){
@@ -227,11 +211,12 @@ static inline bag_t
 			bag_tmp->weight = 0;
 			bag_tmp->evidence = mycalloc(bag_cur->weight, char*);
 			bag_tmp->read_names = mycalloc(bag_cur->weight, char*);
+			bag_tmp->junc = bag_cur->junc;
+			/* only get unique reads */
 			for(i=0; i<bag_cur->weight; i++){ /* iterate every evidence */
 				repeat = false;
-				for(j=0; j<bag_tmp->weight; j++){
-					if(strcmp(bag_cur->evidence[i], bag_tmp->evidence[j])==0) repeat = true;
-				}
+				for(j=0; j<bag_tmp->weight; j++)
+					if(strcmp(bag_cur->evidence[i], bag_tmp->evidence[j])==0){repeat = true;}
 				if(repeat==false){ // no duplicates
 					bag_tmp->evidence[bag_tmp->weight] = strdup(bag_cur->evidence[i]);
 					bag_tmp->read_names[bag_tmp->weight] = strdup(bag_cur->read_names[i]);
@@ -244,77 +229,18 @@ static inline bag_t
 	return bag_res;
 }
 
-/* 
- * Find all genes uniquely matched with kmers on _read.          
- * hash     - a hash table count number of matches between _read and every gene
- * _read    - inqury read
- * _k       - kmer length
- */
-static inline int
-find_all_genes(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k){
-/*--------------------------------------------------------------------*/
-	/* check parameters */
-	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
-/*--------------------------------------------------------------------*/
-	/* declare vaiables */
-	str_ctr *s;
-	int _read_pos = 0;
-	int num;
-	char* gene = NULL;
-	register struct kmer_uthash *s_kmer = NULL; 
-	char buff[_k];
-/*--------------------------------------------------------------------*/
-	while(_read_pos<(strlen(_read)-_k+1)){
-		/* copy a kmer of string */
-		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
-		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
-		/*------------------------------------------------------------*/
-		if((s_kmer=find_kmer(KMER_HT, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
-		if(s_kmer->count == 1){ // only count the uniq match 
-			//gene = strdup(s_kmer->seq_names[0]);
-			gene = strsplit(s_kmer->seq_names[0], '.', &num)[0];
-			if(gene == NULL) die("find_next_match: get_exon_name fails\n");
-			if(str_ctr_add(hash, gene) != 0) die("find_all_MEKMs: str_ctr_add fails\n");
-		}
-		_read_pos++;
+static inline int min_mismatch(char* str, char* pattern){
+	if(str == NULL || pattern == NULL) return INT_MAX;
+	register int i, j, n;
+	int min_mis_match = strlen(pattern)+1;
+	char substring[strlen(pattern)+1];
+	for(i=0;i<strlen(str)-strlen(pattern);i++){
+		n = 0;
+		memset(substring, '\0', sizeof(substring));
+		strncpy(substring, &str[i], strlen(pattern));
+		for(j=0; j<strlen(pattern); j++){if(toupper(pattern[j]) != toupper(substring[j])){n++;}}
+		if (n < min_mis_match){min_mis_match = n;} // update min_mis_match
 	}
-	return 0;
-}
-
-
-/* 
- * Find all exons uniquely matched with kmers on _read.          
- * hash     - a hash table count number of matches between _read and every gene
- * _read    - inqury read
- * _k       - kmer length
- */
-static inline int
-find_all_exons(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k){
-/*--------------------------------------------------------------------*/
-	/* check parameters */
-	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
-/*--------------------------------------------------------------------*/
-	/* declare vaiables */
-	str_ctr *s;
-	int _read_pos = 0;
-	char* exon = NULL;
-	register struct kmer_uthash *s_kmer = NULL; 
-	char buff[_k];
-/*--------------------------------------------------------------------*/
-	while(_read_pos<(strlen(_read)-_k+1)){
-		/* copy a kmer of string */
-		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
-		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
-		/*------------------------------------------------------------*/
-		if((s_kmer=find_kmer(KMER_HT, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
-		if(s_kmer->count == 1){ // only count the uniq match 
-			exon = strdup(s_kmer->seq_names[0]);
-			if(exon == NULL) die("find_next_match: get_exon_name fails\n");
-			if(str_ctr_add(hash, exon) != 0) die("find_all_MEKMs: str_ctr_add fails\n");
-		}
-		_read_pos++;
-	}
-	return 0;
-}
-
+	return min_mis_match;
+} 
 #endif
