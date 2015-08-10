@@ -109,7 +109,7 @@ static struct kmer_uthash *kmer_uthash_construct(struct fasta_uthash *tb, int k)
  *-------
  * BAG_uthash object that contains the graph.
  */
-static bag_t *bag_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
+static bag_t *bag_construct(struct kmer_uthash *kmer_uthash, struct fasta_uthash *fasta_ht, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
 /*
  * Description:
  *------------
@@ -125,7 +125,7 @@ static bag_t *bag_construct(struct kmer_uthash *kmer_uthash, char* fq1, char* fq
  *-------
  * junction_t object that contains identified junctions.
  */
-static bag_t *bag_junction_gen(bag_t *bag, struct fasta_uthash *fa, opt_t *opt);
+static int bag_junction_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt);
 /*
  * Description:
  *------------

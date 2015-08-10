@@ -40,18 +40,24 @@ typedef struct {
  */
 typedef struct{
 	char *edge;
+	char *gname1; // gene1 and gene2 has order
+	char *gname2;
 	size_t weight;
 	char **read_names;  /* stores the name of read pair that support this edge*/
 	char **evidence;    /* stores the read pair that support this edge*/
-	junction_t *junc;   /* stores the junctions of the edge, NULL if no junction identified */
+	char *concat_gene_str;
+	junction_t *junc;   /* stores the junctions of the edge, NULL if no junction identified */	
     UT_hash_handle hh;  /* makes this structure hashable */
 } bag_t;
 
 static inline bag_t 
 *bag_init() {
 	bag_t *t = mycalloc(1, bag_t);
+	t->gname1 = NULL;
+	t->gname1 = NULL;	
 	t->edge = NULL;
 	t->weight = 0;
+	t->concat_gene_str = NULL;
 	t->evidence = mycalloc(1, char*);
 	t->read_names = mycalloc(1, char*);
 	t->junc = NULL;
@@ -103,10 +109,11 @@ static inline int junction_display(junction_t *junc){
  */
 static inline int bag_display(bag_t *bag) {
 	if(bag == NULL) return -1;
-	register bag_t *bag_cur, *bag_tmp;
-	HASH_ITER(hh, bag, bag_cur, bag_tmp) {
+	register bag_t *bag_cur;
+	for(bag_cur=bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){
 		printf("Fusion:\n---------\n");
-		printf("%s\tweight=%zu\n\n", bag_cur->edge, bag_cur->weight);
+		printf("%s\t%s\tweight=%zu\n\n", bag_cur->gname1, bag_cur->gname2, bag_cur->weight);
+		printf("%s\n", bag_cur->concat_gene_str);
 		printf("Junction:\n-------\n");
 		if(bag_cur->junc != NULL) junction_display(bag_cur->junc);
 	}
@@ -191,54 +198,53 @@ bag_add(bag_t** bag, char* edge_name, char* read_name, char* evidence){
 /*
  * delete edges in bag with evidence less than min_weight
  */
-static inline bag_t
-*bag_trim(bag_t* bag, int min_weight){
-	if(bag == NULL) return NULL;	
-	
-	register bag_t *bag_cur, *bag_tmp, *bag_s, *bag_res=NULL;
-	HASH_ITER(hh, bag, bag_cur, bag_tmp) {
-		if(bag_cur->weight >= min_weight){
-			if((bag_s = find_edge(bag_res, bag_cur->edge))==NULL){ /* this edge not exist */
-				HASH_ADD_STR(bag_res, edge, bag_cur);
-			}
+static inline int
+bag_trim(bag_t **bag, int min_weight){
+	if(*bag==NULL) return -1;
+	register bag_t *bag_cur, *bag_tmp;
+	HASH_ITER(hh, *bag, bag_cur, bag_tmp) {
+		if(bag_cur->weight < min_weight){
+			HASH_DEL(*bag, bag_cur);
+			free(bag_cur);
 		}
-    }
-	return bag_res;
+	}
+	return 0;
 }
+
 
 /*
  * remove duplicate reads that support graph edge, make sure read pairs 
  * that support every egde is unique.
  */
-static inline bag_t 
-*bag_uniq(bag_t *bag){
-	if(bag == NULL) return NULL;
-	bag_t *bag_cur, *bag_tmp, *bag_res=NULL;
-	int i, j, repeat;
+static inline int 
+bag_uniq(bag_t **bag){
+	if(*bag==NULL) return -1;
+	bag_t *bag_cur;
+	int i, j;
+	bool repeat;
+	int weight;
+	char **names, **evidence;
 	/* iterate every edge and remove duplicates */
-	for(bag_cur=bag; bag_cur != NULL; bag_cur=bag_cur->hh.next){
-		if((bag_tmp = find_edge(bag_res, bag_cur->edge)) == NULL){
-			bag_tmp = bag_init();
-			bag_tmp->edge = strdup(bag_cur->edge);
-			bag_tmp->weight = 0;
-			bag_tmp->evidence = mycalloc(bag_cur->weight, char*);
-			bag_tmp->read_names = mycalloc(bag_cur->weight, char*);
-			bag_tmp->junc = bag_cur->junc;
-			/* only get unique reads */
-			for(i=0; i<bag_cur->weight; i++){ /* iterate every evidence */
-				repeat = false;
-				for(j=0; j<bag_tmp->weight; j++)
-					if(strcmp(bag_cur->evidence[i], bag_tmp->evidence[j])==0){repeat = true;}
-				if(repeat==false){ // no duplicates
-					bag_tmp->evidence[bag_tmp->weight] = strdup(bag_cur->evidence[i]);
-					bag_tmp->read_names[bag_tmp->weight] = strdup(bag_cur->read_names[i]);
-					bag_tmp->weight ++;
-				}
+	for(bag_cur=*bag; bag_cur != NULL; bag_cur=bag_cur->hh.next){
+		evidence = mycalloc(bag_cur->weight, char*);
+		names = mycalloc(bag_cur->weight, char*);
+		weight = 0;
+		for(i=0; i<bag_cur->weight; i++){ /* iterate every evidence */
+			repeat = false;
+			for(j=0; j<weight; j++){if(strcmp(bag_cur->evidence[i], evidence[j])==0){repeat = true;}}
+			if(repeat==false){ // no duplicates
+				evidence[weight] = strdup(bag_cur->evidence[i]);
+				names[weight] = strdup(bag_cur->read_names[i]);
+				weight ++;
 			}
-			HASH_ADD_STR(bag_res, edge, bag_tmp);
-		}		
+		}
+		if(bag_cur->evidence)    free(bag_cur->evidence);
+		if(bag_cur->read_names)  free(bag_cur->read_names);
+		bag_cur->evidence = evidence;
+		bag_cur->read_names = names;
+		bag_cur->weight = weight;
 	}
-	return bag_res;
+	return 0;
 }
 /*
  * min mismatch between long string and a short pattern
