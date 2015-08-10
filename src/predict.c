@@ -174,9 +174,10 @@ static bag_t
 }
 
 
-static int
-edge_junction_gen(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret){
-	if(eg==NULL || fasta_u==NULL || opt==NULL) return -1;
+static junction_t
+*edge_junction_gen(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt){
+	if(eg==NULL || fasta_u==NULL || opt==NULL) return NULL;
+	/* variables */
 	int _k = opt->k;
 	int num;
 	char *gname1, *gname2; 
@@ -191,77 +192,81 @@ edge_junction_gen(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_
 	gname1 = strsplit(eg->edge, '_', &num)[0];
 	gname2 = strsplit(eg->edge, '_', &num)[1];
 	register int i, j;
-	register struct kmer_uthash *s_kmer;
-	junction_t *m, *n;
-	register solution_t *a, *b;
+	register struct kmer_uthash *s_kmer; 
+	register solution_t *sol1, *sol2;           /* alignment solution for read1 and read2 */
 	int start1, start2;
-	int junction;
+	int junc_pos;                               /* position of junction */
 	int strlen2;
+	junction_t *m, *n, *ret = NULL;
+	
 	for(i=0; i<eg->weight; i++){
 		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
 		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
-		if((str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &ename1, &ename2, &junction))==NULL) continue;
-		
-		a = align(_read1, str2, junction, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
-		b = align(_read2, str2, junction, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
+		/* string concatnated by exon sequences of two genes */
+		if((str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &ename1, &ename2, &junc_pos))==NULL) continue;
 
-		if(a->jump == true && a->prob >= opt->min_align_score){
-			idx = idx2str(concat(concat(ename1, "."), ename2), a->jump_start, a->jump_end);
-			HASH_FIND_STR(*ret, idx, m);
-			if(m==NULL){ // this junction not in ret
+		/* fiting alignment that allows jump state */
+		sol1 = align(_read1, str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
+		sol2 = align(_read2, str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
+
+		if(sol1->jump == true && sol1->prob >= opt->min_align_score){
+			/* idx = exon1.start.exon2.end (uniq id)*/
+			idx = idx2str(concat(concat(ename1, "."), ename2), sol1->jump_start, sol1->jump_end); // idx for junction
+			HASH_FIND_STR(ret, idx, m);  
+			if(m==NULL){ // add this junction to ret
 				m = junction_init(opt->seed_len);				
 				m->idx    = idx;
 				m->exon1  = ename1;
 				m->exon2  = ename2;				
 				m->hits  = 1;
-				m->likehood = 10*log(a->prob); 				
+				m->likehood = 10*log(sol1->prob); 				
 				// junction flanking sequence 
-				memcpy( m->s, &str2[a->jump_start-opt->seed_len/2-1], opt->seed_len/2);
-				memcpy( &m->s[opt->seed_len/2], &str2[a->jump_end], opt->seed_len/2);
+				memcpy( m->s, &str2[sol1->jump_start-opt->seed_len/2-1], opt->seed_len/2);
+				memcpy( &m->s[opt->seed_len/2], &str2[sol1->jump_end], opt->seed_len/2);
 				// junction flanking sequence 
-				strlen2 = a->jump_start + strlen(str2)-a->jump_end+1;				
+				strlen2 = sol1->jump_start + strlen(str2) - sol1->jump_end+1;				
 				m->transcript = mycalloc(strlen2, char);
-				m->junc_pos = a->jump_start;				
+				m->junc_pos = sol1->jump_start;				
 				memset(m->transcript, '\0', strlen2);
-				memcpy( m->transcript, str2, a->jump_start);
-				memcpy( &m->transcript[a->jump_start], &str2[a->jump_end+1], strlen(str2)-a->jump_end);				
-				HASH_ADD_STR(*ret, idx, m);
+				memcpy( m->transcript, str2, sol1->jump_start);
+				memcpy( &m->transcript[sol1->jump_start], &str2[sol1->jump_end+1], strlen(str2) - sol1->jump_end);				
+				HASH_ADD_STR(ret, idx, m);
 			}else{
 				m->hits ++;
-				m->likehood += 10*log(a->prob); 
+				m->likehood += 10*log(sol1->prob); 
 			}
 		}
-		if(b->jump == true && b->prob >= opt->min_align_score){
-			idx = idx2str(concat(concat(ename1, "."), ename2), b->jump_start, b->jump_end);
-			HASH_FIND_STR(*ret, idx, m);
+		if(sol2->jump == true && sol2->prob >= opt->min_align_score){
+			idx = idx2str(concat(concat(ename1, "."), ename2), sol2->jump_start, sol2->jump_end);
+			HASH_FIND_STR(ret, idx, m);
 			if(m==NULL){ // this junction not in ret
 				m = junction_init(opt->seed_len);				
 				m->idx   = idx;
 				m->exon1  = ename1;
 				m->exon2  = ename2;				
 				m->hits  = 1;
-				m->likehood = 10*log(b->prob); 				
-				memcpy( m->s, &str2[b->jump_start-opt->seed_len/2-1], opt->seed_len/2);
-				memcpy( &m->s[opt->seed_len/2], &str2[b->jump_end], opt->seed_len/2);
-				strlen2 = b->jump_start + strlen(str2)-b->jump_end+1;
+				m->likehood = 10*log(sol2->prob); 				
+				memcpy( m->s, &str2[sol2->jump_start-opt->seed_len/2-1], opt->seed_len/2);
+				memcpy( &m->s[opt->seed_len/2], &str2[sol2->jump_end], opt->seed_len/2);
+				strlen2 = sol2->jump_start + strlen(str2) - sol2->jump_end+1;
 				m->transcript = mycalloc(strlen2, char);
-				m->junc_pos = b->jump_start;
+				m->junc_pos = sol2->jump_start;
 				memset(m->transcript, '\0', strlen2);
-				memcpy( m->transcript, str2, b->jump_start);
-				memcpy( &m->transcript[b->jump_start], &str2[b->jump_end], strlen(str2)-b->jump_end);				
-				HASH_ADD_STR(*ret, idx, m);
+				memcpy( m->transcript, str2, sol2->jump_start);
+				memcpy( &m->transcript[sol2->jump_start], &str2[sol2->jump_end], strlen(str2)-sol2->jump_end);				
+				HASH_ADD_STR(ret, idx, m);
 			}else{
 				m->hits ++;
-				m->likehood += 10*log(b->prob); 
+				m->likehood += 10*log(sol2->prob); 
 			}
 		}	
 	}
 	// delete those junctions with hits < MIN_HITS
-	HASH_ITER(hh, *ret, m, n){
+	HASH_ITER(hh, ret, m, n){
 		if(m != NULL){
 			m->likehood = m->likehood/m->hits;
 			if(m->hits < opt->min_hits){
-				HASH_DEL(*ret,m);
+				HASH_DEL(ret,m);
 				free(m);
 			}
 		}
@@ -271,35 +276,37 @@ edge_junction_gen(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_
 	if(str2)           free(str2);
 	if(_read1)         free(_read1);
 	if(_read2)         free(_read2);
-	if(a)              solution_destory(a);
-	if(b)              solution_destory(b);
+	if(sol1)           solution_destory(sol1);
+	if(sol2)           solution_destory(sol2);
 	if(idx)            free(idx);
 	if(gname1)         free(gname1);     
 	if(gname2)         free(gname2);
-	return 0;
+	return ret;
 }
 /*
- * generate junction sites from breakend associated graph 
+ * generate junction string of every edge based on supportive reads.
+ * 
  */
 static bag_t 
-*bag_junction_gen(bag_t *tb, struct fasta_uthash *fa, opt_t *opt){
-	if(tb == NULL || fa == NULL || opt==NULL) return NULL;	
-	bag_t *edge, *bag_cur, *res=NULL;
+*bag_junction_gen(bag_t *bag, struct fasta_uthash *fa, opt_t *opt){
+	if(bag == NULL || fa == NULL || opt==NULL) return NULL;	
+	bag_t *edge, *bag_cur, *ret=NULL;
 	register int i;
-	junction_t *junc_cur = NULL;
-	for(edge=tb; edge != NULL; edge=edge->hh.next) {
-		edge_junction_gen(edge, fa, opt, &junc_cur);
-		if((bag_cur=find_edge(res, edge->edge))==NULL){
+	junction_t *junc_cur;
+	for(edge=bag; edge != NULL; edge=edge->hh.next) {
+		// find junction of the edge
+		junc_cur = edge_junction_gen(edge, fa, opt);
+		if((bag_cur=find_edge(ret, edge->edge))==NULL){
 			bag_cur = bag_init();
 			bag_cur->edge = edge->edge;
 			bag_cur->weight = edge->weight;
 			bag_cur->read_names = edge->read_names;
 			bag_cur->evidence = edge->evidence;
 			bag_cur->junc = transcript_construct(junc_cur, fa);			
-			HASH_ADD_STR(res, edge, bag_cur);								
+			HASH_ADD_STR(ret, edge, bag_cur);								
 		}
 	}
-	return res;
+	return ret;
 }
 
 static char 
@@ -358,6 +365,9 @@ static char
 	return ret;
 }
 
+/*
+ * align supportive reads of every edge to edge's constructed transcript
+ */
 static solution_pair_t 
 *align_edge_to_transcript(junction_t *junc_ht, bag_t *bag_ht, opt_t *opt){
 	if(junc_ht==NULL || bag_ht==NULL || opt==NULL) return NULL;
@@ -723,11 +733,11 @@ int predict(int argc, char *argv[]) {
 	
 	fprintf(stderr, "[%s] identify fusion junctions and construct fused transcript for every fusion ... \n", __func__);
 	if((BAGR_HT = bag_junction_gen(BAGR_HT, EXON_HT, opt))==NULL) return 0;
-	
+
+	bag_display(BAGR_HT);
 	//fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
 	//if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
 
-		
 	//junction_t *s;
 	//for(s=JUN0_HT; s != NULL; s=s->hh.next){
 	//	printf("exon1=%s\texon2=%s\thits=%d\tstr=%s\n", s->exon1, s->exon2, s->hits, s->s);
