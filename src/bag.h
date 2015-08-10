@@ -45,7 +45,7 @@ typedef struct{
 	size_t weight;
 	char **read_names;  /* stores the name of read pair that support this edge*/
 	char **evidence;    /* stores the read pair that support this edge*/
-	char *concat_gene_str;
+	bool junc_flag;
 	junction_t *junc;   /* stores the junctions of the edge, NULL if no junction identified */	
     UT_hash_handle hh;  /* makes this structure hashable */
 } bag_t;
@@ -56,8 +56,8 @@ static inline bag_t
 	t->gname1 = NULL;
 	t->gname1 = NULL;	
 	t->edge = NULL;
+	t->junc_flag = false;
 	t->weight = 0;
-	t->concat_gene_str = NULL;
 	t->evidence = mycalloc(1, char*);
 	t->read_names = mycalloc(1, char*);
 	t->junc = NULL;
@@ -113,9 +113,8 @@ static inline int bag_display(bag_t *bag) {
 	for(bag_cur=bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){
 		printf("Fusion:\n---------\n");
 		printf("%s\t%s\tweight=%zu\n\n", bag_cur->gname1, bag_cur->gname2, bag_cur->weight);
-		printf("%s\n", bag_cur->concat_gene_str);
 		printf("Junction:\n-------\n");
-		if(bag_cur->junc != NULL) junction_display(bag_cur->junc);
+		if(bag_cur->junc_flag == true) junction_display(bag_cur->junc);
 	}
 	return 0;
 }

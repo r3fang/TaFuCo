@@ -10,7 +10,8 @@ static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_u
 static int find_junction_one_edge(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret);
 static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
 static int gene_order(char* gname1, char* gname2, char* read1, char* read2, struct kmer_uthash *kmer_ht, int k, int min_kmer_match);
-static char *concat_genes(char* gname1, char *gname2, struct fasta_uthash *fasta_ht);
+static junction_t *transcript_construct_no_junc(char* gname1, char *gname2, struct fasta_uthash *fasta_ht);
+static junction_t *transcript_construct_junc(junction_t *junc_ht, struct fasta_uthash *exon_ht);
 
 /*
  * determine the order of fusion genes.
@@ -131,7 +132,6 @@ find_all_exons(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k)
 	return 0;
 }
 
-
 static struct kmer_uthash 
 *kmer_uthash_construct(struct fasta_uthash *tb, int k){
 	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;
@@ -226,12 +226,10 @@ static bag_t
 			if(order > 0){
 				cur->gname1 = strdup(strsplit(cur->edge, '_', &num)[1]); 
 				cur->gname2 = strdup(strsplit(cur->edge, '_', &num)[0]);
-				cur->concat_gene_str = strdup(concat_genes(cur->gname1, cur->gname2, fasta_ht));
 			}
 			if(order < 0){
 				cur->gname1 = strdup(strsplit(cur->edge, '_', &num)[0]); 
 				cur->gname2 = strdup(strsplit(cur->edge, '_', &num)[1]);
-				cur->concat_gene_str = strdup(concat_genes(cur->gname1, cur->gname2, fasta_ht));
 			}
 			if(order == 0){ HASH_DEL(bag, cur); free(cur);}
 		}
@@ -352,7 +350,7 @@ static junction_t
 }
 
 static junction_t 
-*transcript_construct(junction_t *junc_ht, struct fasta_uthash *exon_ht){
+*transcript_construct_junc(junction_t *junc_ht, struct fasta_uthash *exon_ht){
 	if(junc_ht==NULL || exon_ht==NULL) return NULL;
 	junction_t *cur_junction, *tmp_junction;
 	char* gname1, *gname2, *ename1, *ename2;
@@ -411,6 +409,56 @@ static junction_t
 	return junc_ht;
 }
 
+static junction_t
+*transcript_construct_no_junc(char* gname1, char *gname2, struct fasta_uthash *fasta_ht){
+	if(gname1==NULL || gname2==NULL || fasta_ht==NULL) return NULL;	
+	junction_t *junc_res = junction_init(0);
+	if(gname1==NULL || gname2==NULL || fasta_ht==NULL) return NULL;
+	struct fasta_uthash *fasta_cur;
+	char *res1 = NULL;
+	char *res2 = NULL;
+	int num;
+	int idx = 0;
+	char** strs;
+	int *S1, *S2;
+	S1 = S2 = NULL;
+	for(fasta_cur=fasta_ht; fasta_cur!=NULL; fasta_cur=fasta_cur->hh.next){
+		S1 = mycalloc(100, int); memset(S1, 0, 100);		
+		strs = strsplit(fasta_cur->name, '.', &num);
+		if(num!=2) continue;
+		if(strcmp(strs[0], gname1) != 0) continue;
+		if(atoi(strs[1]) < idx) continue; // make sure the order
+		res1 = concat(res1, fasta_cur->seq);
+		S1[idx] = strlen(res1);
+		idx = atoi(strs[1]);		
+	}
+	junc_res->S1_num = idx;
+	
+	idx = 0;
+	for(fasta_cur=fasta_ht; fasta_cur!=NULL; fasta_cur=fasta_cur->hh.next){
+		S2 = mycalloc(100, int); memset(S2, UINT_MAX, 100);
+		strs = strsplit(fasta_cur->name, '.', &num);
+		if(num!=2) continue;
+		if(strcmp(strs[0], gname2) != 0) continue;
+		if(atoi(strs[1]) < idx) continue; // make sure the order
+		res2 = concat(res2, fasta_cur->seq);
+		S2[idx] = strlen(res2);
+		idx = atoi(strs[1]);
+	}
+	junc_res->S2_num = idx;
+	junc_res->idx = concat(concat(gname1, "_"), gname2);
+	junc_res->exon1 = NULL;
+	junc_res->exon2 = NULL;
+	junc_res->s = NULL;	
+	junc_res->transcript = concat(res1, res2);	
+	junc_res->junc_pos = strlen(res1);
+	junc_res->S1 = S1;
+	junc_res->S2 = S2;	
+	junc_res->hits = 0;
+	junc_res->likehood = -INFINITY;
+	return junc_res;
+}
+
 /*
  * generate junction string of every edge based on supportive reads.
  */
@@ -422,42 +470,16 @@ bag_junction_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
 	junction_t *junc_cur;
 	for(edge=*bag; edge!=NULL; edge=edge->hh.next) {
 		if((junc_cur = edge_junction_gen(edge, fa, opt))==NULL){ // no junction detected
-			edge->junc = NULL;
+			edge->junc = transcript_construct_no_junc(edge->gname1, edge->gname2, fa);
+			edge->junc_flag = false;
 		}else{
-			edge->junc = transcript_construct(junc_cur, fa);
+			edge->junc = transcript_construct_junc(junc_cur, fa);
+			edge->junc_flag = true;
 		}		
 	}   
 	return 0;
 }
 
-static char 
-*concat_genes(char* gname1, char *gname2, struct fasta_uthash *fasta_ht){
-	if(gname1==NULL || gname2==NULL || fasta_ht==NULL) return NULL;
-	struct fasta_uthash *fasta_cur;
-	char *res = NULL;
-	int num;
-	int idx = 0;
-	char** strs;
-	for(fasta_cur=fasta_ht; fasta_cur!=NULL; fasta_cur=fasta_cur->hh.next){
-		strs = strsplit(fasta_cur->name, '.', &num);
-		if(num!=2) continue;
-		if(strcmp(strs[0], gname1) != 0) continue;
-		if(atoi(strs[1]) < idx) continue; // make sure the order
-		idx = atoi(strs[1]);
-		res = concat(res, fasta_cur->seq);
-	}
-
-	idx = 0;
-	for(fasta_cur=fasta_ht; fasta_cur!=NULL; fasta_cur=fasta_cur->hh.next){
-		strs = strsplit(fasta_cur->name, '.', &num);
-		if(num!=2) continue;
-		if(strcmp(strs[0], gname2) != 0) continue;
-		if(atoi(strs[1]) < idx) continue; // make sure the order
-		idx = atoi(strs[1]);
-		res = concat(res, fasta_cur->seq);
-	}
-	return res;	
-}
 /*
  * construct concatnated exon string based on kmer matches
  */
@@ -822,14 +844,16 @@ int predict(int argc, char *argv[]) {
 		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
 		return -1;
 	}
-	if(BAGR_HT == NULL) return 0;
-	
+	if(BAGR_HT == NULL) return 0;	
+
 	fprintf(stderr, "[%s] identify fusion junctions and construct fused transcript for every fusion ... \n", __func__);
 	if(bag_junction_gen(&BAGR_HT, EXON_HT, opt)!=0){
 		fprintf(stderr, "[%s] fail to construct junction  \n", __func__);
 		return -1;	
 	}
 	if(BAGR_HT == NULL) return 0;
+	bag_display(BAGR_HT);
+	
 	//fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
 	//if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
 
