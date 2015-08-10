@@ -6,10 +6,48 @@
 /*--------------------------------------------------------------------*/
 #include "predict.h"
 
-static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction);
+static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
 static int find_junction_one_edge(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret);
 static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
+static int gene_order(char** gname1, char** gname2, char* read1, char* read2, struct kmer_uthash *kmer_ht, int k);
 
+static int 
+gene_order(char** gname1, char** gname2, char* read1, char* read2, struct kmer_uthash *kmer_ht, int k){
+	if(*gname1==NULL || *gname2==NULL || read1==NULL || read2==NULL || kmer_ht==NULL) return -1;
+	register int i;
+	int *gene1 = mycalloc(strlen(read1)+strlen(read2), int);
+	int *gene2 = mycalloc(strlen(read1)+strlen(read2), int);
+	int gene1_pos = 0;	
+	int gene2_pos = 0;	
+	int num;
+	char* gname_tmp;
+	register struct kmer_uthash *kmer_cur;
+	char *buff = mycalloc(k+1, char);
+	for(i=0; i<strlen(read1)-k+1; i++){
+		memset(buff, '\0', k+1);
+		strncpy(buff, read1 + i, k); buff[k] = '\0';			
+		if((kmer_cur=find_kmer(kmer_ht, buff)) == NULL) continue;
+		if(kmer_cur->count == 1){  // uniq match
+			gname_tmp = strsplit(kmer_cur->seq_names[0], '.', &num)[0];
+			if(strcmp(gname_tmp, *gname1)==0) gene1[gene1_pos++] = i;
+			if(strcmp(gname_tmp, *gname2)==0) gene2[gene2_pos++] = i;
+		}
+	}
+	for(i=0; i<strlen(read2)-k+1; i++){
+		memset(buff, '\0', k+1);
+		strncpy(buff, read2 + i, k); buff[k] = '\0';			
+		if((kmer_cur=find_kmer(kmer_ht, buff)) == NULL) continue;
+		if(kmer_cur->count == 1){  // uniq match
+			gname_tmp = strsplit(kmer_cur->seq_names[0], '.', &num)[0];
+			if(strcmp(gname_tmp, *gname1)==0) gene1[gene1_pos++] = i+strlen(read1);
+			if(strcmp(gname_tmp, *gname2)==0) gene2[gene2_pos++] = i+strlen(read1);
+		}
+	}
+	if(gene1_pos != 0 && gene2_pos != 0){
+		return 0;
+	}
+	return -1;
+}
 /* 
  * Find all genes uniquely matched with kmers on _read.          
  * hash     - a hash table count number of matches between _read and every gene
@@ -46,7 +84,6 @@ find_all_genes(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k)
 	}
 	return 0;
 }
-
 
 /* 
  * Find all exons uniquely matched with kmers on _read.          
@@ -202,9 +239,10 @@ static junction_t
 	for(i=0; i<eg->weight; i++){
 		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
 		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
+		
+		printf("%d\n", gene_order(&gname1, &gname2, _read1, _read2, KMER_HT, opt->k));
 		/* string concatnated by exon sequences of two genes */
-		if((str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &ename1, &ename2, &junc_pos))==NULL) continue;
-
+		if((str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &ename1, &ename2, &junc_pos, opt->min_kmer_match))==NULL) continue;
 		/* fiting alignment that allows jump state */
 		sol1 = align(_read1, str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
 		sol2 = align(_read2, str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
@@ -283,6 +321,67 @@ static junction_t
 	if(gname2)         free(gname2);
 	return ret;
 }
+
+static junction_t 
+*transcript_construct(junction_t *junc_ht, struct fasta_uthash *exon_ht){
+	if(junc_ht==NULL || exon_ht==NULL) return NULL;
+	junction_t *cur_junction, *tmp_junction;
+	char* gname1, *gname2, *ename1, *ename2;
+	gname1 = gname2 = ename1 = ename2 = NULL;
+	int enum1, enum2;
+	char enum1_str[10], enum2_str[10];
+	int num1, num2;
+	char** fields1, **fields2;
+	struct fasta_uthash *exon1_fa,  *exon2_fa;
+	exon1_fa = exon2_fa = NULL;
+	char *exon1_seq, *exon2_seq;
+	int i, j;
+	int *S1, *S2;
+	int str1_l, str2_l, str3_l;
+	HASH_ITER(hh, junc_ht, cur_junction, tmp_junction) {
+		exon1_seq = exon2_seq = NULL;
+		S1 = S2 = NULL;
+		cur_junction->S1_num = cur_junction->S2_num = 0;
+		cur_junction->S1 = cur_junction->S2 = NULL;
+		fields1 = strsplit(cur_junction->exon1, '.', &num1);
+		fields2 = strsplit(cur_junction->exon2, '.', &num2);
+		if(num1 != 2 || num2 != 2) continue;
+		gname1 = fields1[0]; enum1 = atoi(fields1[1]);
+		gname2 = fields2[0]; enum2 = atoi(fields2[1]);
+		S1 = mycalloc(enum1+1, int);
+		for(i=1; i<enum1; i++){
+			sprintf(enum1_str, "%d", i);
+			ename1 = concat(concat(gname1, "."), enum1_str);
+			if((exon1_fa = find_fasta(exon_ht, ename1))!=NULL){
+				exon1_seq = concat(exon1_seq, exon1_fa->seq);
+				S1[i-1] = strlen(exon1_seq);
+				cur_junction->S1_num = i;
+			}
+		}
+		str1_l = (exon1_seq == NULL) ? 0 : strlen(exon1_seq);
+		str2_l = (cur_junction->transcript == NULL) ? 0 : strlen(cur_junction->transcript);
+		S2 = mycalloc(100, int); memset(S2, UINT_MAX, 100);
+		S2[0] = str1_l + str2_l;
+		j = 1;for(i=(enum2+1); i<INFINITY; i++){
+			sprintf(enum2_str, "%d", i);
+			ename2 = concat(concat(gname2, "."), enum2_str);
+			if((exon2_fa = find_fasta(exon_ht, ename2))==NULL) break;
+			exon2_seq = concat(exon2_seq, exon2_fa->seq);
+			cur_junction->S2_num = j;
+			S2[j++] = str1_l + str2_l + strlen(exon2_seq);
+		}
+		cur_junction->junc_pos = str1_l + cur_junction->junc_pos;
+		cur_junction->transcript = concat(concat(exon1_seq, cur_junction->transcript), exon2_seq);
+		cur_junction->S1 = S1;
+		cur_junction->S2 = S2;
+	}	
+	if(fields1)       free(fields1);
+	if(fields2)       free(fields2);
+	if(gname1)        free(gname1);
+	if(gname2)        free(gname2);
+	return junc_ht;
+}
+
 /*
  * generate junction string of every edge based on supportive reads.
  * 
@@ -295,13 +394,13 @@ static bag_t
 	junction_t *junc_cur;
 	for(edge=bag; edge != NULL; edge=edge->hh.next) {
 		// find junction of the edge
-		junc_cur = edge_junction_gen(edge, fa, opt);
 		if((bag_cur=find_edge(ret, edge->edge))==NULL){
 			bag_cur = bag_init();
 			bag_cur->edge = edge->edge;
 			bag_cur->weight = edge->weight;
 			bag_cur->read_names = edge->read_names;
 			bag_cur->evidence = edge->evidence;
+			junc_cur = edge_junction_gen(edge, fa, opt);
 			bag_cur->junc = transcript_construct(junc_cur, fa);			
 			HASH_ADD_STR(ret, edge, bag_cur);								
 		}
@@ -309,9 +408,13 @@ static bag_t
 	return ret;
 }
 
+/*
+ * construct concatnated exon string based on kmer matches
+ */
 static char 
-*concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction){
+*concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junc_pos, int min_kmer_match){
 	if(_read == NULL || fa_ht == NULL || kmer_ht==NULL || gname1==NULL || gname2==NULL) return NULL;
+	/* variables */
 	char *str1, *str2;
 	*ename1 = *ename2 = str1 = str2 = NULL;
 	int order_gene1, order_gene2;
@@ -322,30 +425,32 @@ static char
 	char* gname_cur;
 	str_ctr *s_ctr, *tmp_ctr, *exons=NULL;
 	struct fasta_uthash *fa_tmp;
+	/* find all exons that uniquely match with gene by kmer */
 	find_all_exons(&exons, kmer_ht, _read, _k);
 	if(exons==NULL) return NULL; // no exon found
 	HASH_ITER(hh, exons, s_ctr, tmp_ctr) { 
-		if(s_ctr->SIZE >= 2){ //denoise
-			gname_cur = strsplit(s_ctr->KEY, '.', &num_tmp)[0];
-			
+		if(s_ctr->SIZE >= min_kmer_match){ //denoise
+			gname_cur = strsplit(s_ctr->KEY, '.', &num_tmp)[0]; // name of gene
+			// extract string of gene1
 			if(strcmp(gname_cur, gname1)==0){
 				fa_tmp = find_fasta(fa_ht, s_ctr->KEY);
 				if(str1 == NULL){
 					str1 = strdup(fa_tmp->seq);
-					order_gene1 = i++;
+					order_gene1 = i++; // determine the order
 					*ename1 = s_ctr->KEY;
 				}else{
-					*ename1 = s_ctr->KEY;
 					str1 = concat(str1, fa_tmp->seq);
 				}				
 			}
+			// extract string of gene2
 			if(strcmp(gname_cur, gname2)==0){
 				fa_tmp = find_fasta(fa_ht, s_ctr->KEY);
 				if(str2 == NULL){
 					str2 = strdup(fa_tmp->seq);
 					*ename2 = s_ctr->KEY;
-					order_gene2 = i++;
+					order_gene2 = i++; // determine the order
 				}else{
+					*ename2 = s_ctr->KEY;
 					str2 = concat(str2, fa_tmp->seq);
 				}				
 			}
@@ -353,9 +458,9 @@ static char
 	}
 	if(gname_cur) free(gname_cur);
 	if(exons)         str_ctr_destory(&exons);
-	if(str1 == NULL || str2 == NULL) return NULL;
+	if(str1 == NULL || str2 == NULL) return NULL; // only if two genes identified
 	char *ret = (order_gene1 <= order_gene2) ? concat(str1, str2) : concat(str2, str1);	
-	*junction = (order_gene1 <= order_gene2) ? strlen(str1) : strlen(str2);	
+	*junc_pos = (order_gene1 <= order_gene2) ? strlen(str1) : strlen(str2);	
 	if(order_gene1 > order_gene2){ // switch ename1 and ename2
 		char* tmp = strdup(*ename1);
 		*ename1 = strdup(*ename2);
@@ -511,65 +616,7 @@ static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_
 	return 0;	
 }
 
-static junction_t 
-*transcript_construct(junction_t *junc_ht, struct fasta_uthash *exon_ht){
-	if(junc_ht==NULL || exon_ht==NULL) return NULL;
-	junction_t *cur_junction, *tmp_junction;
-	char* gname1, *gname2, *ename1, *ename2;
-	gname1 = gname2 = ename1 = ename2 = NULL;
-	int enum1, enum2;
-	char enum1_str[10], enum2_str[10];
-	int num1, num2;
-	char** fields1, **fields2;
-	struct fasta_uthash *exon1_fa,  *exon2_fa;
-	exon1_fa = exon2_fa = NULL;
-	char *exon1_seq, *exon2_seq;
-	int i, j;
-	int *S1, *S2;
-	int str1_l, str2_l, str3_l;
-	HASH_ITER(hh, junc_ht, cur_junction, tmp_junction) {
-		exon1_seq = exon2_seq = NULL;
-		S1 = S2 = NULL;
-		cur_junction->S1_num = cur_junction->S2_num = 0;
-		cur_junction->S1 = cur_junction->S2 = NULL;
-		fields1 = strsplit(cur_junction->exon1, '.', &num1);
-		fields2 = strsplit(cur_junction->exon2, '.', &num2);
-		if(num1 != 2 || num2 != 2) continue;
-		gname1 = fields1[0]; enum1 = atoi(fields1[1]);
-		gname2 = fields2[0]; enum2 = atoi(fields2[1]);
-		S1 = mycalloc(enum1+1, int);
-		for(i=1; i<enum1; i++){
-			sprintf(enum1_str, "%d", i);
-			ename1 = concat(concat(gname1, "."), enum1_str);
-			if((exon1_fa = find_fasta(exon_ht, ename1))!=NULL){
-				exon1_seq = concat(exon1_seq, exon1_fa->seq);
-				S1[i-1] = strlen(exon1_seq);
-				cur_junction->S1_num = i;
-			}
-		}
-		str1_l = (exon1_seq == NULL) ? 0 : strlen(exon1_seq);
-		str2_l = (cur_junction->transcript == NULL) ? 0 : strlen(cur_junction->transcript);
-		S2 = mycalloc(100, int); memset(S2, UINT_MAX, 100);
-		S2[0] = str1_l + str2_l;
-		j = 1;for(i=(enum2+1); i<INFINITY; i++){
-			sprintf(enum2_str, "%d", i);
-			ename2 = concat(concat(gname2, "."), enum2_str);
-			if((exon2_fa = find_fasta(exon_ht, ename2))==NULL) break;
-			exon2_seq = concat(exon2_seq, exon2_fa->seq);
-			cur_junction->S2_num = j;
-			S2[j++] = str1_l + str2_l + strlen(exon2_seq);
-		}
-		cur_junction->junc_pos = str1_l + cur_junction->junc_pos;
-		cur_junction->transcript = concat(concat(exon1_seq, cur_junction->transcript), exon2_seq);
-		cur_junction->S1 = S1;
-		cur_junction->S2 = S2;
-	}	
-	if(fields1)       free(fields1);
-	if(fields2)       free(fields2);
-	if(gname1)        free(gname1);
-	if(gname2)        free(gname2);
-	return junc_ht;
-}
+
 /*
  * Description:
  *------------
