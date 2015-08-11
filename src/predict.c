@@ -927,26 +927,8 @@ int predict(int argc, char *argv[]) {
 	}
 	if(BAGR_HT == NULL) return 0;
 	bag_display(BAGR_HT);
+
 	
-	//fprintf(stderr, "[%s] constructing fused transcript for every fusion candiates... \n", __func__);
-	//if(bag_transcript_gen(&BAGR_HT, EXON_HT, opt)!=0){
-	//	fprintf(stderr, "[%s] fail to construct transcript  \n", __func__);
-	//	return -1;	
-	//}
-	//if(BAGR_HT == NULL) return 0;
-	//
-	//bag_display(BAGR_HT);
-	//fprintf(stderr, "[%s] aligning supportive read pairs to fused transcript ... \n", __func__);    
-	//if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
-	//
-	//fprintf(stderr, "[%s] testing junctions ... \n", __func__);    	
-	//if((align_reads_to_transcript(&SOLU_HT, BAGR_HT, opt)) != 0) die("[%s] can't rediscover any junction", __func__);;
-	//
-	//solution_pair_t *s;
-	//for(s=SOLU_HT; s!=NULL; s=s->hh.next){
-	//	printf("%s\n", s->junc_name);
-	//}
-	//
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
