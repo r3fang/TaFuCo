@@ -299,9 +299,9 @@ trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 
 static inline solution_t 
 *align(char *s1, char *s2, int junction, double MATCH, double MISMATCH, double GAP, double EXTENSION, double JUMP_GENE){
-	if(s1 == NULL || s2 == NULL) die("[%s] parameter error", __func__);
+	if(s1 == NULL || s2 == NULL) return NULL;
 	
-	if(strlen(s1) > strlen(s2)) die("first sequence must be shorter than the second to do fitting alignment"); 
+	if(strlen(s1) > strlen(s2)) return NULL; 
 	size_t m   = strlen(s1) + 1; 
 	size_t n   = strlen(s2) + 1;
 	matrix_t *S = create_matrix(m, n);

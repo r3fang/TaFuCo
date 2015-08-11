@@ -7,7 +7,6 @@
 
 #include "predict.h"
 
-
 static kmer_t *kmer_index(fasta_t *, int);
 static bag_t  *bag_construct(kmer_t *, fasta_t *, char*, char*, int, int, int);
 static char *concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
@@ -81,11 +80,12 @@ find_all_genes(str_ctr **hash, kmer_t *kmer_ht, char* _read, int _k){
 		/* copy a kmer of string */
 		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
 		if(strlen(buff) != _k) continue;
-
 		if((s_kmer=find_kmer(kmer_ht, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
 		if(s_kmer->count == 1){ // only count the uniq match 
 			gene = strsplit(s_kmer->seq_names[0], '.', &num)[0];
-			if(gene != NULL){ str_ctr_add(hash, gene);}
+			if(gene != NULL){ 
+				str_ctr_add(hash, gene);
+			}
 		}
 		_read_pos++;
 	}
@@ -137,8 +137,8 @@ static bag_t
 		gene_counter = NULL;
 		find_all_genes(&gene_counter, kmer_ht, _read1, _k);
 		find_all_genes(&gene_counter, kmer_ht, _read2, _k);
-		
 		if((num = HASH_COUNT(gene_counter))<2) continue; // if less than two genes identified, pass the rest
+		
 		char** hits = mycalloc(num, char*);
 		/* filter genes that have matches with kmer less than min_kmer_matches */
 		i=0; for(s=gene_counter; s!=NULL; s=s->hh.next){if(s->SIZE >= min_kmer_matches){hits[i++] = strdup(s->KEY);}}
@@ -164,10 +164,12 @@ static bag_t
 	}
 	// determine gene order by kmer matches
 	int order;
+	_read1 = _read2 = NULL;
 	for(cur=bag; cur!=NULL; cur=cur->hh.next){
 		order = 0;
 		for(i=0; i<cur->weight; i++){
-			_read1 = strsplit(cur->evidence[i], '_', &num)[0]; _read2 = strsplit(cur->evidence[i], '_', &num)[1];	
+			_read1 = strsplit(cur->evidence[i], '_', &num)[0]; 
+			_read2 = strsplit(cur->evidence[i], '_', &num)[1];	
 			order += gene_order(strsplit(cur->edge, '_', &num)[0], strsplit(cur->edge, '_', &num)[1], _read1, _read2, kmer_ht, _k, min_kmer_matches);
 		}
 		if(order > 0){
@@ -179,8 +181,7 @@ static bag_t
 			cur->gname2 = strdup(strsplit(cur->edge, '_', &num)[1]);
 		}
 		if(order == 0){ HASH_DEL(bag, cur); free(cur);}		
-	}	
-
+	}
 	// clean the mess up
 	if(_read1)      free(_read1);
 	if(_read2)      free(_read2);
@@ -276,18 +277,18 @@ find_all_exons(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k){
 }
 
 static junction_t
-*edge_junction_gen(bag_t *eg, fasta_t *fasta_u, opt_t *opt){
+*edge_junction_gen(bag_t *eg, fasta_t *fasta_u, kmer_t *kmer_ht, opt_t *opt){
 	if(eg==NULL || fasta_u==NULL || opt==NULL) return NULL;
 	/* variables */
 	int _k = opt->k;
 	int num;
-	register char* _read1, *_read2, *str2;
+	register char* _read1, *_read2, *str1, *str2;
 	char *ename1, *ename2;
 	char *chrom1, *chrom2;
 	char* idx = NULL;
 	chrom2 = chrom1 = NULL;
 	ename1 = ename2 = NULL;
-	_read1 = _read2 = str2 = NULL;
+	_read1 = _read2 = str1 = str2 = NULL;
 	char *gname1, *gname2;
 	gname1 = eg->gname1;
 	gname2 = eg->gname2;
@@ -299,67 +300,74 @@ static junction_t
 	int junc_pos;                               /* position of junction */
 	int strlen2;
 	junction_t *m, *n, *ret = NULL;
-
+	
 	for(i=0; i<eg->weight; i++){
 		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
 		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
+		//printf("%s\t%s\n", _read1, _read2);
+		if(_read1==NULL || _read2==NULL) continue;
+		sol1 = sol2 = NULL;
 		/* string concatnated by exon sequences of two genes */
-		if((str2 =  concat_exons(_read1, fasta_u, KMER_HT, _k, gname1, gname2, &ename1, &ename2, &junc_pos, opt->min_kmer_match))==NULL) continue;
-		/* fiting alignment that allows jump state */
-		sol1 = align(_read1, str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
-		sol2 = align(_read2, str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene);
-
-		if(sol1->jump == true && sol1->prob >= opt->min_align_score){
-			/* idx = exon1.start.exon2.end (uniq id)*/
-			idx = idx2str(concat(concat(ename1, "."), ename2), sol1->jump_start, sol1->jump_end); // idx for junction
-			HASH_FIND_STR(ret, idx, m);  
-			if(m==NULL){ // add this junction to ret
-				m = junction_init(opt->seed_len);				
-				m->idx    = idx;
-				m->exon1  = ename1;
-				m->exon2  = ename2;				
-				m->hits  = 1;
-				m->likehood = 10*log(sol1->prob); 				
-				// junction flanking sequence 
-				memcpy( m->s, &str2[sol1->jump_start-opt->seed_len/2-1], opt->seed_len/2);
-				memcpy( &m->s[opt->seed_len/2], &str2[sol1->jump_end], opt->seed_len/2);
-				// junction flanking sequence 
-				strlen2 = sol1->jump_start + strlen(str2) - sol1->jump_end+1;				
-				m->transcript = mycalloc(strlen2, char);
-				m->junc_pos = sol1->jump_start;				
-				memset(m->transcript, '\0', strlen2);
-				memcpy( m->transcript, str2, sol1->jump_start);
-				memcpy( &m->transcript[sol1->jump_start], &str2[sol1->jump_end+1], strlen(str2) - sol1->jump_end);				
-				HASH_ADD_STR(ret, idx, m);
-			}else{
-				m->hits ++;
-				m->likehood += 10*log(sol1->prob); 
+		if((str1 =  concat_exons(_read1, fasta_u, kmer_ht, _k, gname1, gname2, &ename1, &ename2, &junc_pos, opt->min_kmer_match))!=NULL){
+			if((sol1 =align(_read1, str1, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene))!=NULL){
+				if(sol1->jump == true && sol1->prob >= opt->min_align_score){
+					/* idx = exon1.start.exon2.end (uniq id)*/
+					idx = concat(concat(ename1, "."), ename2); // idx for junction
+					HASH_FIND_STR(ret, idx, m);  
+					if(m==NULL){ // add this junction to ret
+						m = junction_init(opt->seed_len);				
+						m->idx    = strdup(idx);
+						m->exon1  = strdup(ename1);
+						m->exon2  = strdup(ename2);				
+						m->hits  = 1;
+						m->likehood = 10*log(sol1->prob); 				
+						// junction flanking sequence 
+						memcpy( m->s, &str1[sol1->jump_start-opt->seed_len/2-1], opt->seed_len/2);
+						memcpy( &m->s[opt->seed_len/2], &str1[sol1->jump_end], opt->seed_len/2);						
+						// junction flanking sequence 
+						strlen2 = sol1->jump_start + strlen(str1) - sol1->jump_end+1;				
+						m->transcript = mycalloc(strlen2, char);
+						m->junc_pos = sol1->jump_start;				
+						memset(m->transcript, '\0', strlen2);
+						memcpy( m->transcript, str1, sol1->jump_start);
+						memcpy( &m->transcript[sol1->jump_start], &str1[sol1->jump_end+1], strlen(str1) - sol1->jump_end);				
+						HASH_ADD_STR(ret, idx, m);
+					}else{
+						m->hits ++;
+						m->likehood += 10*log(sol1->prob); 
+					}
+				}
 			}
 		}
-		if(sol2->jump == true && sol2->prob >= opt->min_align_score){
-			idx = idx2str(concat(concat(ename1, "."), ename2), sol2->jump_start, sol2->jump_end);
-			HASH_FIND_STR(ret, idx, m);
-			if(m==NULL){ // this junction not in ret
-				m = junction_init(opt->seed_len);				
-				m->idx   = idx;
-				m->exon1  = ename1;
-				m->exon2  = ename2;				
-				m->hits  = 1;
-				m->likehood = 10*log(sol2->prob); 				
-				memcpy( m->s, &str2[sol2->jump_start-opt->seed_len/2-1], opt->seed_len/2);
-				memcpy( &m->s[opt->seed_len/2], &str2[sol2->jump_end], opt->seed_len/2);
-				strlen2 = sol2->jump_start + strlen(str2) - sol2->jump_end+1;
-				m->transcript = mycalloc(strlen2, char);
-				m->junc_pos = sol2->jump_start;
-				memset(m->transcript, '\0', strlen2);
-				memcpy( m->transcript, str2, sol2->jump_start);
-				memcpy( &m->transcript[sol2->jump_start], &str2[sol2->jump_end], strlen(str2)-sol2->jump_end);				
-				HASH_ADD_STR(ret, idx, m);
-			}else{
-				m->hits ++;
-				m->likehood += 10*log(sol2->prob); 
+
+		if((str2 =  concat_exons(_read2, fasta_u, kmer_ht, _k, gname1, gname2, &ename1, &ename2, &junc_pos, opt->min_kmer_match))!=NULL){
+			if((sol2 = align(_read2, str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene))!=NULL){
+				if(sol2->jump == true && sol2->prob >= opt->min_align_score){			
+					idx = concat(concat(ename1, "."), ename2); // idx for junction
+					HASH_FIND_STR(ret, idx, m);
+					if(m==NULL){ // this junction not in ret
+						m = junction_init(opt->seed_len);				
+						m->idx   = idx;
+						m->exon1  = ename1;
+						m->exon2  = ename2;				
+						m->hits  = 1;
+						m->likehood = 10*log(sol2->prob); 				
+						memcpy( m->s, &str2[sol2->jump_start-opt->seed_len/2-1], opt->seed_len/2);
+						memcpy( &m->s[opt->seed_len/2], &str2[sol2->jump_end], opt->seed_len/2);
+						strlen2 = sol2->jump_start + strlen(str2) - sol2->jump_end+1;
+						m->transcript = mycalloc(strlen2, char);
+						m->junc_pos = sol2->jump_start;
+						memset(m->transcript, '\0', strlen2);
+						memcpy( m->transcript, str2, sol2->jump_start);
+						memcpy( &m->transcript[sol2->jump_start], &str2[sol2->jump_end], strlen(str2)-sol2->jump_end);				
+						HASH_ADD_STR(ret, idx, m);
+					}else{
+						m->hits ++;
+						m->likehood += 10*log(sol2->prob); 
+					}
+				}	
 			}
-		}	
+		}
 	}
 	// delete those junctions with hits < MIN_HITS
 	HASH_ITER(hh, ret, m, n){
@@ -373,6 +381,7 @@ static junction_t
 	}
 	if(ename1)         free(ename1);
 	if(ename2)         free(ename2);
+	if(str1)           free(str1);
 	if(str2)           free(str2);
 	if(_read1)         free(_read1);
 	if(_read2)         free(_read2);
@@ -496,13 +505,13 @@ static junction_t
  * generate junction string of every edge based on supportive reads.
  */
 static int
-bag_junction_gen(bag_t **bag, fasta_t *fa, opt_t *opt){
+bag_junction_gen(bag_t **bag, fasta_t *fa, kmer_t *kmer, opt_t *opt){
 	if(*bag==NULL || fa==NULL || opt==NULL) return -1;	
 	bag_t *edge, *bag_cur;
 	register int i;
 	junction_t *junc_cur;
 	for(edge=*bag; edge!=NULL; edge=edge->hh.next) {
-		if((junc_cur = edge_junction_gen(edge, fa, opt))==NULL){ // no junction detected
+		if((junc_cur = edge_junction_gen(edge, fa, kmer, opt))==NULL){ // no junction detected
 			edge->junc_flag = false;
 			edge->junc = NULL;
 		}else{
@@ -525,7 +534,6 @@ bag_transcript_gen(bag_t **bag, fasta_t *fa, opt_t *opt){
 	junction_t *junc_cur;
 	for(edge=*bag; edge!=NULL; edge=edge->hh.next) {
 		if(edge->junc_flag==true){
-			printf("sfsdfsadf\n");
 			edge->junc = transcript_construct_junc(edge->junc, fa);
 		}else{
 			edge->junc = transcript_construct_no_junc(edge->gname1, edge->gname2, fa);
@@ -540,13 +548,12 @@ static char
 *concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junc_pos, int min_kmer_match){
 	if(_read == NULL || fa_ht == NULL || kmer_ht==NULL || gname1==NULL || gname2==NULL) return NULL;
 	/* variables */
-	char *str1, *str2;
-	*ename1 = *ename2 = str1 = str2 = NULL;
+	char *str1, *str2, *gname_cur;
+	*ename1 = *ename2 = str1 = str2 = gname_cur = NULL;
 	int num_tmp;
 	char buff[_k];
-	char* gname_cur;
 	str_ctr *s_ctr, *tmp_ctr, *exons=NULL;
-	fasta_t *fa_tmp;
+	fasta_t *fa_tmp = NULL;
 	/* find all exons that uniquely match with gene by kmer */
 	find_all_exons(&exons, kmer_ht, _read, _k);
 	if(exons==NULL) return NULL; // no exon found
@@ -560,6 +567,7 @@ static char
 					str1 = strdup(fa_tmp->seq);
 					*ename1 = s_ctr->KEY;
 				}else{
+					*ename1 = s_ctr->KEY;
 					str1 = concat(str1, fa_tmp->seq);
 				}				
 			}
@@ -570,13 +578,13 @@ static char
 					str2 = strdup(fa_tmp->seq);
 					*ename2 = s_ctr->KEY;
 				}else{
-					*ename2 = s_ctr->KEY;
+					//*ename2 = s_ctr->KEY;
 					str2 = concat(str2, fa_tmp->seq);
 				}				
 			}
 		}
 	}
-	if(gname_cur) free(gname_cur);
+	if(gname_cur)     free(gname_cur);
 	if(exons)         str_ctr_destory(&exons);
 	if(str1 == NULL || str2 == NULL) return NULL; // only if two genes identified
 	char *ret = concat(str1, str2);
@@ -859,7 +867,7 @@ int predict(int argc, char *argv[]) {
 	int c, i;
 	//srand48(11);
 	junction_t *junc_ht;
-	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s:h:l:x:a")) >= 0) {
+	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s:h:l:x:a:")) >= 0) {
 				switch (c) {
 				case 'k': opt->k = atoi(optarg); break;	
 				case 'n': opt->min_kmer_match = atoi(optarg); break;
@@ -877,6 +885,7 @@ int predict(int argc, char *argv[]) {
 				default: return 1;
 		}
 	}
+
 	if (optind + 3 > argc) return pred_usage(opt);
 	opt->fa  = argv[optind];    // exon.fa
 	opt->fq1 = argv[optind+1];  // read1
@@ -895,29 +904,29 @@ int predict(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
 	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
 	
-	
 	fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
 	if(bag_uniq(&BAGR_HT)!=0){
 		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
 		return -1;		
 	}
+	if(BAGR_HT == NULL) return 0;
+    
+	
+	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
+	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
+		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
+		return -1;
+	}
+	if(BAGR_HT == NULL) return 0;	
 	bag_display(BAGR_HT);
-	//if(BAGR_HT == NULL) return 0;
-    //
-	//fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
-	//if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
-	//	fprintf(stderr, "[%s] fail to trim graph \n", __func__);
-	//	return -1;
-	//}
-	//if(BAGR_HT == NULL) return 0;	
-    //
-	//fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
-	//if(bag_junction_gen(&BAGR_HT, EXON_HT, opt)!=0){
-	//	fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
-	//	return -1;	
-	//}
-	//if(BAGR_HT == NULL) return 0;
-    //
+		 	
+	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
+	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
+		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
+		return -1;	
+	}
+	if(BAGR_HT == NULL) return 0;
+	bag_display(BAGR_HT);
 	//fprintf(stderr, "[%s] constructing fused transcript for every fusion candiates... \n", __func__);
 	//if(bag_transcript_gen(&BAGR_HT, EXON_HT, opt)!=0){
 	//	fprintf(stderr, "[%s] fail to construct transcript  \n", __func__);

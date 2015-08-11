@@ -129,7 +129,7 @@ static bag_t *bag_construct(kmer_t *kmer_uthash, fasta_t *fasta_ht, char* fq1, c
  *-------
  * junction_t object that contains identified junctions.
  */
-static int bag_junction_gen(bag_t **bag, fasta_t *fa, opt_t *opt);
+static int bag_junction_gen(bag_t **bag, fasta_t *fa, kmer_t *kmer, opt_t *opt);
 /*
  * Description:
  *------------
