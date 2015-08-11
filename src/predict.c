@@ -894,6 +894,8 @@ int predict(int argc, char *argv[]) {
 	if(opt->k < MIN_KMER_LEN || opt->k > MAX_KMER_LEN) die("[%s] -k must be within [%d, %d]", __func__, MIN_KMER_LEN, MAX_KMER_LEN); 	
 	if(opt->min_kmer_match < MIN_KMER_MATCH) die("[%s] -n must be within [%d, +INF)", __func__, MIN_KMER_MATCH); 	
 	if(opt->min_edge_weight < MIN_EDGE_WEIGHT) die("[%s] -w must be within [%d, +INF)", __func__, MIN_EDGE_WEIGHT); 	
+	if(opt->min_hits < MIN_HITS) die("[%s] -h must be within [%d, +INF)", __func__, MIN_HITS); 	
+	if(opt->min_align_score < MIN_ALIGN_SCORE || opt->min_align_score > MAX_ALIGN_SCORE) die("[%s] -a must be within [%d, %d]", __func__, MIN_ALIGN_SCORE, MAX_ALIGN_SCORE); 	
 	
 	fprintf(stderr, "[%s] loading sequences of targeted genes ... \n",__func__);
 	if((EXON_HT = fasta_read(opt->fa)) == NULL) die("[%s] fail to read %s", __func__, opt->fa);	
@@ -911,14 +913,12 @@ int predict(int argc, char *argv[]) {
 	}
 	if(BAGR_HT == NULL) return 0;
     
-	
 	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
 	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
 		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
 		return -1;
 	}
 	if(BAGR_HT == NULL) return 0;	
-	bag_display(BAGR_HT);
 		 	
 	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
 	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
@@ -927,6 +927,7 @@ int predict(int argc, char *argv[]) {
 	}
 	if(BAGR_HT == NULL) return 0;
 	bag_display(BAGR_HT);
+	
 	//fprintf(stderr, "[%s] constructing fused transcript for every fusion candiates... \n", __func__);
 	//if(bag_transcript_gen(&BAGR_HT, EXON_HT, opt)!=0){
 	//	fprintf(stderr, "[%s] fail to construct transcript  \n", __func__);

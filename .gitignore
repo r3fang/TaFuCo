@@ -7,3 +7,5 @@ tfc.dSYM/*
 tfc
 test.sh
 *.graffle
+*.sam
+*.aln

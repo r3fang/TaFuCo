@@ -23,10 +23,12 @@
 #include "alignment.h"
 
 #define MAX_KMER_LEN                40
-#define MIN_KMER_LEN                1
+#define MIN_KMER_LEN                10
 #define MIN_KMER_MATCH              1
 #define MIN_EDGE_WEIGHT             1
-
+#define MIN_HITS                    1
+#define MIN_ALIGN_SCORE             0
+#define MAX_ALIGN_SCORE             1
 
 static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
 static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
