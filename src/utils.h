@@ -220,4 +220,44 @@ static inline void printf_line(char *s, int l){
 	}
 	printf("\n");
 }
+
+static inline char
+**str_arr_uniq(char** arr, int *num){
+	if(arr==NULL) return NULL;
+	*num = sizeof(arr)/sizeof(arr[0]);
+	char** res = mycalloc(*num, char*);
+	register int i, j, count;
+	bool repeat;
+	count = 0;
+	for(i=0; i<*num; i++){
+		repeat = false;
+		for(j=0; j<count; j++){if(strcmp(arr[i], res[j])==0){repeat = true;}}
+		if(repeat==false){ // no duplicates
+			res[count++] = strdup(arr[i]);
+		}
+	}
+	*num = count;
+	return res;
+}
+
+static inline int
+*int_arr_uniq(int* arr, int *num){
+	if(arr==NULL) return NULL;
+	int* res = mycalloc(*num, int);
+	register int i, j, count;
+	bool repeat;
+	count = 0;
+	for(i=0; i<*num; i++){
+		repeat = false;
+		for(j=0; j<count; j++){
+			if(arr[i] == res[j]){
+				repeat = true;
+				break;
+			}
+		}
+		if(repeat==false) res[count++] = arr[i];
+	}
+	*num = count;
+	return res;
+}
 #endif

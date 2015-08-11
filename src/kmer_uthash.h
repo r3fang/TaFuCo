@@ -104,8 +104,9 @@ static void kmer_add(kmer_t **table, char* kmer, char* name) {
 		s->seq_names = tmp;
 	}
 }
+
 /*
- * delete duplicate seq_names 
+ * delete duplicate seq_names in kmer->seq_names
  */
 static inline void 
 kmer_uniq(kmer_t **kmer_ht){
@@ -129,7 +130,6 @@ kmer_uniq(kmer_t **kmer_ht){
 		kmer_cur->count = count;
 	}
 }
-
 
 ///* Write down kmer_uthash */
 static inline void 
