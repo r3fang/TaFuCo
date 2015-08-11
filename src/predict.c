@@ -470,16 +470,35 @@ bag_junction_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
 	junction_t *junc_cur;
 	for(edge=*bag; edge!=NULL; edge=edge->hh.next) {
 		if((junc_cur = edge_junction_gen(edge, fa, opt))==NULL){ // no junction detected
-			edge->junc = transcript_construct_no_junc(edge->gname1, edge->gname2, fa);
 			edge->junc_flag = false;
+			edge->junc = NULL;
 		}else{
-			edge->junc = transcript_construct_junc(junc_cur, fa);
 			edge->junc_flag = true;
+			edge->junc = junc_cur;			
 		}		
 	}   
 	return 0;
 }
 
+
+/*
+ * generate junction string of every edge based on supportive reads.
+ */
+static int
+bag_transcript_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
+	if(*bag==NULL || fa==NULL || opt==NULL) return -1;	
+	bag_t *edge, *bag_cur;
+	register int i;
+	junction_t *junc_cur;
+	for(edge=*bag; edge!=NULL; edge=edge->hh.next) {
+		if(edge->junc_flag==true){
+			edge->junc = transcript_construct_junc(edge->junc, fa);
+		}else{
+			edge->junc = transcript_construct_no_junc(edge->gname1, edge->gname2, fa);
+		}
+	}   
+	return 0;
+}
 /*
  * construct concatnated exon string based on kmer matches
  */
@@ -612,8 +631,8 @@ static int align_reads_to_transcript(solution_pair_t **res, bag_t *bag, opt_t *o
 	bag_t *bag_cur;
 	junction_t *junc_cur;
 	for(bag_cur=bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){		
-		fprintf(stderr, "[predict] fusion between %s and %s are being tested ... \n", bag_cur->gname1, bag_cur->gname2);		
 		if(bag_cur->junc_flag==false) continue;
+		fprintf(stderr, "[predict] junction between %s and %s is being tested ... \n", bag_cur->gname1, bag_cur->gname2);		
 		for(junc_cur=bag_cur->junc; junc_cur!=NULL; junc_cur=junc_cur->hh.next){
 			if((align_to_transcript_unit(junc_cur, opt, res))!=0) return -1;				
 		}
@@ -828,59 +847,48 @@ int predict(int argc, char *argv[]) {
 	opt->fq1 = argv[optind+1];  // read1
 	opt->fq2 = argv[optind+2];  // read2
 	
-	fprintf(stderr, "[%s] loading reference exon sequences ... \n",__func__);
+	fprintf(stderr, "[%s] loading exon sequences of targeted genes ... \n",__func__);
 	if((EXON_HT = fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference sequences %s", __func__, opt->fa);	
 	
-	fprintf(stderr, "[%s] indexing exon sequneces ... \n",__func__);
+	fprintf(stderr, "[%s] indexing exon sequneces by kmer hash table ... \n",__func__);
 	if((KMER_HT = kmer_uthash_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
 
-	fprintf(stderr, "[%s] constructing graph ... \n", __func__);
+	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
 	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
 
-	fprintf(stderr, "[%s] deleting duplicate reads for every edge ... \n", __func__);
+	fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
 	if(bag_uniq(&BAGR_HT)!=0){
 		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
 		return -1;		
 	}
 	if(BAGR_HT == NULL) return 0;
 
-	fprintf(stderr, "[%s] deleting edges of low weight in the graph ... \n", __func__);
+	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
 	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
 		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
 		return -1;
 	}
 	if(BAGR_HT == NULL) return 0;	
 
-	fprintf(stderr, "[%s] identify fusion junctions and construct fused transcript for every fusion ... \n", __func__);
+	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
 	if(bag_junction_gen(&BAGR_HT, EXON_HT, opt)!=0){
-		fprintf(stderr, "[%s] fail to construct junction  \n", __func__);
+		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
+		return -1;	
+	}
+	if(BAGR_HT == NULL) return 0;
+
+	fprintf(stderr, "[%s] constructing fused transcript for every fusion candiates... \n", __func__);
+	if(bag_transcript_gen(&BAGR_HT, EXON_HT, opt)!=0){
+		fprintf(stderr, "[%s] fail to construct transcript  \n", __func__);
 		return -1;	
 	}
 	if(BAGR_HT == NULL) return 0;
 	
-	fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
+	fprintf(stderr, "[%s] aligning supportive read pairs to fused transcript ... \n", __func__);    
 	if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
 	
-	fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
+	fprintf(stderr, "[%s] testing junctions ... \n", __func__);    	
 	if((align_reads_to_transcript(&SOLU_HT, BAGR_HT, opt)) != 0) die("[%s] can't rediscover any junction", __func__);;
-
-	//junction_t *s;
-	//for(s=JUN0_HT; s != NULL; s=s->hh.next){
-	//	printf("exon1=%s\texon2=%s\thits=%d\tstr=%s\n", s->exon1, s->exon2, s->hits, s->s);
-	//}
-	//{ // if junction string identified
-	//	fprintf(stderr, "[%s] construct trnascript ... \n", __func__);    
-	//	if((JUN0_HT = transcript_construct(JUN0_HT, EXON_HT))==NULL) die("[%s] can't construct transcript", __func__);		
-	//	fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
-	//	if((SOLU_HT = align_edge_to_transcript(JUN0_HT, BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
-	//}
-	//fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
-	//if((align_reads_to_transcript(&SOLU_HT, JUN0_HT, opt)) != 0) die("[%s] can't rediscover any junction", __func__);;
-
-	//fprintf(stderr, "[%s] scoring junctions ... \n", __func__);    	
-	//if((JUN1_HT = junction_score(SOLU_HT, JUN0_HT, opt->min_align_score, opt->seed_len+1))==NULL) die("[%s] can't rediscover any junction", __func__);;
-	//
-	//if((junction_display(JUN1_HT, SOLU_HT)) != 0) die("[%s] can't display junctions", __func__);
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
