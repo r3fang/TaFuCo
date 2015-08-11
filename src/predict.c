@@ -6,12 +6,12 @@
 /*--------------------------------------------------------------------*/
 #include "predict.h"
 
-static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
-static int find_junction_one_edge(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret);
+static char *concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
+static int find_junction_one_edge(bag_t *eg, fasta_t *fasta_u, opt_t *opt, junction_t **ret);
 static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
 static int gene_order(char* gname1, char* gname2, char* read1, char* read2, kmer_t *kmer_ht, int k, int min_kmer_match);
-static junction_t *transcript_construct_no_junc(char* gname1, char *gname2, struct fasta_uthash *fasta_ht);
-static junction_t *transcript_construct_junc(junction_t *junc_ht, struct fasta_uthash *exon_ht);
+static junction_t *transcript_construct_no_junc(char* gname1, char *gname2, fasta_t *fasta_ht);
+static junction_t *transcript_construct_junc(junction_t *junc_ht, fasta_t *exon_ht);
 
 /*
  * determine the order of fusion genes.
@@ -133,14 +133,14 @@ find_all_exons(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k){
 }
 
 static kmer_t 
-*kmer_construct(struct fasta_uthash *tb, int k){
+*kmer_construct(fasta_t *tb, int k){
 	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;
 	register char *kmer;
 	char *name = NULL;	
 	char *seq = NULL;	
 	register int i, j;
 	kmer_t  *s_kmer, *tmp_kmer, *ret = NULL;
-	struct fasta_uthash *s_fasta, *tmp_fasta;
+	fasta_t *s_fasta, *tmp_fasta;
 	HASH_ITER(hh, tb, s_fasta, tmp_fasta) {
 		seq = strToUpper(s_fasta->seq);
 		name = s_fasta->name;
@@ -161,7 +161,7 @@ static kmer_t
 	return ret;
 }
 static bag_t
-*bag_construct(kmer_t *kmer_uthash, struct fasta_uthash *fasta_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
+*bag_construct(kmer_t *kmer_uthash, fasta_t *fasta_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
 	if(kmer_uthash==NULL || fq1==NULL || fq2==NULL || fasta_ht==NULL) return NULL;
 	bag_t *bag = NULL;
 	gzFile fp1, fp2;
@@ -243,7 +243,7 @@ static bag_t
 
 
 static junction_t
-*edge_junction_gen(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt){
+*edge_junction_gen(bag_t *eg, fasta_t *fasta_u, opt_t *opt){
 	if(eg==NULL || fasta_u==NULL || opt==NULL) return NULL;
 	/* variables */
 	int _k = opt->k;
@@ -350,7 +350,7 @@ static junction_t
 }
 
 static junction_t 
-*transcript_construct_junc(junction_t *junc_ht, struct fasta_uthash *exon_ht){
+*transcript_construct_junc(junction_t *junc_ht, fasta_t *exon_ht){
 	if(junc_ht==NULL || exon_ht==NULL) return NULL;
 	junction_t *cur_junction, *tmp_junction;
 	char* gname1, *gname2, *ename1, *ename2;
@@ -359,7 +359,7 @@ static junction_t
 	char enum1_str[10], enum2_str[10];
 	int num1, num2;
 	char** fields1, **fields2;
-	struct fasta_uthash *exon1_fa,  *exon2_fa;
+	fasta_t *exon1_fa,  *exon2_fa;
 	exon1_fa = exon2_fa = NULL;
 	char *exon1_seq, *exon2_seq;
 	int i, j;
@@ -410,11 +410,11 @@ static junction_t
 }
 
 static junction_t
-*transcript_construct_no_junc(char* gname1, char *gname2, struct fasta_uthash *fasta_ht){
+*transcript_construct_no_junc(char* gname1, char *gname2, fasta_t *fasta_ht){
 	if(gname1==NULL || gname2==NULL || fasta_ht==NULL) return NULL;	
 	junction_t *junc_res = junction_init(0);
 	if(gname1==NULL || gname2==NULL || fasta_ht==NULL) return NULL;
-	struct fasta_uthash *fasta_cur;
+	fasta_t *fasta_cur;
 	char *res1 = NULL;
 	char *res2 = NULL;
 	int num;
@@ -463,7 +463,7 @@ static junction_t
  * generate junction string of every edge based on supportive reads.
  */
 static int
-bag_junction_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
+bag_junction_gen(bag_t **bag, fasta_t *fa, opt_t *opt){
 	if(*bag==NULL || fa==NULL || opt==NULL) return -1;	
 	bag_t *edge, *bag_cur;
 	register int i;
@@ -485,7 +485,7 @@ bag_junction_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
  * generate junction string of every edge based on supportive reads.
  */
 static int
-bag_transcript_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
+bag_transcript_gen(bag_t **bag, fasta_t *fa, opt_t *opt){
 	if(*bag==NULL || fa==NULL || opt==NULL) return -1;	
 	bag_t *edge, *bag_cur;
 	register int i;
@@ -504,7 +504,7 @@ bag_transcript_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
  * construct concatnated exon string based on kmer matches
  */
 static char 
-*concat_exons(char* _read, struct fasta_uthash *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junc_pos, int min_kmer_match){
+*concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junc_pos, int min_kmer_match){
 	if(_read == NULL || fa_ht == NULL || kmer_ht==NULL || gname1==NULL || gname2==NULL) return NULL;
 	/* variables */
 	char *str1, *str2;
@@ -513,7 +513,7 @@ static char
 	char buff[_k];
 	char* gname_cur;
 	str_ctr *s_ctr, *tmp_ctr, *exons=NULL;
-	struct fasta_uthash *fa_tmp;
+	fasta_t *fa_tmp;
 	/* find all exons that uniquely match with gene by kmer */
 	find_all_exons(&exons, kmer_ht, _read, _k);
 	if(exons==NULL) return NULL; // no exon found
@@ -850,7 +850,7 @@ int predict(int argc, char *argv[]) {
 	opt->fq2 = argv[optind+2];  // read2
 	
 	fprintf(stderr, "[%s] loading exon sequences of targeted genes ... \n",__func__);
-	if((EXON_HT = fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference sequences %s", __func__, opt->fa);	
+	if((EXON_HT = fasta_load(opt->fa)) == NULL) die("[%s] can't load reference sequences %s", __func__, opt->fa);	
 	
 	fprintf(stderr, "[%s] indexing exon sequneces by kmer hash table ... \n",__func__);
 	if((KMER_HT = kmer_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
@@ -905,7 +905,7 @@ int predict(int argc, char *argv[]) {
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	if(BAGR_HT)            bag_distory(&BAGR_HT);
 	if(KMER_HT)    kmer_destroy(&KMER_HT);
-	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
+	if(EXON_HT)   fasta_destroy(&EXON_HT);
 	return 0;
 }
 

@@ -1,8 +1,8 @@
 #include "name2fasta.h"
 
-struct fasta_uthash *extract_exon_seq(char* fname, char *fname_db, struct fasta_uthash *HG19_HT){
+fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 	if(fname == NULL || fname_db == NULL || HG19_HT == NULL) return NULL;
-	struct fasta_uthash *s_fasta, *cur_fasta, *ret_fasta = NULL;
+	fasta_t *s_fasta, *cur_fasta, *ret_fasta = NULL;
 	str_ctr *s_ctr, *ctr = NULL, *gene_name_ctr = NULL;
 	char  *line = NULL;
 	size_t len = 0;
@@ -16,7 +16,7 @@ struct fasta_uthash *extract_exon_seq(char* fname, char *fname_db, struct fasta_
 	register int start, end;
 	register char *strand;
 	register char *exon_name = NULL;
-	struct fasta_uthash *s;
+	fasta_t *s;
 	char *seq;
 	char exon_idx[50];
 	
@@ -56,7 +56,7 @@ struct fasta_uthash *extract_exon_seq(char* fname, char *fname_db, struct fasta_
 		sprintf(exon_idx, "%zu", s_ctr->SIZE);
 		exon_name = concat(concat(gname, "."), exon_idx);
 		if((s_fasta = find_fasta(ret_fasta, exon_name)) == NULL){
-			s_fasta = mycalloc(1, struct fasta_uthash);
+			s_fasta = mycalloc(1, fasta_t);
 			s_fasta->name = exon_name;
 			s_fasta->chrom = chrom;
 			s_fasta->start = start;
@@ -121,22 +121,22 @@ int name2fasta(int argc, char *argv[]) {
 	if(orgsm==0) gff_name = "data/hg.bed";
 	if(orgsm==1) gff_name = "data/mm.bed";	
 	
-	struct fasta_uthash *GENO_HT = NULL;
-	struct fasta_uthash *EXON_HT = NULL;
+	fasta_t *GENO_HT = NULL;
+	fasta_t *EXON_HT = NULL;
 	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	
-	if((GENO_HT = fasta_uthash_load(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
+	if((GENO_HT = fasta_load(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
 	printf("%s\t%s\n", gene_name, gff_name);
 	
 	fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
 	if((EXON_HT = extract_exon_seq(gene_name, gff_name, GENO_HT))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
 
 	fprintf(stderr, "[%s] writing down sequences ... \n",__func__);
-	if((fasta_uthash_write(EXON_HT, oname))!=0) die("[%s] can't write down to %s", __func__, oname);
+	if((fasta_write(EXON_HT, oname))!=0) die("[%s] can't write down to %s", __func__, oname);
 
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 
-	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
-	if(GENO_HT)   fasta_uthash_destroy(&GENO_HT);    
+	if(EXON_HT)   fasta_destroy(&EXON_HT);
+	if(GENO_HT)   fasta_destroy(&GENO_HT);    
 	return 0;
 }

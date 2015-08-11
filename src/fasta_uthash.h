@@ -12,7 +12,7 @@
 /* error code */
 #define FA_ERR_NONE		     0 // no error
 
-struct fasta_uthash {
+typedef struct{
     char *name;                /* key */
 	char *chrom;
 	int start;
@@ -20,12 +20,12 @@ struct fasta_uthash {
 	int l;
 	char *seq;
     UT_hash_handle hh;         /* makes this structure hashable */
-};
+}fasta_t;
 
 static inline int 
-fasta_uthash_destroy(struct fasta_uthash **tb) {
+fasta_destroy(fasta_t **tb) {
 	if(*tb == NULL) die("fasta_uthash_destroy: parameter error\n");
-	struct fasta_uthash *cur, *tmp;
+	fasta_t *cur, *tmp;
 	HASH_ITER(hh, *tb, cur, tmp) {
 		if(cur == NULL) die("fasta_uthash_destroy: HASH_ITER fails\n");
 		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
@@ -35,8 +35,8 @@ fasta_uthash_destroy(struct fasta_uthash **tb) {
 }
 
 static inline int
-fasta_uthash_display(struct fasta_uthash *tb) {
-   	struct fasta_uthash *cur, *tmp;
+fasta_display(fasta_t *tb) {
+   	fasta_t *cur, *tmp;
 	if(tb == NULL) die("fasta_uthash_display: parameter error\n");	
 	HASH_ITER(hh, tb, cur, tmp) {
 		if(cur == NULL) die("fasta_uthash_display: fail to iterate uthash table\n");
@@ -46,11 +46,11 @@ fasta_uthash_display(struct fasta_uthash *tb) {
 }
 
 static inline int
-fasta_uthash_write(struct fasta_uthash *tb, char* fname) {
+fasta_write(fasta_t *tb, char* fname) {
 	if(tb==NULL || fname==NULL) return -1;
 	FILE *fp = fopen(fname, "w");
 	if(fp==NULL) die("[%s] can't open %s", __func__, fname);
-   	struct fasta_uthash *cur, *tmp;
+   	fasta_t *cur, *tmp;
 	HASH_ITER(hh, tb, cur, tmp) {
 		fprintf(fp, ">%s\n%s\n", cur->name, cur->seq);
 	}	
@@ -58,10 +58,10 @@ fasta_uthash_write(struct fasta_uthash *tb, char* fname) {
 	return 0;
 }
 
-static inline struct fasta_uthash
-*fasta_uthash_load(char *fname){
+static inline fasta_t
+*fasta_load(char *fname){
 	if(fname == NULL) die("fasta_uthash_load: parameter error\n"); 
-	struct fasta_uthash *tb = NULL;
+	fasta_t *tb = NULL;
 	gzFile fp;
 	kseq_t *seq;
 	int l;
@@ -69,11 +69,11 @@ static inline struct fasta_uthash
 	fp = gzopen(fname, "r");
 	if(fp == NULL) die("fasta_uthash_load: fail to open %s\n", fname);		
 
-	struct fasta_uthash *s;	
+	fasta_t *s;	
 	if((seq = kseq_init(fp))==NULL) die("fasta_uthash_load: kseq_init fails\n");
 
 	while ((l = kseq_read(seq)) >= 0){
-		if((s = malloc(sizeof(struct fasta_uthash))) == NULL) die("fasta_uthash_load: fail to malloc");
+		if((s = malloc(sizeof(fasta_t))) == NULL) die("fasta_uthash_load: fail to malloc");
 		if(seq->name.s == NULL || seq->seq.s==NULL)
 			continue;
 		s->name = strdup(seq->name.s);
@@ -86,10 +86,10 @@ static inline struct fasta_uthash
 }
 
 
-static inline struct fasta_uthash 
-*find_fasta(struct fasta_uthash *tb, char* quary_name) {
+static inline fasta_t 
+*find_fasta(fasta_t *tb, char* quary_name) {
 	if(quary_name == NULL) die("[%s] input error", __func__);
-	struct fasta_uthash* s = NULL;	
+	fasta_t* s = NULL;	
     HASH_FIND_STR(tb, quary_name, s);  /* s: output pointer */
 	return s;
 }
