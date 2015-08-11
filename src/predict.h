@@ -22,7 +22,6 @@
 #include "utils.h"
 #include "alignment.h"
 
-#define MAX_ALLOWED_K                     50 // max allowed kmer length for kmer hash table 
 
 static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
 static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
@@ -83,14 +82,15 @@ static inline void destory_opt(opt_t *opt){
 
  * Input: 
  *-------
- * tb        - fasta_uthash object contains sequences to be indexed
+ * fa        - fasta_t hash table contains sequences to be indexed
  * k         - length of kmer
 
  * Output: 
  *-------
- * kmer_uthash object that contains kmer and its occurnace positions on input seq.
+ * kmer_t hash table that contains kmer and its occurnace positions on input seq.
  */
-static kmer_t *kmer_construct(fasta_t *tb, int k);
+static kmer_t *kmer_index(fasta_t *fa, int k);
+
 /*
  * Description:
  *------------

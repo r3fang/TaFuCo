@@ -59,18 +59,18 @@ fasta_write(fasta_t *tb, char* fname) {
 }
 
 static inline fasta_t
-*fasta_load(char *fname){
-	if(fname == NULL) die("fasta_uthash_load: parameter error\n"); 
+*fasta_read(char *fname){
+	if(fname == NULL) die("[%s] input file name can't be NULL", __func__);
 	fasta_t *tb = NULL;
 	gzFile fp;
 	kseq_t *seq;
 	int l;
 	int error;
 	fp = gzopen(fname, "r");
-	if(fp == NULL) die("fasta_uthash_load: fail to open %s\n", fname);		
+	if(fp == NULL) die("[%s] fail to open %s\n", __func__, fname);		
 
 	fasta_t *s;	
-	if((seq = kseq_init(fp))==NULL) die("fasta_uthash_load: kseq_init fails\n");
+	if((seq = kseq_init(fp))==NULL) die("[%s]: kseq_init fails\n", __func__);
 
 	while ((l = kseq_read(seq)) >= 0){
 		if((s = malloc(sizeof(fasta_t))) == NULL) die("fasta_uthash_load: fail to malloc");

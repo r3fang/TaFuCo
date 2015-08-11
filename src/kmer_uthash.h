@@ -13,6 +13,7 @@
 #include "utils.h"
 
 #define KM_ERR_NONE					0
+#define MAX_KMER_LEN                40
 
 typedef struct{
     char* kmer;                /* key */
@@ -21,51 +22,70 @@ typedef struct{
     UT_hash_handle hh;         /* makes this structure hashable */
 } kmer_t;
 
-/*
- * delete duplicate seq_names 
- */
-static inline void 
-kmer_uniq(kmer_t **tb){
-	if(*tb == NULL) die("kmer_uthash_uniq: input error");
+
+static inline kmer_t *find_kmer(kmer_t*, char*);
+static inline void kmer_uniq(kmer_t**);
+static void kmer_add(kmer_t**, char*, char*);
+static inline void kmer_write(kmer_t*, char*);
+static inline int kmer_destroy(kmer_t**);
+static inline void kmer_display(kmer_t*);
+
+static inline kmer_t 
+*kmer_init(){
+	kmer_t *res = mycalloc(1, kmer_t);
+	res->kmer = NULL;
+	res->count = 0;
+	res->seq_names = NULL;
+	return res;
+}
+
+// destory 
+static inline int 
+kmer_destroy(kmer_t **tb) {
+	if(*tb == NULL) die("kmer_uthash_destroy: parameter error\n");	
+	/*free the kmer_hash table*/
 	kmer_t *cur, *tmp;
-	int i, j;
-	int before, del;
 	HASH_ITER(hh, *tb, cur, tmp) {
-		if(cur == NULL) die("kmer_uthash_uniq: HASH_ITER fails\n");
-		qsort(cur->seq_names, cur->count, sizeof(char*), mystrcmp);
-		before = cur->count;
-		del = 0;
-		if(cur->count > 1){
-			for(i=1; i<cur->count; i++){
-				if(mystrcmp(cur->seq_names[i], cur->seq_names[i-1]) == 0){
-					cur->seq_names[i-1] = NULL;
-					del++;
-				}
-			}
+		if(cur == NULL) die("kmer_uthash_destroy: HASH_ITER fails\n");
+		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
+      	free(cur);            /* free it */
+    }
+	return KM_ERR_NONE;
+}
+
+static inline kmer_t
+*find_kmer(kmer_t *tb, char* quary_kmer) {
+    if(quary_kmer == NULL) die("[%s] parameter error", __func__);
+	kmer_t *s = NULL;
+	HASH_FIND_STR(tb, quary_kmer, s);  /* s: output pointer */
+    return s;
+}
+
+static inline void
+kmer_display(kmer_t *kmer_ht) {	
+	if(kmer_ht == NULL) die("kmer_uthash_display: input error\n");
+   	register kmer_t *kmer_cur;
+	register int i;
+	
+	for(kmer_cur=kmer_ht; kmer_cur!=NULL; kmer_cur=kmer_cur->hh.next){
+		printf("kmer=%s\tcount=%d\n", kmer_cur->kmer, kmer_cur->count);
+		for(i=0; i < kmer_cur->count; i++){
+			printf("%s\t", kmer_cur->seq_names[i]);
 		}		
-		if(del > 0){ // if any element has been deleted
-			char** tmp = mycalloc(before - del , char*);
-			j=0; for(i=0; i<cur->count; i++){
-				if(cur->seq_names[i] != NULL){
-					tmp[j++] = strdup(cur->seq_names[i]);
-				}
-			}
-			free(cur->seq_names);
-			cur->seq_names = tmp;		
-			cur->count = before - del;	
-		}
-    }	
+		printf("\n");
+	}
 }
 
 /* add one kmer and its exon name to kmer_uthash table */
-static void kmer_insert(kmer_t **table, char* kmer, char* name) {
+static void kmer_add(kmer_t **table, char* kmer, char* name) {
 	// check input param
-	if(kmer==NULL || name==NULL) die("kmer_uthash_insert: input error");
-	kmer_t *s;
+	if(kmer==NULL || name==NULL) die("[%s]: input error", __func__);
+
+	register kmer_t *s;
+	register int i;
 	/* check if kmer exists in table*/
-	HASH_FIND_STR(*table, kmer, s);  
-	if (s==NULL){
-		s = mycalloc(1, kmer_t);
+	if((s = find_kmer(*table, kmer))==NULL){
+		s = kmer_init();
 		s->kmer = strdup(kmer);
 		s->count = 1;                /* first pos in the list */
 		s->seq_names = mycalloc(s->count, char*);
@@ -73,19 +93,43 @@ static void kmer_insert(kmer_t **table, char* kmer, char* name) {
 		HASH_ADD_STR(*table, kmer, s); // add to hash table
 	}else{
 		char **tmp;
-		s->count += 1;
+		s->count++;
 		/* copy s->pos */
 		tmp = mycalloc(s->count, char*);
-		int i; for (i = 0; i < s->count-1; i++){
+		for(i = 0; i < s->count-1; i++){
 			tmp[i] = strdup(s->seq_names[i]);
 		}
-		free(s->seq_names);
-		/* append pos */
 		tmp[i] = strdup(name);
-		/* assign tmp to s->pos*/
+		free(s->seq_names);
 		s->seq_names = tmp;
 	}
 }
+/*
+ * delete duplicate seq_names 
+ */
+static inline void 
+kmer_uniq(kmer_t **kmer_ht){
+	if(*kmer_ht == NULL) die("[%s] input can't be NULL", __func__);
+	register kmer_t *kmer_cur;
+	char **names = NULL;
+	bool repeat;
+	register int i, j, count;
+	for(kmer_cur=*kmer_ht; kmer_cur!=NULL; kmer_cur=kmer_cur->hh.next){
+		names = mycalloc(kmer_cur->count, char*);
+		count = 0;
+		for(i=0; i<kmer_cur->count; i++){ /* iterate every evidence */
+			repeat = false;
+			for(j=0; j<count; j++){if(strcmp(kmer_cur->seq_names[i], names[j])==0){repeat = true;}}
+			if(repeat==false){ // no duplicates
+				names[count++] = strdup(kmer_cur->seq_names[i]);
+			}
+		}
+		if(kmer_cur->seq_names){for(i=0; i<kmer_cur->count; i++) free(kmer_cur->seq_names[i]); free(kmer_cur->seq_names);};
+		kmer_cur->seq_names = names;
+		kmer_cur->count = count;
+	}
+}
+
 
 ///* Write down kmer_uthash */
 static inline void 
@@ -109,44 +153,6 @@ kmer_write(kmer_t *htable, char *fname){
 		fprintf(ofp, "\n");
 	}
 	fclose(ofp);
-}
-
-// destory 
-static inline int 
-kmer_destroy(kmer_t **tb) {
-	if(*tb == NULL) die("kmer_uthash_destroy: parameter error\n");	
-	/*free the kmer_hash table*/
-	kmer_t *cur, *tmp;
-	HASH_ITER(hh, *tb, cur, tmp) {
-		if(cur == NULL) die("kmer_uthash_destroy: HASH_ITER fails\n");
-		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
-      	free(cur);            /* free it */
-    }
-	return KM_ERR_NONE;
-}
-
-static inline kmer_t
-*find_kmer(kmer_t *tb, char* quary_kmer) {
-	kmer_t *s = NULL;
-    if(tb == NULL || quary_kmer == NULL) die("[%s] parameter error", __func__);
-	HASH_FIND_STR(tb, quary_kmer, s);  /* s: output pointer */
-    return s;
-}
-
-static inline int
-kmer_display(kmer_t *_kmer_ht) {	
-	if(_kmer_ht == NULL) die("kmer_uthash_display: input error\n");
-   	kmer_t *cur, *tmp;
-	HASH_ITER(hh, _kmer_ht, cur, tmp) {
-		if(cur == NULL) die("kmer_uthash_display: HASH_ITER fails\n");
-		printf("kmer=%s\tcount=%d\n", cur->kmer, cur->count);
-		int i;
-		for(i=0; i < cur->count; i++){
-			printf("%s\t", cur->seq_names[i]);
-		}
-		printf("\n");
-	}
-	return KM_ERR_NONE;
 }
 
 #endif

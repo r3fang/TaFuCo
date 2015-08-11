@@ -125,7 +125,7 @@ int name2fasta(int argc, char *argv[]) {
 	fasta_t *EXON_HT = NULL;
 	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	
-	if((GENO_HT = fasta_load(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
+	if((GENO_HT = fasta_read(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
 	printf("%s\t%s\n", gene_name, gff_name);
 	
 	fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);

@@ -2,16 +2,61 @@
 /* predict.c                                                          */
 /* Author: Rongxin Fang                                               */
 /* E-mail: r3fang@ucsd.edu                                            */
-/* Predict Gene Fusion by given fastq files.                          */
+/* Predict gene fusion between targeted genes.                        */
 /*--------------------------------------------------------------------*/
+
 #include "predict.h"
 
+
+static kmer_t *kmer_index(fasta_t *, int);
 static char *concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
 static int find_junction_one_edge(bag_t *eg, fasta_t *fasta_u, opt_t *opt, junction_t **ret);
 static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
 static int gene_order(char* gname1, char* gname2, char* read1, char* read2, kmer_t *kmer_ht, int k, int min_kmer_match);
 static junction_t *transcript_construct_no_junc(char* gname1, char *gname2, fasta_t *fasta_ht);
 static junction_t *transcript_construct_junc(junction_t *junc_ht, fasta_t *exon_ht);
+
+/*
+ * Description:
+ *------------
+ * index input sequences by kmer hash table
+
+ * Input: 
+ *-------
+ * fa        - fasta_t hash table contains sequences to be indexed
+ * k         - length of kmer
+
+ * Output: 
+ *-------
+ * kmer_t hash table that contains kmer and its occurnace positions on input seq.
+ */
+static kmer_t 
+*kmer_index(fasta_t *tb, int k){
+	if(tb == NULL || k <= 0 || k > MAX_KMER_LEN) return NULL;
+	register char *kmer;
+	char *name = NULL;	
+	char *seq = NULL;	
+	register int i, j;
+	kmer_t  *s_kmer, *tmp_kmer, *ret = NULL;
+	fasta_t *fa_cur;
+	for(fa_cur=tb; fa_cur!=NULL; fa_cur=fa_cur->hh.next){
+		seq = strToUpper(fa_cur->seq);
+		name = strdup(fa_cur->name);
+		if(seq == NULL || name == NULL || strlen(seq) <= k) continue;
+		for(i=0; i < strlen(seq)-k+1; i++){
+			kmer = mycalloc(k+1, char);
+			memset(kmer, '\0', k+1);
+			strncpy(kmer, seq+i, k);
+			kmer_add(&ret, kmer, name); 
+		}		
+	}
+	if(kmer) free(kmer);
+	if(seq)  free(seq);
+	if(name)  free(name);
+	kmer_uniq(&ret);
+	return ret;
+}
+
 
 /*
  * determine the order of fusion genes.
@@ -132,34 +177,6 @@ find_all_exons(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k){
 	return 0;
 }
 
-static kmer_t 
-*kmer_construct(fasta_t *tb, int k){
-	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;
-	register char *kmer;
-	char *name = NULL;	
-	char *seq = NULL;	
-	register int i, j;
-	kmer_t  *s_kmer, *tmp_kmer, *ret = NULL;
-	fasta_t *s_fasta, *tmp_fasta;
-	HASH_ITER(hh, tb, s_fasta, tmp_fasta) {
-		seq = strToUpper(s_fasta->seq);
-		name = s_fasta->name;
-		if(seq == NULL || name == NULL || strlen(seq) <= k){
-			continue;
-		}
-		for(i=0; i < strlen(seq)-k+1; i++){
-			kmer = mycalloc(k+1, char);
-			memset(kmer, '\0', k+1);
-			strncpy(kmer, strToUpper(s_fasta->seq)+i, k);
-			kmer_insert(&ret, kmer, name); 
-		}
-	}
-	if(kmer) free(kmer);
-	if(seq)  free(seq);
-	if(name)  free(name);
-	kmer_uniq(&ret);
-	return ret;
-}
 static bag_t
 *bag_construct(kmer_t *kmer_uthash, fasta_t *fasta_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
 	if(kmer_uthash==NULL || fq1==NULL || fq2==NULL || fasta_ht==NULL) return NULL;
@@ -240,7 +257,6 @@ static bag_t
 	gzclose(fp2);
 	return bag;
 }
-
 
 static junction_t
 *edge_junction_gen(bag_t *eg, fasta_t *fasta_u, opt_t *opt){
@@ -849,15 +865,14 @@ int predict(int argc, char *argv[]) {
 	opt->fq1 = argv[optind+1];  // read1
 	opt->fq2 = argv[optind+2];  // read2
 	
+	if(opt->k <=0 || opt->k > MAX_KMER_LEN) die("[%s] k must be within (0, %d)", __func__, MAX_KMER_LEN); 	
+	
 	fprintf(stderr, "[%s] loading exon sequences of targeted genes ... \n",__func__);
-	if((EXON_HT = fasta_load(opt->fa)) == NULL) die("[%s] can't load reference sequences %s", __func__, opt->fa);	
+	if((EXON_HT = fasta_read(opt->fa)) == NULL) die("[%s] fail to read %s", __func__, opt->fa);	
 	
 	fprintf(stderr, "[%s] indexing exon sequneces by kmer hash table ... \n",__func__);
-	if((KMER_HT = kmer_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
-	
-	kmer_display(KMER_HT);	
-	
-	
+	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
+	kmer_display(KMER_HT);
 	//fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
 	//if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
     //
@@ -904,8 +919,8 @@ int predict(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	if(BAGR_HT)            bag_distory(&BAGR_HT);
-	if(KMER_HT)    kmer_destroy(&KMER_HT);
-	if(EXON_HT)   fasta_destroy(&EXON_HT);
+	if(KMER_HT)           kmer_destroy(&KMER_HT);
+	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	return 0;
 }
 
