@@ -13,7 +13,6 @@
 #include "utils.h"
 
 #define KM_ERR_NONE					0
-#define MAX_KMER_LEN                40
 
 typedef struct{
     char* kmer;                /* key */

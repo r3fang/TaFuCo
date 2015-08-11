@@ -9,12 +9,14 @@
 
 
 static kmer_t *kmer_index(fasta_t *, int);
+static bag_t  *bag_construct(kmer_t *, fasta_t *, char*, char*, int, int, int);
 static char *concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
 static int find_junction_one_edge(bag_t *eg, fasta_t *fasta_u, opt_t *opt, junction_t **ret);
 static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
 static int gene_order(char* gname1, char* gname2, char* read1, char* read2, kmer_t *kmer_ht, int k, int min_kmer_match);
 static junction_t *transcript_construct_no_junc(char* gname1, char *gname2, fasta_t *fasta_ht);
 static junction_t *transcript_construct_junc(junction_t *junc_ht, fasta_t *exon_ht);
+static inline int find_all_genes(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k);
 
 /*
  * Description:
@@ -55,6 +57,139 @@ static kmer_t
 	if(name)  free(name);
 	kmer_uniq(&ret);
 	return ret;
+}
+
+/* 
+ * Find all genes uniquely matched with kmers on _read.          
+ * hash     - a hash table count number of matches between _read and every gene
+ * _read    - inqury read
+ * _k       - kmer length
+ */
+static inline int
+find_all_genes(str_ctr **hash, kmer_t *kmer_ht, char* _read, int _k){
+	/* check parameters */
+	if(_read == NULL || kmer_ht == NULL || _k < 0) die("[%s]: parameter error\n", __func__);
+	/* declare vaiables */
+	str_ctr *s;
+	int _read_pos = 0;
+	int num;
+	char* gene = NULL;
+	register kmer_t *s_kmer = NULL; 
+	char buff[_k];
+/*--------------------------------------------------------------------*/
+	while(_read_pos<(strlen(_read)-_k+1)){
+		/* copy a kmer of string */
+		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
+		if(strlen(buff) != _k) continue;
+
+		if((s_kmer=find_kmer(kmer_ht, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
+		if(s_kmer->count == 1){ // only count the uniq match 
+			gene = strsplit(s_kmer->seq_names[0], '.', &num)[0];
+			if(gene != NULL){ str_ctr_add(hash, gene);}
+		}
+		_read_pos++;
+	}
+	return 0;
+}
+
+/*
+ * Description:
+ *------------
+ * construct breakend associated graph BAG.
+
+ * Input: 
+ *-------
+ * kmer_ht            - kmer hash table returned by kmer_index
+ * fq1                - 5' to 3' end of read
+ * fq2                - the other end of read
+ * min_kmer_matches   - min number kmer matches between a gene and read needed 
+ * min_edge_weight    - edges in the graph with weight smaller than min_edge_weight will be deleted
+ * k                  - length of kmer
+ * Output: 
+ *-------
+ * BAG_uthash object that contains the graph.
+ */
+static bag_t
+*bag_construct(kmer_t *kmer_ht, fasta_t *fasta_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
+	if(kmer_ht==NULL || fq1==NULL || fq2==NULL || fasta_ht==NULL) return NULL;
+	bag_t *bag = NULL;
+	gzFile fp1, fp2;
+	register int l1, l2;
+	register kseq_t *seq1, *seq2;
+	register char *_read1, *_read2, *edge_name;
+	_read1 = _read2 = edge_name = NULL;
+	int i, num;
+
+	if((fp1 = gzopen(fq1, "r"))==NULL) die("[%s] fail to read fastq files", __func__);
+	if((fp2 = gzopen(fq2, "r"))==NULL) die("[%s] fail to read fastq files", __func__);	
+	if((seq1 = kseq_init(fp1))==NULL)  die("[%s] fail to read fastq files", __func__);
+	if((seq2 = kseq_init(fp2))==NULL)  die("[%s] fail to read fastq files", __func__);
+		
+	/* iterate read pair in both fastq files */
+	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
+		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
+		_read2 = seq2->seq.s;		
+		if(_read1 == NULL || _read2 == NULL) continue;
+		//if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched", __func__);		
+		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
+		/* gene_counter is a string counter which will count the number of times a gene occurs in read */
+		str_ctr *gene_counter, *s;
+		gene_counter = NULL;
+		find_all_genes(&gene_counter, kmer_ht, _read1, _k);
+		find_all_genes(&gene_counter, kmer_ht, _read2, _k);
+		
+		if((num = HASH_COUNT(gene_counter))<2) continue; // if less than two genes identified, pass the rest
+		char** hits = mycalloc(num, char*);
+		/* filter genes that have matches with kmer less than min_kmer_matches */
+		i=0; for(s=gene_counter; s!=NULL; s=s->hh.next){if(s->SIZE >= min_kmer_matches){hits[i++] = strdup(s->KEY);}}
+			
+		int m, n; for(m=0; m < i; m++){for(n=m+1; n < i; n++){
+				int rc = strcmp(hits[m], hits[n]);
+				if(rc<0)  edge_name = concat(concat(hits[m], "_"), hits[n]);
+				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
+				if(rc==0) edge_name = NULL;
+				if(edge_name!=NULL) if(bag_add(&bag, edge_name, seq1->name.s, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
+		}}
+		// clean the mess up
+		if(hits)		 for(i--;i>0; i--){if(hits[i]) free(hits[i]);};
+		if(gene_counter) str_ctr_destory(&gene_counter);
+	}
+	// remove the edges with weight < min_edge_weight	
+	register bag_t *cur, *tmp;
+	HASH_ITER(hh, bag, cur, tmp) {
+		if(cur->weight < min_edge_weight) {
+			HASH_DEL(bag, cur); 
+			free(cur);
+		}
+	}
+	// determine gene order by kmer matches
+	int order;
+	for(cur=bag; cur!=NULL; cur=cur->hh.next){
+		order = 0;
+		for(i=0; i<cur->weight; i++){
+			_read1 = strsplit(cur->evidence[i], '_', &num)[0]; _read2 = strsplit(cur->evidence[i], '_', &num)[1];	
+			order += gene_order(strsplit(cur->edge, '_', &num)[0], strsplit(cur->edge, '_', &num)[1], _read1, _read2, kmer_ht, _k, min_kmer_matches);
+		}
+		if(order > 0){
+			cur->gname1 = strdup(strsplit(cur->edge, '_', &num)[1]); 
+			cur->gname2 = strdup(strsplit(cur->edge, '_', &num)[0]);
+		}
+		if(order < 0){
+			cur->gname1 = strdup(strsplit(cur->edge, '_', &num)[0]); 
+			cur->gname2 = strdup(strsplit(cur->edge, '_', &num)[1]);
+		}
+		if(order == 0){ HASH_DEL(bag, cur); free(cur);}		
+	}	
+
+	// clean the mess up
+	if(_read1)      free(_read1);
+	if(_read2)      free(_read2);
+	if(edge_name)   free(edge_name);
+	kseq_destroy(seq1);
+	kseq_destroy(seq2);	
+	gzclose(fp1);
+	gzclose(fp2);
+	return bag;
 }
 
 
@@ -106,43 +241,6 @@ gene_order(char* gname1, char* gname2, char* read1, char* read2, kmer_t *kmer_ht
 }
 
 /* 
- * Find all genes uniquely matched with kmers on _read.          
- * hash     - a hash table count number of matches between _read and every gene
- * _read    - inqury read
- * _k       - kmer length
- */
-static inline int
-find_all_genes(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k){
-/*--------------------------------------------------------------------*/
-	/* check parameters */
-	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
-/*--------------------------------------------------------------------*/
-	/* declare vaiables */
-	str_ctr *s;
-	int _read_pos = 0;
-	int num;
-	char* gene = NULL;
-	register kmer_t *s_kmer = NULL; 
-	char buff[_k];
-/*--------------------------------------------------------------------*/
-	while(_read_pos<(strlen(_read)-_k+1)){
-		/* copy a kmer of string */
-		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
-		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
-		/*------------------------------------------------------------*/
-		if((s_kmer=find_kmer(KMER_HT, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
-		if(s_kmer->count == 1){ // only count the uniq match 
-			//gene = strdup(s_kmer->seq_names[0]);
-			gene = strsplit(s_kmer->seq_names[0], '.', &num)[0];
-			if(gene == NULL) die("find_next_match: get_exon_name fails\n");
-			if(str_ctr_add(hash, gene) != 0) die("find_all_MEKMs: str_ctr_add fails\n");
-		}
-		_read_pos++;
-	}
-	return 0;
-}
-
-/* 
  * Find all exons uniquely matched with kmers on _read.          
  * hash     - a hash table count number of matches between _read and every gene
  * _read    - inqury read
@@ -175,87 +273,6 @@ find_all_exons(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k){
 		_read_pos++;
 	}
 	return 0;
-}
-
-static bag_t
-*bag_construct(kmer_t *kmer_uthash, fasta_t *fasta_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
-	if(kmer_uthash==NULL || fq1==NULL || fq2==NULL || fasta_ht==NULL) return NULL;
-	bag_t *bag = NULL;
-	gzFile fp1, fp2;
-	register int l1, l2;
-	register kseq_t *seq1, *seq2;
-	register char *_read1, *_read2;
-	register char *edge_name;
-	_read1 = _read2 = edge_name = NULL;
-	
-	if((fp1 = gzopen(fq1, "r"))==NULL) die("[%s] fail to read fastq files", __func__);
-	if((fp2 = gzopen(fq2, "r"))==NULL) die("[%s] fail to read fastq files", __func__);	
-	if((seq1 = kseq_init(fp1))==NULL)  die("[%s] fail to read fastq files", __func__);
-	if((seq2 = kseq_init(fp2))==NULL)  die("[%s] fail to read fastq files", __func__);
-
-	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
-		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
-		_read2 = seq2->seq.s;		
-		if(_read1 == NULL || _read2 == NULL) continue;
-		//if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched", __func__);		
-		if(strlen(_read1) < _k || strlen(_read2) < _k){continue;}
-		str_ctr* gene_counter = NULL;
-		str_ctr *s, *tmp;
-		find_all_genes(&gene_counter, kmer_uthash, _read1, _k);
-		find_all_genes(&gene_counter, kmer_uthash, _read2, _k);
-		
-		HASH_SORT(gene_counter, str_ctr_sort);
-		unsigned int num = HASH_COUNT(gene_counter);
-		
-		char** hits = mycalloc(num, char*);
-		int i=0; if(num > 1){
-			HASH_ITER(hh, gene_counter, s, tmp) { 
-				if(s->SIZE >= min_kmer_matches){hits[i++] = strdup(s->KEY);}
-			}			
-		}
-		int m, n; for(m=0; m < i; m++){for(n=m+1; n < i; n++){
-				int rc = strcmp(hits[m], hits[n]);
-				if(rc<0)  edge_name = concat(concat(hits[m], "_"), hits[n]);
-				if(rc>0)  edge_name = concat(concat(hits[n], "_"), hits[m]);
-				if(rc==0) edge_name = NULL;
-				if(edge_name!=NULL){
-					if(bag_add(&bag, edge_name, seq1->name.s, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");							
-				}
-		}}
-		if(hits)		 free(hits);
-		if(gene_counter) free(gene_counter);
-	}
-	// remove the edges with weight < min_edge_weight	
-	register bag_t *cur, *tmp;
-	int num, order, i;
-	HASH_ITER(hh, bag, cur, tmp) {
-		if(cur->weight < min_edge_weight) {
-			HASH_DEL(bag, cur); 
-			free(cur);
-		}else{
-			order = 0;
-			/* determin the order of gene */
-			for(i=0; i<cur->weight; i++){
-				_read1 = strsplit(cur->evidence[i], '_', &num)[0];
-				_read2 = strsplit(cur->evidence[i], '_', &num)[1];	
-				order += gene_order(strsplit(cur->edge, '_', &num)[0], strsplit(cur->edge, '_', &num)[1], _read1, _read2, kmer_uthash, _k, min_kmer_matches);
-			}
-			if(order > 0){
-				cur->gname1 = strdup(strsplit(cur->edge, '_', &num)[1]); 
-				cur->gname2 = strdup(strsplit(cur->edge, '_', &num)[0]);
-			}
-			if(order < 0){
-				cur->gname1 = strdup(strsplit(cur->edge, '_', &num)[0]); 
-				cur->gname2 = strdup(strsplit(cur->edge, '_', &num)[1]);
-			}
-			if(order == 0){ HASH_DEL(bag, cur); free(cur);}
-		}
-    }
-	kseq_destroy(seq1);
-	kseq_destroy(seq2);	
-	gzclose(fp1);
-	gzclose(fp2);
-	return bag;
 }
 
 static junction_t
@@ -813,9 +830,9 @@ static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
 			fprintf(stderr, "Details: predict gene fusion from RNA-seq data\n\n");
-			fprintf(stderr, "Options: -k INT    kmer length for indexing genome [%d]\n", opt->k);
-			fprintf(stderr, "         -n INT    min number of uniq kmer matches for a gene-read match [%d]\n", opt->min_kmer_match);
-			fprintf(stderr, "         -w INT    min weight for an edge in BAG [%d]\n", opt->min_edge_weight);
+			fprintf(stderr, "Options: -k INT    kmer length for indexing [%d]\n", opt->k);
+			fprintf(stderr, "         -n INT    min uniq kmer matches for a gene and read match [%d]\n", opt->min_kmer_match);
+			fprintf(stderr, "         -w INT    edges in graph of weight smaller than -w will be removed [%d]\n", opt->min_edge_weight);
 			fprintf(stderr, "         -m INT    score for match in alignment [%d]\n", opt->match);
 			fprintf(stderr, "         -u INT    score for mismatch in alignment [%d]\n", opt->mismatch);
 			fprintf(stderr, "         -o INT    penality for gap open [%d]\n", opt->gap);
@@ -844,9 +861,9 @@ int predict(int argc, char *argv[]) {
 	junction_t *junc_ht;
 	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s:h:l:x:a")) >= 0) {
 				switch (c) {
+				case 'k': opt->k = atoi(optarg); break;	
 				case 'n': opt->min_kmer_match = atoi(optarg); break;
 				case 'w': opt->min_edge_weight = atoi(optarg); break;
-				case 'k': opt->k = atoi(optarg); break;
 				case 'm': opt->match = atoi(optarg); break;
 				case 'u': opt->mismatch = atoi(optarg); break;
 				case 'o': opt->gap = atoi(optarg); break;
@@ -865,17 +882,21 @@ int predict(int argc, char *argv[]) {
 	opt->fq1 = argv[optind+1];  // read1
 	opt->fq2 = argv[optind+2];  // read2
 	
-	if(opt->k <=0 || opt->k > MAX_KMER_LEN) die("[%s] k must be within (0, %d)", __func__, MAX_KMER_LEN); 	
+	if(opt->k < MIN_KMER_LEN || opt->k > MAX_KMER_LEN) die("[%s] -k must be within [%d, %d]", __func__, MIN_KMER_LEN, MAX_KMER_LEN); 	
+	if(opt->min_kmer_match < MIN_KMER_MATCH) die("[%s] -n must be within [%d, +INF)", __func__, MIN_KMER_MATCH); 	
+	if(opt->min_edge_weight < MIN_EDGE_WEIGHT) die("[%s] -w must be within [%d, +INF)", __func__, MIN_EDGE_WEIGHT); 	
 	
-	fprintf(stderr, "[%s] loading exon sequences of targeted genes ... \n",__func__);
+	fprintf(stderr, "[%s] loading sequences of targeted genes ... \n",__func__);
 	if((EXON_HT = fasta_read(opt->fa)) == NULL) die("[%s] fail to read %s", __func__, opt->fa);	
 	
-	fprintf(stderr, "[%s] indexing exon sequneces by kmer hash table ... \n",__func__);
+	fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
 	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
 
-	//fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
-	//if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-    //
+	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
+	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+	bag_display(BAGR_HT);
+	
+	
 	//fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
 	//if(bag_uniq(&BAGR_HT)!=0){
 	//	fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
@@ -917,10 +938,10 @@ int predict(int argc, char *argv[]) {
 	//}
 	//
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
-	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
-	if(BAGR_HT)            bag_distory(&BAGR_HT);
-	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
+	if(KMER_HT)           kmer_destroy(&KMER_HT);
+	if(BAGR_HT)            bag_distory(&BAGR_HT);
+	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	return 0;
 }
 
