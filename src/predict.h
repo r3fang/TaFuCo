@@ -156,7 +156,7 @@ static junction_t *transcript_construct(junction_t *junc_ht, struct fasta_uthash
  *-------
  * solution_pair_t object that contains alignment results of all reads.
  */
-static int align_reads_to_transcript(solution_pair_t **res, junction_t *junc, opt_t *opt);
+static int align_reads_to_transcript(solution_pair_t **res, bag_t *bag, opt_t *opt);
 
 /*
  * Description:

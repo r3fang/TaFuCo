@@ -535,8 +535,8 @@ static char
  * align supportive reads of every edge to edge's constructed transcript
  */
 static solution_pair_t 
-*align_edge_to_transcript(junction_t *junc_ht, bag_t *bag_ht, opt_t *opt){
-	if(junc_ht==NULL || bag_ht==NULL || opt==NULL) return NULL;
+*align_edge_to_transcript(bag_t *bag_ht, opt_t *opt){
+	if(bag_ht==NULL || opt==NULL) return NULL;
     bag_t *edge;
    	junction_t *junc_cur;
 	char *gene1, *gene2, *edge_name;
@@ -547,40 +547,41 @@ static solution_pair_t
 	char *read1, *read2;
 	read1 = read2 = NULL;
 	int i, j;
-	// iterate every junction
-	for(junc_cur=junc_ht; junc_cur != NULL; junc_cur=junc_cur->hh.next){
-		gene1 = strsplit(junc_cur->exon1, '.', &num)[0];
-		gene2 = strsplit(junc_cur->exon2, '.', &num)[0];
-		rc = strcmp(gene1, gene2);
-		if(rc<0)  edge_name = concat(concat(gene1, "_"), gene2);
-		if(rc>0)  edge_name = concat(concat(gene1, "_"), gene2);
-		if(rc==0) continue;
-		if((edge = find_edge(bag_ht, edge_name))==NULL) continue;
-		for(i=0; i<edge->weight; i++){
-			read1 = strsplit(edge->evidence[i], '_', &num)[0];
-			if(num != 2) continue;
-			read2 = strsplit(edge->evidence[i], '_', &num)[1];
-			if((sol1 = align_exon_jump(read1, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
-			if((sol2 = align_exon_jump(read2, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
-			if(sol1->prob < opt->min_align_score || sol2->prob < opt->min_align_score) continue;
-			
-			sol_cur = find_solution_pair(res, edge->read_names[i]);
-			if(sol_cur!=NULL){ // if exists
-				if(sol_cur->prob < sol1->prob*sol2->prob){
-					sol_cur->r1        = sol1; 
-					sol_cur->r2        = sol2; 
-					sol_cur->prob      = (sol1->prob)*(sol2->prob); 
-					sol_cur->junc_name = junc_cur->idx;
-				}				
-			}else{
-					sol_cur = solution_pair_init();
-					sol_cur->idx = strdup(edge->read_names[i]); 
-					sol_cur->junc_name = junc_cur->idx;
-					sol_cur->r1 = sol1;			
-					sol_cur->r2 = sol2;
-					sol_cur->prob = sol1->prob*sol2->prob;
-					HASH_ADD_STR(res, idx, sol_cur);
-			}	
+	// iterate every junction in edge
+	for(edge=bag_ht; edge!=NULL; edge=edge->hh.next){
+		for(junc_cur=edge->junc; junc_cur != NULL; junc_cur=junc_cur->hh.next){
+			gene1 = strsplit(junc_cur->exon1, '.', &num)[0];
+			gene2 = strsplit(junc_cur->exon2, '.', &num)[0];
+			rc = strcmp(gene1, gene2);
+			if(rc<0)  edge_name = concat(concat(gene1, "_"), gene2);
+			if(rc>0)  edge_name = concat(concat(gene1, "_"), gene2);
+			if(rc==0) continue;
+			if((edge = find_edge(bag_ht, edge_name))==NULL) continue;
+			for(i=0; i<edge->weight; i++){
+				read1 = strsplit(edge->evidence[i], '_', &num)[0];
+				if(num != 2) continue;
+				read2 = strsplit(edge->evidence[i], '_', &num)[1];
+				if((sol1 = align_exon_jump(read1, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+				if((sol2 = align_exon_jump(read2, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+				if(sol1->prob < opt->min_align_score || sol2->prob < opt->min_align_score) continue;
+				sol_cur = find_solution_pair(res, edge->read_names[i]);
+				if(sol_cur!=NULL){ // if exists
+					if(sol_cur->prob < sol1->prob*sol2->prob){
+						sol_cur->r1        = sol1; 
+						sol_cur->r2        = sol2; 
+						sol_cur->prob      = (sol1->prob)*(sol2->prob); 
+						sol_cur->junc_name = junc_cur->idx;
+					}				
+				}else{
+						sol_cur = solution_pair_init();
+						sol_cur->idx = strdup(edge->read_names[i]); 
+						sol_cur->junc_name = junc_cur->idx;
+						sol_cur->r1 = sol1;			
+						sol_cur->r2 = sol2;
+						sol_cur->prob = sol1->prob*sol2->prob;
+						HASH_ADD_STR(res, idx, sol_cur);
+				}	
+			}
 		}
 	}
 	if(gene2)      free(gene2);
@@ -606,12 +607,16 @@ static solution_pair_t
  *-------
  * solution_pair_t object that contains alignment results of all reads.
  */
-static int align_reads_to_transcript(solution_pair_t **res, junction_t *junc, opt_t *opt){
-	if(junc==NULL || opt==NULL) return -1;
-	junction_t *cur_junction, *tmp_junction;
-	HASH_ITER(hh, junc, cur_junction, tmp_junction) {
-		fprintf(stderr, "[predict] fusion between %s and %s are being tested ... \n", cur_junction->exon1, cur_junction->exon2);
-		if((align_to_transcript_unit(cur_junction, opt, res))!=0) return -1;
+static int align_reads_to_transcript(solution_pair_t **res, bag_t *bag, opt_t *opt){
+	if(bag==NULL || opt==NULL) return -1;
+	bag_t *bag_cur;
+	junction_t *junc_cur;
+	for(bag_cur=bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){		
+		fprintf(stderr, "[predict] fusion between %s and %s are being tested ... \n", bag_cur->gname1, bag_cur->gname2);		
+		if(bag_cur->junc_flag==false) continue;
+		for(junc_cur=bag_cur->junc; junc_cur!=NULL; junc_cur=junc_cur->hh.next){
+			if((align_to_transcript_unit(junc_cur, opt, res))!=0) return -1;				
+		}
 	}
 	return 0;
 }
@@ -643,7 +648,7 @@ static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
 		_read2 = seq2->seq.s;		
 		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
-		if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
+		//if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
 		if((min_mismatch(_read1, junc->s)) <= mismatch || (min_mismatch(_read2, junc->s)) <= mismatch ){	
 			// alignment with jump state between exons 
 			if((sol1 = align_exon_jump(_read1, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
@@ -852,10 +857,12 @@ int predict(int argc, char *argv[]) {
 		return -1;	
 	}
 	if(BAGR_HT == NULL) return 0;
-	bag_display(BAGR_HT);
 	
-	//fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
-	//if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
+	fprintf(stderr, "[%s] algin edges to constructed transcript ... \n", __func__);    
+	if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
+	
+	fprintf(stderr, "[%s] align reads to fused transcript ... \n", __func__);    	
+	if((align_reads_to_transcript(&SOLU_HT, BAGR_HT, opt)) != 0) die("[%s] can't rediscover any junction", __func__);;
 
 	//junction_t *s;
 	//for(s=JUN0_HT; s != NULL; s=s->hh.next){
