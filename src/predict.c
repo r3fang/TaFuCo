@@ -872,7 +872,7 @@ int predict(int argc, char *argv[]) {
 	
 	fprintf(stderr, "[%s] indexing exon sequneces by kmer hash table ... \n",__func__);
 	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
-	kmer_display(KMER_HT);
+
 	//fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
 	//if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
     //
