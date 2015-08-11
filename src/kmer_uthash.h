@@ -14,22 +14,20 @@
 
 #define KM_ERR_NONE					0
 
-struct kmer_uthash {
+typedef struct{
     char* kmer;                /* key */
-	size_t count;
+	int count;
 	char **seq_names;    
     UT_hash_handle hh;         /* makes this structure hashable */
-};
-
-
+} kmer_t;
 
 /*
  * delete duplicate seq_names 
  */
 static inline void 
-kmer_uthash_uniq(struct kmer_uthash **tb){
+kmer_uniq(kmer_t **tb){
 	if(*tb == NULL) die("kmer_uthash_uniq: input error");
-	struct kmer_uthash *cur, *tmp;
+	kmer_t *cur, *tmp;
 	int i, j;
 	int before, del;
 	HASH_ITER(hh, *tb, cur, tmp) {
@@ -60,14 +58,14 @@ kmer_uthash_uniq(struct kmer_uthash **tb){
 }
 
 /* add one kmer and its exon name to kmer_uthash table */
-static void kmer_uthash_insert(struct kmer_uthash **table, char* kmer, char* name) {
+static void kmer_insert(kmer_t **table, char* kmer, char* name) {
 	// check input param
 	if(kmer==NULL || name==NULL) die("kmer_uthash_insert: input error");
-	struct kmer_uthash *s;
+	kmer_t *s;
 	/* check if kmer exists in table*/
 	HASH_FIND_STR(*table, kmer, s);  
 	if (s==NULL){
-		s = mycalloc(1, struct kmer_uthash);
+		s = mycalloc(1, kmer_t);
 		s->kmer = strdup(kmer);
 		s->count = 1;                /* first pos in the list */
 		s->seq_names = mycalloc(s->count, char*);
@@ -91,15 +89,15 @@ static void kmer_uthash_insert(struct kmer_uthash **table, char* kmer, char* nam
 
 ///* Write down kmer_uthash */
 static inline void 
-kmer_uthash_write(struct kmer_uthash *htable, char *fname){
+kmer_write(kmer_t *htable, char *fname){
 	if(htable == NULL || fname == NULL) die("kmer_uthash_write: input error");
 	/* write htable to disk*/
 	FILE *ofp = fopen(fname, "w");
 	if (ofp == NULL) die("Can't open output file %s!\n", fname);
-	struct kmer_uthash *s, *tmp;
+	kmer_t *s, *tmp;
 	HASH_ITER(hh, htable, s, tmp) {
 		if(s == NULL) die("Fail to write down %s!\n", fname);
-		fprintf(ofp, ">%s\t%zu\n", s->kmer, s->count);		
+		fprintf(ofp, ">%s\t%d\n", s->kmer, s->count);		
 		int i;
 		for(i=0; i < s->count; i++){
 			if(i==0){
@@ -115,10 +113,10 @@ kmer_uthash_write(struct kmer_uthash *htable, char *fname){
 
 // destory 
 static inline int 
-kmer_uthash_destroy(struct kmer_uthash **tb) {
+kmer_destroy(kmer_t **tb) {
 	if(*tb == NULL) die("kmer_uthash_destroy: parameter error\n");	
 	/*free the kmer_hash table*/
-	struct kmer_uthash *cur, *tmp;
+	kmer_t *cur, *tmp;
 	HASH_ITER(hh, *tb, cur, tmp) {
 		if(cur == NULL) die("kmer_uthash_destroy: HASH_ITER fails\n");
 		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
@@ -127,21 +125,21 @@ kmer_uthash_destroy(struct kmer_uthash **tb) {
 	return KM_ERR_NONE;
 }
 
-static inline struct kmer_uthash
-*find_kmer(struct kmer_uthash *tb, char* quary_kmer) {
-	struct kmer_uthash *s = NULL;
+static inline kmer_t
+*find_kmer(kmer_t *tb, char* quary_kmer) {
+	kmer_t *s = NULL;
     if(tb == NULL || quary_kmer == NULL) die("[%s] parameter error", __func__);
 	HASH_FIND_STR(tb, quary_kmer, s);  /* s: output pointer */
     return s;
 }
 
 static inline int
-kmer_uthash_display(struct kmer_uthash *_kmer_ht) {	
+kmer_display(kmer_t *_kmer_ht) {	
 	if(_kmer_ht == NULL) die("kmer_uthash_display: input error\n");
-   	struct kmer_uthash *cur, *tmp;
+   	kmer_t *cur, *tmp;
 	HASH_ITER(hh, _kmer_ht, cur, tmp) {
 		if(cur == NULL) die("kmer_uthash_display: HASH_ITER fails\n");
-		printf("kmer=%s\tcount=%zu\n", cur->kmer, cur->count);
+		printf("kmer=%s\tcount=%d\n", cur->kmer, cur->count);
 		int i;
 		for(i=0; i < cur->count; i++){
 			printf("%s\t", cur->seq_names[i]);

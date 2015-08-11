@@ -25,7 +25,7 @@
 #define MAX_ALLOWED_K                     50 // max allowed kmer length for kmer hash table 
 
 static struct fasta_uthash *EXON_HT     = NULL;  // stores sequences in in.fa
-static struct kmer_uthash  *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
+static              kmer_t *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
 static             bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
 static   solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
 
@@ -90,7 +90,7 @@ static inline void destory_opt(opt_t *opt){
  *-------
  * kmer_uthash object that contains kmer and its occurnace positions on input seq.
  */
-static struct kmer_uthash *kmer_uthash_construct(struct fasta_uthash *tb, int k);
+static kmer_t *kmer_construct(struct fasta_uthash *tb, int k);
 
 /*
  * Description:
@@ -109,7 +109,7 @@ static struct kmer_uthash *kmer_uthash_construct(struct fasta_uthash *tb, int k)
  *-------
  * BAG_uthash object that contains the graph.
  */
-static bag_t *bag_construct(struct kmer_uthash *kmer_uthash, struct fasta_uthash *fasta_ht, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
+static bag_t *bag_construct(kmer_t *kmer_uthash, struct fasta_uthash *fasta_ht, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
 /*
  * Description:
  *------------

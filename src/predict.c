@@ -6,10 +6,10 @@
 /*--------------------------------------------------------------------*/
 #include "predict.h"
 
-static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
+static char *concat_exons(char* _read, struct fasta_uthash *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
 static int find_junction_one_edge(bag_t *eg, struct fasta_uthash *fasta_u, opt_t *opt, junction_t **ret);
 static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
-static int gene_order(char* gname1, char* gname2, char* read1, char* read2, struct kmer_uthash *kmer_ht, int k, int min_kmer_match);
+static int gene_order(char* gname1, char* gname2, char* read1, char* read2, kmer_t *kmer_ht, int k, int min_kmer_match);
 static junction_t *transcript_construct_no_junc(char* gname1, char *gname2, struct fasta_uthash *fasta_ht);
 static junction_t *transcript_construct_junc(junction_t *junc_ht, struct fasta_uthash *exon_ht);
 
@@ -18,7 +18,7 @@ static junction_t *transcript_construct_junc(junction_t *junc_ht, struct fasta_u
  * negative means gene1 in front of gene1 from 5'-3'
  */
 static int 
-gene_order(char* gname1, char* gname2, char* read1, char* read2, struct kmer_uthash *kmer_ht, int k, int min_kmer_match){
+gene_order(char* gname1, char* gname2, char* read1, char* read2, kmer_t *kmer_ht, int k, int min_kmer_match){
 	if(gname1==NULL || gname2==NULL || read1==NULL || read2==NULL || kmer_ht==NULL) return 0;
 	register int i;
 	int *gene1 = mycalloc(strlen(read1)+strlen(read2), int);
@@ -27,7 +27,7 @@ gene_order(char* gname1, char* gname2, char* read1, char* read2, struct kmer_uth
 	int gene2_pos = 0;	
 	int num;
 	char* gname_tmp;
-	register struct kmer_uthash *kmer_cur;
+	register kmer_t *kmer_cur;
 	char *buff = mycalloc(k+1, char);
 	for(i=0; i<strlen(read1)-k+1; i++){
 		memset(buff, '\0', k+1);
@@ -67,7 +67,7 @@ gene_order(char* gname1, char* gname2, char* read1, char* read2, struct kmer_uth
  * _k       - kmer length
  */
 static inline int
-find_all_genes(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k){
+find_all_genes(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k){
 /*--------------------------------------------------------------------*/
 	/* check parameters */
 	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
@@ -77,7 +77,7 @@ find_all_genes(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k)
 	int _read_pos = 0;
 	int num;
 	char* gene = NULL;
-	register struct kmer_uthash *s_kmer = NULL; 
+	register kmer_t *s_kmer = NULL; 
 	char buff[_k];
 /*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k+1)){
@@ -104,7 +104,7 @@ find_all_genes(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k)
  * _k       - kmer length
  */
 static inline int
-find_all_exons(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k){
+find_all_exons(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k){
 /*--------------------------------------------------------------------*/
 	/* check parameters */
 	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
@@ -113,7 +113,7 @@ find_all_exons(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k)
 	str_ctr *s;
 	int _read_pos = 0;
 	char* exon = NULL;
-	register struct kmer_uthash *s_kmer = NULL; 
+	register kmer_t *s_kmer = NULL; 
 	char buff[_k];
 /*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k+1)){
@@ -132,14 +132,14 @@ find_all_exons(str_ctr **hash, struct kmer_uthash *KMER_HT, char* _read, int _k)
 	return 0;
 }
 
-static struct kmer_uthash 
-*kmer_uthash_construct(struct fasta_uthash *tb, int k){
+static kmer_t 
+*kmer_construct(struct fasta_uthash *tb, int k){
 	if(tb == NULL || k < 0 || k > MAX_ALLOWED_K) return NULL;
 	register char *kmer;
 	char *name = NULL;	
 	char *seq = NULL;	
 	register int i, j;
-	struct kmer_uthash  *s_kmer, *tmp_kmer, *ret = NULL;
+	kmer_t  *s_kmer, *tmp_kmer, *ret = NULL;
 	struct fasta_uthash *s_fasta, *tmp_fasta;
 	HASH_ITER(hh, tb, s_fasta, tmp_fasta) {
 		seq = strToUpper(s_fasta->seq);
@@ -151,17 +151,17 @@ static struct kmer_uthash
 			kmer = mycalloc(k+1, char);
 			memset(kmer, '\0', k+1);
 			strncpy(kmer, strToUpper(s_fasta->seq)+i, k);
-			kmer_uthash_insert(&ret, kmer, name); 
+			kmer_insert(&ret, kmer, name); 
 		}
 	}
 	if(kmer) free(kmer);
 	if(seq)  free(seq);
 	if(name)  free(name);
-	kmer_uthash_uniq(&ret);
+	kmer_uniq(&ret);
 	return ret;
 }
 static bag_t
-*bag_construct(struct kmer_uthash *kmer_uthash, struct fasta_uthash *fasta_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
+*bag_construct(kmer_t *kmer_uthash, struct fasta_uthash *fasta_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
 	if(kmer_uthash==NULL || fq1==NULL || fq2==NULL || fasta_ht==NULL) return NULL;
 	bag_t *bag = NULL;
 	gzFile fp1, fp2;
@@ -260,7 +260,7 @@ static junction_t
 	gname2 = eg->gname2;
 	if(gname1==NULL || gname2==NULL) return NULL;
 	register int i, j;
-	register struct kmer_uthash *s_kmer; 
+	register kmer_t *s_kmer; 
 	register solution_t *sol1, *sol2;           /* alignment solution for read1 and read2 */
 	int start1, start2;
 	int junc_pos;                               /* position of junction */
@@ -492,6 +492,7 @@ bag_transcript_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
 	junction_t *junc_cur;
 	for(edge=*bag; edge!=NULL; edge=edge->hh.next) {
 		if(edge->junc_flag==true){
+			printf("sfsdfsadf\n");
 			edge->junc = transcript_construct_junc(edge->junc, fa);
 		}else{
 			edge->junc = transcript_construct_no_junc(edge->gname1, edge->gname2, fa);
@@ -503,7 +504,7 @@ bag_transcript_gen(bag_t **bag, struct fasta_uthash *fa, opt_t *opt){
  * construct concatnated exon string based on kmer matches
  */
 static char 
-*concat_exons(char* _read, struct fasta_uthash *fa_ht, struct kmer_uthash *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junc_pos, int min_kmer_match){
+*concat_exons(char* _read, struct fasta_uthash *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junc_pos, int min_kmer_match){
 	if(_read == NULL || fa_ht == NULL || kmer_ht==NULL || gname1==NULL || gname2==NULL) return NULL;
 	/* variables */
 	char *str1, *str2;
@@ -580,6 +581,7 @@ static solution_pair_t
 				read1 = strsplit(edge->evidence[i], '_', &num)[0];
 				if(num != 2) continue;
 				read2 = strsplit(edge->evidence[i], '_', &num)[1];
+				if(junc_cur->transcript==NULL) break;
 				if((sol1 = align_exon_jump(read1, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
 				if((sol2 = align_exon_jump(read2, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
 				if(sol1->prob < opt->min_align_score || sol2->prob < opt->min_align_score) continue;
@@ -804,13 +806,13 @@ static int pred_usage(opt_t *opt){
 			fprintf(stderr, "         -e INT    penality for gap extension [%d]\n", opt->extension);
 			fprintf(stderr, "         -j INT    penality for jump between genes [%d]\n", opt->jump_gene);
 			fprintf(stderr, "         -s INT    penality for jump between exons [%d]\n", opt->jump_exon);
-			fprintf(stderr, "         -a FLOAT  min identity score for alignment [%.2f]\n", opt->min_align_score);
 			fprintf(stderr, "         -h INT    min hits for a junction [%d]\n", opt->min_hits);					
 			fprintf(stderr, "         -l INT    length for junction string [%d]\n", opt->seed_len);					
 			fprintf(stderr, "         -x INT    max mismatches of junction string match [%d]\n", opt->max_mismatch);					
+			fprintf(stderr, "         -a FLOAT  min identity score for alignment [%.2f]\n", opt->min_align_score);
 			fprintf(stderr, "\n");
-			fprintf(stderr, "Inputs:  exon.fa   fasta file that contains exon sequences of targeted \n");
-			fprintf(stderr, "                   genes with no flanking sequence which can be generated: \n");
+			fprintf(stderr, "Inputs:  exon.fa   fasta file that contains exon sequences of \n");
+			fprintf(stderr, "                   targeted genes, which can be generated by: \n");
 			fprintf(stderr, "                   tfc name2fasta <genes.txt> <in.fa> <exon.fa> \n");
 			fprintf(stderr, "         R1.fq     5'->3' end of pair-end sequencing reads\n");
 			fprintf(stderr, "         R2.fq     the other end of pair-end sequencing reads\n");
@@ -851,49 +853,58 @@ int predict(int argc, char *argv[]) {
 	if((EXON_HT = fasta_uthash_load(opt->fa)) == NULL) die("[%s] can't load reference sequences %s", __func__, opt->fa);	
 	
 	fprintf(stderr, "[%s] indexing exon sequneces by kmer hash table ... \n",__func__);
-	if((KMER_HT = kmer_uthash_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
-
-	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
-	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-
-	fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
-	if(bag_uniq(&BAGR_HT)!=0){
-		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
-		return -1;		
-	}
-	if(BAGR_HT == NULL) return 0;
-
-	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
-	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
-		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
-		return -1;
-	}
-	if(BAGR_HT == NULL) return 0;	
-
-	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
-	if(bag_junction_gen(&BAGR_HT, EXON_HT, opt)!=0){
-		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
-		return -1;	
-	}
-	if(BAGR_HT == NULL) return 0;
-
-	fprintf(stderr, "[%s] constructing fused transcript for every fusion candiates... \n", __func__);
-	if(bag_transcript_gen(&BAGR_HT, EXON_HT, opt)!=0){
-		fprintf(stderr, "[%s] fail to construct transcript  \n", __func__);
-		return -1;	
-	}
-	if(BAGR_HT == NULL) return 0;
+	if((KMER_HT = kmer_construct(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
 	
-	fprintf(stderr, "[%s] aligning supportive read pairs to fused transcript ... \n", __func__);    
-	if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
+	kmer_display(KMER_HT);	
 	
-	fprintf(stderr, "[%s] testing junctions ... \n", __func__);    	
-	if((align_reads_to_transcript(&SOLU_HT, BAGR_HT, opt)) != 0) die("[%s] can't rediscover any junction", __func__);;
 	
+	//fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
+	//if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+    //
+	//fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
+	//if(bag_uniq(&BAGR_HT)!=0){
+	//	fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
+	//	return -1;		
+	//}
+	//if(BAGR_HT == NULL) return 0;
+    //
+	//fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
+	//if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
+	//	fprintf(stderr, "[%s] fail to trim graph \n", __func__);
+	//	return -1;
+	//}
+	//if(BAGR_HT == NULL) return 0;	
+    //
+	//fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
+	//if(bag_junction_gen(&BAGR_HT, EXON_HT, opt)!=0){
+	//	fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
+	//	return -1;	
+	//}
+	//if(BAGR_HT == NULL) return 0;
+    //
+	//fprintf(stderr, "[%s] constructing fused transcript for every fusion candiates... \n", __func__);
+	//if(bag_transcript_gen(&BAGR_HT, EXON_HT, opt)!=0){
+	//	fprintf(stderr, "[%s] fail to construct transcript  \n", __func__);
+	//	return -1;	
+	//}
+	//if(BAGR_HT == NULL) return 0;
+	//
+	//bag_display(BAGR_HT);
+	//fprintf(stderr, "[%s] aligning supportive read pairs to fused transcript ... \n", __func__);    
+	//if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL) die("[%s] can't rediscover any junction", __func__);
+	//
+	//fprintf(stderr, "[%s] testing junctions ... \n", __func__);    	
+	//if((align_reads_to_transcript(&SOLU_HT, BAGR_HT, opt)) != 0) die("[%s] can't rediscover any junction", __func__);;
+	//
+	//solution_pair_t *s;
+	//for(s=SOLU_HT; s!=NULL; s=s->hh.next){
+	//	printf("%s\n", s->junc_name);
+	//}
+	//
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	if(BAGR_HT)            bag_distory(&BAGR_HT);
-	if(KMER_HT)    kmer_uthash_destroy(&KMER_HT);
+	if(KMER_HT)    kmer_destroy(&KMER_HT);
 	if(EXON_HT)   fasta_uthash_destroy(&EXON_HT);
 	return 0;
 }

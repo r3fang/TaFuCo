@@ -95,7 +95,7 @@ static inline int junction_display(junction_t *junc){
 	if(junc == NULL) return -1;
 	junction_t *junc_cur;
 	for(junc_cur=junc; junc_cur!=NULL; junc_cur=junc_cur->hh.next){
-		printf("exon1=%s\texon2=%s\thits=%zu\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits);
+		printf("%s\t%s\thits=%zu\tlikehood=%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->likehood);
 		if(junc_cur->s != NULL)      printf("junc_str=%s\n", junc_cur->s);
 		if(junc_cur->transcript != NULL)  printf("transcript=%s\n", junc_cur->transcript);
 	}
