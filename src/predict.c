@@ -11,7 +11,7 @@ static kmer_t *kmer_index(fasta_t *, int);
 static bag_t  *bag_construct(kmer_t *, fasta_t *, char*, char*, int, int, int);
 static char *concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
 static int find_junction_one_edge(bag_t *eg, fasta_t *fasta_u, opt_t *opt, junction_t **ret);
-static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair);
+static int uopdate_junction(junction_t **junc, opt_t *opt, solution_pair_t **sol_pair);
 static int gene_order(char* gname1, char* gname2, char* read1, char* read2, kmer_t *kmer_ht, int k, int min_kmer_match);
 static junction_t *transcript_construct_no_junc(char* gname1, char *gname2, fasta_t *fasta_ht);
 static junction_t *transcript_construct_junc(junction_t *junc_ht, fasta_t *exon_ht);
@@ -653,15 +653,16 @@ static solution_pair_t
  *-------
  * solution_pair_t object that contains alignment results of all reads.
  */
-static int align_reads_to_transcript(solution_pair_t **res, bag_t *bag, opt_t *opt){
+static int test_junction(solution_pair_t **res, bag_t **bag, opt_t *opt){
 	if(bag==NULL || opt==NULL) return -1;
 	bag_t *bag_cur;
 	junction_t *junc_cur;
-	for(bag_cur=bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){		
+	for(bag_cur=*bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){		
 		if(bag_cur->junc_flag==false) continue;
 		fprintf(stderr, "[predict] junction between %s and %s is being tested ... \n", bag_cur->gname1, bag_cur->gname2);		
 		for(junc_cur=bag_cur->junc; junc_cur!=NULL; junc_cur=junc_cur->hh.next){
-			if((align_to_transcript_unit(junc_cur, opt, res))!=0) return -1;				
+			if(junc_cur->s==NULL || junc_cur->transcript==NULL || junc_cur->S1==NULL ||  junc_cur->S2==NULL) continue;
+			if((uopdate_junction(&junc_cur, opt, res))!=0) return -1;				
 		}
 	}
 	return 0;
@@ -675,8 +676,12 @@ static int align_reads_to_transcript(solution_pair_t **res, bag_t *bag, opt_t *o
  * *sol_pair - solution_pair_t object that contains alignment solutions for all read pair agains junc
 
  */
-static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_t **sol_pair){
-	if(junc==NULL || opt==NULL) return -1;
+static int uopdate_junction(junction_t **junc, opt_t *opt, solution_pair_t **sol_pair){
+	if(*junc==NULL || opt==NULL) return -1;
+	// junction
+	(*junc)->hits     = 0;
+	(*junc)->likehood = 0;
+	
 	int mismatch = opt->max_mismatch;
 	gzFile fp1, fp2;
 	int l1, l2;
@@ -693,25 +698,32 @@ static int align_to_transcript_unit(junction_t *junc, opt_t *opt, solution_pair_
 	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
 		_read2 = seq2->seq.s;		
-		if(_read1 == NULL || _read2 == NULL) die("[%s] fail to get _read1 and _read2\n", __func__);
+		if(_read1 == NULL || _read2 == NULL) continue;
 		//if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
-		if((min_mismatch(_read1, junc->s)) <= mismatch || (min_mismatch(_read2, junc->s)) <= mismatch ){	
+		if((min_mismatch(_read1, (*junc)->s)) <= mismatch || (min_mismatch(_read2, (*junc)->s)) <= mismatch ){	
 			// alignment with jump state between exons 
-			if((sol1 = align_exon_jump(_read1, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
-			if((sol2 = align_exon_jump(_read2, junc->transcript, junc->S1, junc->S2, junc->S1_num, junc->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if((sol1 = align_exon_jump(_read1, (*junc)->transcript, (*junc)->S1, (*junc)->S2, (*junc)->S1_num, (*junc)->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if((sol2 = align_exon_jump(_read2, (*junc)->transcript, (*junc)->S1, (*junc)->S2, (*junc)->S1_num, (*junc)->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
 			
 			s_sp = find_solution_pair(*sol_pair, seq1->name.s);
 			if(s_sp!=NULL){ // if exists
-				if(s_sp->prob < sol1->prob*sol2->prob){
+				if(s_sp->prob < sol1->prob*sol2->prob && sol1->prob >= opt->min_align_score && sol2->prob >= opt->min_align_score){
+					(*junc)->hits ++;
+					(*junc)->likehood += 10*log(sol1->prob); 				
+					(*junc)->likehood += 10*log(sol2->prob);
 					s_sp->r1 = sol1; s_sp->r2=sol2; 
 					s_sp->prob = (sol1->prob)*(sol2->prob); 
-					s_sp->junc_name = junc->idx;
+					s_sp->junc_name = (*junc)->idx;
 				}				
 			}else{
 				if(sol1->prob >= opt->min_align_score && sol2->prob >= opt->min_align_score){
+					(*junc)->hits ++;
+					(*junc)->likehood += 10*log(sol1->prob); 				
+					(*junc)->likehood += 10*log(sol2->prob); 				
+					
 					s_sp = solution_pair_init();
 					s_sp->idx = strdup(seq1->name.s); 
-					s_sp->junc_name = junc->idx;
+					s_sp->junc_name = (*junc)->idx;
 					s_sp->r1 = sol1;			
 					s_sp->r2 = sol2;
 					s_sp->prob = sol1->prob*sol2->prob;
@@ -917,10 +929,21 @@ int predict(int argc, char *argv[]) {
 		return -1;	
 	}
 	
-	fprintf(stderr, "[%s] aligning supportive reads to transcript ... \n", __func__);			
-	if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL){
-		fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-		return -1;			
+	fprintf(stderr, "[%s] scanning reads for junction ... \n", __func__);		
+	if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
+		fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
+		return -1;		
+	}
+		
+	//fprintf(stderr, "[%s] aligning supportive reads to transcript ... \n", __func__);			
+	//if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL){
+	//	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+	//	return -1;			
+	//}
+	
+	solution_pair_t *s;
+	for(s=SOLU_HT; s!=NULL; s=s->hh.next){
+		printf("%s\t%s\t%f\t%f\n", s->idx, s->junc_name, s->r1->prob, s->r2->prob);
 	}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
