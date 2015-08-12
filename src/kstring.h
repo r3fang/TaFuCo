@@ -271,13 +271,15 @@ static inline int *ksplit(kstring_t *s, int delimiter, int *n)
 static inline char** strsplit(char* s, const char delim, int *n){
 	if(s == NULL) return NULL;
 	kstring_t *ks = malloc(1*sizeof(kstring_t));
+	int *fields, i;
 	ks->s = strdup(s);
 	ks->l = strlen(s);
-	int *fields, i;
 	fields = ksplit(ks, delim, n);
 	if(*n==0) return NULL;
 	char** ret = malloc(*n*sizeof(char*));
 	for(i=0; i<*n; i++) ret[i] = strdup(ks->s + fields[i]);
+	if(ks){free(ks->s); free(ks);}
+	if(fields) free(fields);
 	return ret;
 }
 

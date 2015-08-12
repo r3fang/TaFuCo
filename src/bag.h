@@ -47,6 +47,7 @@ typedef struct{
 	char **read_names;  /* stores the name of read pair that support this edge*/
 	char **evidence;    /* stores the read pair that support this edge*/
 	bool junc_flag;
+	float likehood;
 	junction_t *junc;   /* stores the junctions of the edge, NULL if no junction identified */	
     UT_hash_handle hh;  /* makes this structure hashable */
 } bag_t;
@@ -59,6 +60,7 @@ static inline bag_t
 	t->edge = NULL;
 	t->junc_flag = false;
 	t->weight = 0;
+	t->likehood = 0;
 	t->evidence = mycalloc(1, char*);
 	t->read_names = mycalloc(1, char*);
 	t->junc = NULL;
@@ -114,8 +116,8 @@ bag_destory(bag_t **bag) {
 		if(bag_cur->edge)                 free(bag_cur->edge);
 		if(bag_cur->gname1)               free(bag_cur->gname1);
 		if(bag_cur->gname2)               free(bag_cur->gname2);
-		for(i=0; i<bag_cur->weight; i++)  free(bag_cur->evidence[i]);
-	    for(i=0; i<bag_cur->weight; i++)  free(bag_cur->read_names[i]);
+		if(bag_cur->evidence){  for(i=0; i<bag_cur->weight; i++)    free(bag_cur->evidence[i]);}
+		if(bag_cur->read_names){for(i=0; i<bag_cur->weight; i++)    free(bag_cur->read_names[i]);}
 		if(bag_cur->evidence)             free(bag_cur->evidence);
 		if(bag_cur->read_names)           free(bag_cur->read_names);
 		if(bag_cur)                       free(bag_cur);

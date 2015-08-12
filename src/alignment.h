@@ -110,6 +110,7 @@ typedef struct
 {
 	char* idx;
 	char* junc_name;
+	char* fuse_name;
 	solution_t *r1;
 	solution_t *r2;
 	double prob;
@@ -224,6 +225,7 @@ static inline solution_pair_t
 	solution_pair_t* s = mycalloc(1, solution_pair_t);
 	s->idx = NULL;
 	s->junc_name = NULL;
+	s->fuse_name = NULL;
 	s->r1 = solution_init();
 	s->r2 = solution_init();
 	return s;
