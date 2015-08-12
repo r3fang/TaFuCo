@@ -400,7 +400,7 @@ static junction_t
 	int enum1, enum2;
 	char enum1_str[10], enum2_str[10];
 	int num1, num2;
-	char** fields1, **fields2;
+	char **fields1, **fields2;
 	fasta_t *exon1_fa,  *exon2_fa;
 	exon1_fa = exon2_fa = NULL;
 	char *exon1_seq, *exon2_seq;
@@ -454,8 +454,7 @@ static junction_t
 static junction_t
 *transcript_construct_no_junc(char* gname1, char *gname2, fasta_t *fasta_ht){
 	if(gname1==NULL || gname2==NULL || fasta_ht==NULL) return NULL;	
-	junction_t *junc_res = junction_init(0);
-	if(gname1==NULL || gname2==NULL || fasta_ht==NULL) return NULL;
+	junction_t *junc_res = junction_init(10);
 	fasta_t *fasta_cur;
 	char *res1 = NULL;
 	char *res2 = NULL;
@@ -533,7 +532,7 @@ bag_transcript_gen(bag_t **bag, fasta_t *fa, opt_t *opt){
 	register int i;
 	junction_t *junc_cur;
 	for(edge=*bag; edge!=NULL; edge=edge->hh.next) {
-		if(edge->junc_flag==true){
+		if(edge->junc_flag==true){ // if junction identified before
 			edge->junc = transcript_construct_junc(edge->junc, fa);
 		}else{
 			edge->junc = transcript_construct_no_junc(edge->gname1, edge->gname2, fa);
@@ -905,7 +904,6 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
 	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-	bag_display(BAGR_HT);
 	
 	fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
 	if(bag_uniq(&BAGR_HT)!=0){
@@ -920,21 +918,25 @@ int predict(int argc, char *argv[]) {
 		return -1;
 	}
 	if(BAGR_HT == NULL) return 0;	
-	
-		 	
+	 	
 	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
 	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
 		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
 		return -1;	
 	}
 	if(BAGR_HT == NULL) return 0;
-	bag_display(BAGR_HT);
 
+	fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+	if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+		fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+		return -1;	
+	}
+	bag_display(BAGR_HT);
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
-	if(BAGR_HT)            bag_distory(&BAGR_HT);
+	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	return 0;
 }

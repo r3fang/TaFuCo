@@ -19,6 +19,7 @@
 /* error code */
 #define BA_ERR_NONE		     0 // no error
 
+
 typedef struct {
 	char* idx;          /* the key of this junction, determined by exon1.start.exon2.end, must be unique */
 	char* exon1;       
@@ -73,21 +74,52 @@ static inline bag_t
 }
 
 static inline int 
-bag_distory(bag_t **bag) {
+junction_destory(junction_t **junc){
+	if(*junc==NULL) return -1;
+	junction_t *junc_cur, *junc_tmp;
+	HASH_ITER(hh, *junc, junc_cur, junc_tmp) {
+		HASH_DEL(*junc, junc_cur);
+		if(junc_cur->idx)             free(junc_cur->idx);
+		if(junc_cur->exon1)           free(junc_cur->exon1);
+		if(junc_cur->exon2)           free(junc_cur->exon2);
+		if(junc_cur->s)               free(junc_cur->s);
+		if(junc_cur->transcript)      free(junc_cur->transcript);
+		if(junc_cur->S1)              free(junc_cur->S1);
+		if(junc_cur->S2)              free(junc_cur->S2);
+		free(junc_cur);
+	}
+	return 0;
+}
+
+static inline int 
+bag_destory(bag_t **bag) {
 	if(*bag == NULL) return 0;
 	/*free the kmer_hash table*/
 	register bag_t *bag_cur, *bag_tmp;
 	junction_t *junc_cur, *junc_tmp;
+	int i;
 	HASH_ITER(hh, *bag, bag_cur, bag_tmp) {
-		if(bag_cur->junc != NULL){ // if the edge has junctions
-			HASH_ITER(hh, bag_cur->junc, junc_cur, junc_tmp){
-				HASH_DEL(bag_cur->junc, junc_cur); 			
-				free(junc_cur);	
-			}			
-		}
 		HASH_DEL(*bag, bag_cur); 
-		free(bag_cur);   
-    }
+		if(bag_cur->junc_flag==true){
+			junction_destory(&bag_cur->junc);			
+		}else{
+			if(bag_cur->junc->idx)        free(bag_cur->junc->idx);
+			if(bag_cur->junc->exon1)      free(bag_cur->junc->exon1);
+			if(bag_cur->junc->exon2)      free(bag_cur->junc->exon2);
+			if(bag_cur->junc->s)          free(bag_cur->junc->s);
+			if(bag_cur->junc->transcript) free(bag_cur->junc->transcript);
+			if(bag_cur->junc->S1)         free(bag_cur->junc->S1);
+			if(bag_cur->junc->S2)         free(bag_cur->junc->S2);			
+		}
+		if(bag_cur->edge)                 free(bag_cur->edge);
+		if(bag_cur->gname1)               free(bag_cur->gname1);
+		if(bag_cur->gname2)               free(bag_cur->gname2);
+		for(i=0; i<bag_cur->weight; i++)  free(bag_cur->evidence[i]);
+	    for(i=0; i<bag_cur->weight; i++)  free(bag_cur->read_names[i]);
+		if(bag_cur->evidence)             free(bag_cur->evidence);
+		if(bag_cur->read_names)           free(bag_cur->read_names);
+		if(bag_cur)                       free(bag_cur);
+	}
 	return 0;
 }
 
@@ -95,7 +127,7 @@ static inline int junction_display(junction_t *junc){
 	if(junc == NULL) return -1;
 	junction_t *junc_cur;
 	for(junc_cur=junc; junc_cur!=NULL; junc_cur=junc_cur->hh.next){
-		printf("%s\t%s\thits=%zu\tlikehood=%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->likehood);
+		printf("exon1=%s\texon2=%s\thits=%zu\tlikehood=%f\n", junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->likehood);
 		if(junc_cur->s != NULL)      printf("junc_str=%s\n", junc_cur->s);
 		if(junc_cur->transcript != NULL)  printf("transcript=%s\n", junc_cur->transcript);
 	}
@@ -114,7 +146,8 @@ static inline int bag_display(bag_t *bag) {
 		printf("Fusion:\n---------\n");
 		printf("%s\t%s\tweight=%zu\n\n", bag_cur->gname1, bag_cur->gname2, bag_cur->weight);
 		printf("Junction:\n-------\n");
-		if(bag_cur->junc_flag == true) junction_display(bag_cur->junc);
+		//if(bag_cur->junc_flag == true) junction_display(bag_cur->junc);
+		junction_display(bag_cur->junc);
 	}
 	return 0;
 }
@@ -143,17 +176,6 @@ static inline junction_t
 	junction_t *s;
     HASH_FIND_STR(junc, quary, s);  /* s: output pointer */
 	return s;
-}
-
-static inline int 
-junction_destory(junction_t **junc){
-	if(*junc==NULL) return -1;
-	junction_t *junc_cur, *junc_tmp;
-	HASH_ITER(hh, *junc, junc_cur, junc_tmp) {
-		HASH_DEL(*junc, junc_cur);
-		free(junc_cur);
-	}
-	return 0;
 }
 
 
