@@ -9,3 +9,5 @@ test.sh
 *.graffle
 *.sam
 *.aln
+A431-1-ABGHI_S1_L001_R1_001.fastq.gz
+A431-1-ABGHI_S1_L001_R2_001.fastq.gz

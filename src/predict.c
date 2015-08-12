@@ -905,6 +905,7 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
 	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+	bag_display(BAGR_HT);
 	
 	fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
 	if(bag_uniq(&BAGR_HT)!=0){
@@ -919,6 +920,7 @@ int predict(int argc, char *argv[]) {
 		return -1;
 	}
 	if(BAGR_HT == NULL) return 0;	
+	
 		 	
 	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
 	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
