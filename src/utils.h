@@ -45,8 +45,9 @@ typedef struct
 static inline void str_ctr_destory(str_ctr **s){
 	str_ctr *cur, *tmp;
 	HASH_ITER(hh, *s, cur, tmp) {
-		HASH_DEL(*s, cur);  /* delete; users advances to next */
-		free(cur);            /* optional- if you want to free  */
+		HASH_DEL(*s, cur);   
+		if(cur->KEY) free(cur->KEY); 
+		if(cur)      free(cur);           
 	}
 }
 
@@ -153,7 +154,7 @@ str_ctr_add(str_ctr** tb, char* key){
 	HASH_FIND_STR(*tb, key, s);
 	if(s == NULL){
 		s = mycalloc(1, str_ctr);
-		s->KEY = key;
+		s->KEY = strdup(key);
 		s->SIZE = 1;
 		HASH_ADD_STR(*tb, KEY, s);
 	}else{
