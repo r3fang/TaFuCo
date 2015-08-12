@@ -87,7 +87,6 @@ typedef struct {
   int  **pointerJ;
   int  **pointerG1;
   int  **pointerG2;
-  
 } matrix_t;
 
 // alingment of a single read
@@ -214,10 +213,10 @@ static inline solution_t
 	return t;
 }
 // destory solution_t
-static inline void solution_destory(solution_t *s){
-	if(s->s1) free(s->s1);
-	if(s->s2) free(s->s2);
-	free(s);
+static inline void solution_destory(solution_t **s){
+	if((*s)->s1) free((*s)->s1);
+	if((*s)->s2) free((*s)->s2);
+	free(*s);
 }
 
 static inline solution_pair_t 
@@ -239,14 +238,15 @@ static inline solution_pair_t
 	return s;
 }
 
-
 static inline void 
 solution_pair_destory(solution_pair_t **s){
 	if(*s==NULL) die("[%s] input error", __func__);	
 	solution_pair_t *cur, *tmp;
 	HASH_ITER(hh, *s, cur, tmp) {
-		HASH_DEL(*s,cur);  /* delete; users advances to next */
-		free(cur);            /* optional- if you want to free  */
+		HASH_DEL(*s, cur);  /* delete; users advances to next */
+		if(cur->r1)         solution_destory(&(cur->r1));
+		if(cur->r2)         solution_destory(&(cur->r2));
+		if(cur)             free(cur);
 	}
 }
 

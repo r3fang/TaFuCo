@@ -295,7 +295,7 @@ static junction_t
 	if(gname1==NULL || gname2==NULL) return NULL;
 	register int i, j;
 	register kmer_t *s_kmer; 
-	register solution_t *sol1, *sol2;           /* alignment solution for read1 and read2 */
+	solution_t *sol1, *sol2;           /* alignment solution for read1 and read2 */
 	int start1, start2;
 	int junc_pos;                               /* position of junction */
 	int strlen2;
@@ -385,8 +385,8 @@ static junction_t
 	if(str2)           free(str2);
 	if(_read1)         free(_read1);
 	if(_read2)         free(_read2);
-	if(sol1)           solution_destory(sol1);
-	if(sol2)           solution_destory(sol2);
+	if(sol1)           solution_destory(&sol1);
+	if(sol2)           solution_destory(&sol2);
 	if(idx)            free(idx);
 	return ret;
 }
@@ -922,8 +922,6 @@ int predict(int argc, char *argv[]) {
 		fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
 		return -1;			
 	}
-	
-	
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
