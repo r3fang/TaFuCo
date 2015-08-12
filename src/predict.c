@@ -599,55 +599,40 @@ static solution_pair_t
 	if(bag_ht==NULL || opt==NULL) return NULL;
     bag_t *edge;
    	junction_t *junc_cur;
-	char *gene1, *gene2, *edge_name;
-	gene1 = gene2 = NULL;
 	int num, rc;
-	solution_t *sol1, *sol2;
+	register int i;
+	solution_t *sol1, *sol2; sol1 = sol2 = NULL;
 	solution_pair_t *sol_cur, *res = NULL;
-	char *read1, *read2;
-	read1 = read2 = NULL;
-	int i, j;
+	register char *read1, *read2; read1 = read2 = NULL;
 	// iterate every junction in edge
 	for(edge=bag_ht; edge!=NULL; edge=edge->hh.next){
-		for(junc_cur=edge->junc; junc_cur != NULL; junc_cur=junc_cur->hh.next){
-			gene1 = strsplit(junc_cur->exon1, '.', &num)[0];
-			gene2 = strsplit(junc_cur->exon2, '.', &num)[0];
-			rc = strcmp(gene1, gene2);
-			if(rc<0)  edge_name = concat(concat(gene1, "_"), gene2);
-			if(rc>0)  edge_name = concat(concat(gene1, "_"), gene2);
-			if(rc==0) continue;
-			if((edge = find_edge(bag_ht, edge_name))==NULL) continue;
-			for(i=0; i<edge->weight; i++){
-				read1 = strsplit(edge->evidence[i], '_', &num)[0];
-				if(num != 2) continue;
-				read2 = strsplit(edge->evidence[i], '_', &num)[1];
-				if(junc_cur->transcript==NULL) break;
-				if((sol1 = align_exon_jump(read1, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
-				if((sol2 = align_exon_jump(read2, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
-				if(sol1->prob < opt->min_align_score || sol2->prob < opt->min_align_score) continue;
-				sol_cur = find_solution_pair(res, edge->read_names[i]);
-				if(sol_cur!=NULL){ // if exists
-					if(sol_cur->prob < sol1->prob*sol2->prob){
-						sol_cur->r1        = sol1; 
-						sol_cur->r2        = sol2; 
-						sol_cur->prob      = (sol1->prob)*(sol2->prob); 
-						sol_cur->junc_name = junc_cur->idx;
-					}				
-				}else{
-						sol_cur = solution_pair_init();
-						sol_cur->idx = strdup(edge->read_names[i]); 
-						sol_cur->junc_name = junc_cur->idx;
-						sol_cur->r1 = sol1;			
-						sol_cur->r2 = sol2;
-						sol_cur->prob = sol1->prob*sol2->prob;
-						HASH_ADD_STR(res, idx, sol_cur);
-				}	
+		if((junc_cur=edge->junc)==NULL) continue;
+		for(i=0; i<edge->weight; i++){
+			if(edge->evidence[i]==NULL || edge->read_names[i]==NULL) continue;
+			read1 = strsplit(edge->evidence[i], '_', &num)[0]; if(num!=2 || read1==NULL) continue;
+			read2 = strsplit(edge->evidence[i], '_', &num)[1]; if(num!=2 || read2==NULL) continue; 
+			if((sol1 = align_exon_jump(read1, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if((sol2 = align_exon_jump(read2, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if(sol1->prob < opt->min_align_score || sol2->prob < opt->min_align_score) continue;			
+			sol_cur = find_solution_pair(res, edge->read_names[i]);
+			if(sol_cur!=NULL){ // if exists and update if align score is high enough
+				if(sol_cur->prob < sol1->prob*sol2->prob){
+					sol_cur->r1        = sol1; 
+					sol_cur->r2        = sol2; 
+					sol_cur->prob      = (sol1->prob)*(sol2->prob); 
+					sol_cur->junc_name = junc_cur->idx;
+				}			
+			}else{
+					sol_cur = solution_pair_init();
+					sol_cur->idx = strdup(edge->read_names[i]); 
+					sol_cur->junc_name = junc_cur->idx;
+					sol_cur->r1 = sol1;			
+					sol_cur->r2 = sol2;
+					sol_cur->prob = sol1->prob*sol2->prob;
+					HASH_ADD_STR(res, idx, sol_cur);				
 			}
 		}
 	}
-	if(gene2)      free(gene2);
-	if(gene1)      free(gene1);
-	if(edge_name)  free(edge_name);
 	if(read1)      free(read1);
 	if(read2)      free(read2);	
 	return res;
@@ -931,7 +916,14 @@ int predict(int argc, char *argv[]) {
 		fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
 		return -1;	
 	}
-	bag_display(BAGR_HT);
+	
+	fprintf(stderr, "[%s] aligning supportive reads to transcript ... \n", __func__);			
+	if((SOLU_HT = align_edge_to_transcript(BAGR_HT, opt))==NULL){
+		fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+		return -1;			
+	}
+	
+	
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
