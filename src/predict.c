@@ -951,27 +951,29 @@ int predict(int argc, char *argv[]) {
     	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
     	return -1;	
     }
+	bag_display(BAGR_HT);
 
 	fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
 	if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
 		fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
 		return -1;		
 	}
-
-	//fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-	//if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-	//	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-	//	return -1;			
-	//}
-
-	solution_pair_t *s;
-	for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
+	
+    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+		return -1;			
+    }
+	
+	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
+	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
+	
 	return 0;
 }
 
