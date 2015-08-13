@@ -823,53 +823,6 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 	return junc_res;
 }
 
-//static int 
-//junction_display(junction_t *junc, solution_pair_t *sol){
-//	if(junc==NULL || sol==NULL){
-//		fprintf(stderr, "[%s] junction is empty \n", __func__);
-//		return -1;	
-//	} 
-//	junction_t *junc_cur, *junc_tmp;
-//	int i, j;
-//	solution_pair_t *sol_cur;
-//	char** tmp = mycalloc(3, char*);
-//	
-//	HASH_ITER(hh, junc, junc_cur, junc_tmp) {
-//		if(junc_cur->transcript == NULL) continue;
-//		printf("fusion=%s-%s\thits=%zu\tjunction_pos=%d\tlikelihood=%.2f\n",junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
-//		for(i=0; i<junc_cur->junc_pos; i++) junc_cur->transcript[i] = tolower(junc_cur->transcript[i]);
-//		printf_line(junc_cur->transcript, 50);
-//		for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next) {
-//			if(sol_cur->junc_name == NULL) continue;
-//			if(strcmp(sol_cur->junc_name, junc_cur->idx)==0){
-//				printf(">%s\n", sol_cur->idx);
-//				if(sol_cur->r1->s1 == NULL || sol_cur->r1->s2 == NULL) continue;
-//				i = 1;
-//				tmp[0] = tmp[1] = tmp[2] = mycalloc(51, char);
-//				memset(tmp[0], '\0', 50);
-//				memset(tmp[1], '\0', 50);
-//				memset(tmp[2], '\0', 50);
-//				while(i<=strlen(sol_cur->r1->s1)){
-//					j = i%50;
-//					tmp[0][j-1] = sol_cur->r1->s1[i-1]; 
-//					tmp[2][j-1] = sol_cur->r1->s2[i-1]; 
-//					if(j == 0){
-//						printf("%s\n%s\n", tmp[0], tmp[2]);
-//						memset(tmp[0], '\0', 50);
-//						memset(tmp[1], '|',  50);
-//						memset(tmp[2], '\0', 50);
-//					}
-//					i++;
-//				}
-//				printf("%s\n%s\n", tmp[0], tmp[2]);
-//				printf("%s\t%d\n%s\n", sol_cur->r1->s2, sol_cur->r1->pos, sol_cur->r1->s1);
-//				//printf("%s\t%d\n%s\n", sol_cur->r2->s2, sol_cur->r2->pos, sol_cur->r2->s1);		
-//			}
-//		 }		
-//	}
-//	return 0;
-//}
-
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -1006,7 +959,6 @@ int predict(int argc, char *argv[]) {
     	return -1;			
     }
 	
-	SOLU_HT = solu_uniq(SOLU_HT);
 	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\t%d\t%f\t%d\n", s->idx, s->junc_name, s->fuse_name, s->prob, s->r1->pos, s->r1->prob, s->r2->prob, s->r2->pos);}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
