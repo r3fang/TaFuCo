@@ -174,6 +174,11 @@ static bag_t
 	kseq_destroy(seq2);	
 	gzclose(fp1);
 	gzclose(fp2);
+	
+	if(bag_uniq(&bag)!=0){
+		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
+		return NULL;		
+	}
 	return bag;
 }
 
@@ -329,7 +334,6 @@ static junction_t
 				if(sol1->jump == true && sol1->prob >= opt->min_align_score){
 					/* idx = exon1.start.exon2.end (uniq id)*/
 					idx = concat(concat(ename1, "."), ename2); // idx for junction
-					printf("idx=%s\n", idx);
 					HASH_FIND_STR(ret, idx, m);  
 					if(m==NULL){ // add this junction to ret
 						m = junction_init(opt->seed_len);				
@@ -361,7 +365,6 @@ static junction_t
 			if((sol2 = align(fields[1], str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene))!=NULL){
 				if(sol2->jump == true && sol2->prob >= opt->min_align_score){			
 					idx = concat(concat(ename1, "."), ename2); // idx for junction
-					printf("idx=%s\n", idx);
 					HASH_FIND_STR(ret, idx, m);
 					if(m==NULL){ // this junction not in ret
 						m = junction_init(opt->seed_len);				
@@ -693,7 +696,7 @@ static int test_junction(solution_pair_t **res, bag_t **bag, opt_t *opt){
 	char* junc_name;
 	for(bag_cur=*bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){		
 		if(bag_cur->junc_flag==false) continue;
-		fprintf(stderr, "[predict] junction between %s and %s is being tested ... \n", bag_cur->gname1, bag_cur->gname2);		
+		fprintf(stderr, "[predict] junctions between %s and %s is being tested ... \n", bag_cur->gname1, bag_cur->gname2);		
 		for(junc_cur=bag_cur->junc; junc_cur!=NULL; junc_cur=junc_cur->hh.next){
 			if(junc_cur->s==NULL || junc_cur->transcript==NULL || junc_cur->S1==NULL ||  junc_cur->S2==NULL) continue;
 			junc_name = (bag_cur->junc_flag==true) ? junc_cur->idx : NULL;
@@ -938,14 +941,7 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
 	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-	
-	fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
-	if(bag_uniq(&BAGR_HT)!=0){
-		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
-		return -1;		
-	}
-	if(BAGR_HT == NULL) return 0;
-    
+	    
 	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
 	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
 		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
@@ -953,19 +949,18 @@ int predict(int argc, char *argv[]) {
 	}
 	if(BAGR_HT == NULL) return 0;
 	
-	//fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
-	//if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
-	//	fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
-	//	return -1;	
-	//}
-	//if(BAGR_HT == NULL) return 0;
-    //  
-    //fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
-    //if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
-    //	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
-    //	return -1;	
-    //}
-	//bag_display(BAGR_HT);
+	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
+	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
+		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
+		return -1;	
+	}
+	if(BAGR_HT == NULL) return 0;
+      
+    fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+    if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+    	return -1;	
+    }
 
 	fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
 	if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
@@ -973,13 +968,13 @@ int predict(int argc, char *argv[]) {
 		return -1;		
 	}
 	
-    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-		return -1;			
-    }
-	
-	//solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
+    //fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+    //if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+    //	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+	//	return -1;			
+    //}
+
+	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
@@ -987,7 +982,6 @@ int predict(int argc, char *argv[]) {
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
-	
 	return 0;
 }
 
