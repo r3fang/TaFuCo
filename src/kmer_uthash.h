@@ -110,7 +110,7 @@ static void kmer_add(kmer_t **table, char* kmer, char* name) {
 static inline void 
 kmer_uniq(kmer_t **kmer_ht){
 	if(*kmer_ht == NULL) die("[%s] input can't be NULL", __func__);
-	register kmer_t *kmer_cur;
+	register kmer_t *kmer_cur = NULL;
 	char **names = NULL;
 	bool repeat;
 	register int i, j, count;
@@ -124,6 +124,7 @@ kmer_uniq(kmer_t **kmer_ht){
 				names[count++] = strdup(kmer_cur->seq_names[i]);
 			}
 		}
+		/* free old */
 		if(kmer_cur->seq_names){for(i=0; i<kmer_cur->count; i++) free(kmer_cur->seq_names[i]); free(kmer_cur->seq_names);};
 		kmer_cur->seq_names = names;
 		kmer_cur->count = count;

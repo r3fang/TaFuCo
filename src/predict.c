@@ -36,25 +36,27 @@ static kmer_t
 *kmer_index(fasta_t *tb, int k){
 	if(tb == NULL || k <= 0 || k > MAX_KMER_LEN) return NULL;
 	register char *kmer;
-	char *name = NULL;	
-	char *seq = NULL;	
+	char *name, *seq;	
 	register int i, j;
-	kmer_t  *s_kmer, *tmp_kmer, *ret = NULL;
-	fasta_t *fa_cur;
+	kmer_t *ret = NULL;
+	fasta_t *fa_cur = NULL;
 	for(fa_cur=tb; fa_cur!=NULL; fa_cur=fa_cur->hh.next){
+		name = seq = NULL;
 		seq = strToUpper(fa_cur->seq);
 		name = strdup(fa_cur->name);
 		if(seq == NULL || name == NULL || strlen(seq) <= k) continue;
 		for(i=0; i < strlen(seq)-k+1; i++){
+			kmer = NULL;
 			kmer = mycalloc(k+1, char);
 			memset(kmer, '\0', k+1);
 			strncpy(kmer, seq+i, k);
+			kmer[k] = '\0';
 			kmer_add(&ret, kmer, name); 
-		}		
+			free(kmer);
+		}
+		if(seq)    free(seq);
+		if(name)   free(name);
 	}
-	if(kmer) free(kmer);
-	if(seq)  free(seq);
-	if(name)  free(name);
 	kmer_uniq(&ret);
 	return ret;
 }
@@ -96,20 +98,31 @@ static bag_t
 	if((seq2 = kseq_init(fp2)) ==NULL)  die("[%s] fail to read fastq files", __func__);
 		
 	/* iterate read pair in both fastq files */
-	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
+	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0){
 		_read1 = _read2 = edge_name = NULL;
 		gene_counter = NULL;
 		hits = NULL;
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
-		_read2 = strdup(seq2->seq.s);	
-
-		if(_read1 == NULL || _read2 == NULL) continue;
-		if(strlen(_read1) < _k || strlen(_read2) < _k) continue;
+		_read2 =  strdup(seq2->seq.s);	
+		
+		if(_read1 == NULL || _read2 == NULL){
+			if(_read1) free(_read1);
+			if(_read2) free(_read2);
+		}
+		if(strlen(_read1) < _k || strlen(_read2) < _k){
+			if(_read1) free(_read1);
+			if(_read2) free(_read2);	
+		}
 		
 		find_all_genes(&gene_counter, kmer_ht, _read1, _k);
 		find_all_genes(&gene_counter, kmer_ht, _read2, _k);
-		
-		if((num = HASH_COUNT(gene_counter))<2) continue; // if less than two genes identified, pass the rest
+
+		if((num = HASH_COUNT(gene_counter))<2){
+			if(_read1)       free(_read1);
+			if(_read2)       free(_read2);
+			if(gene_counter) str_ctr_destory(&gene_counter);
+			continue; 	
+		}
 		hits = mycalloc(num, char*);
 		
 		///* filter genes that have matches with kmer less than min_kmer_matches */
@@ -922,9 +935,10 @@ int predict(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
 	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
 
-	//fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
-	//if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-	//	 
+	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
+	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+	bag_display(BAGR_HT);
+
 	//fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
 	//if(bag_uniq(&BAGR_HT)!=0){
 	//	fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);

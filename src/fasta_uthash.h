@@ -73,9 +73,9 @@ static inline fasta_t
 	if((seq = kseq_init(fp))==NULL) die("[%s]: kseq_init fails\n", __func__);
 
 	while ((l = kseq_read(seq)) >= 0){
-		if((s = malloc(sizeof(fasta_t))) == NULL) die("fasta_uthash_load: fail to malloc");
 		if(seq->name.s == NULL || seq->seq.s==NULL)
 			continue;
+		s = mycalloc(1, fasta_t);
 		s->name = strdup(seq->name.s);
 		s->seq = strToUpper(seq->seq.s);
 		HASH_ADD_STR(tb, name, s);
