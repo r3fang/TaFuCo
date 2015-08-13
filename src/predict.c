@@ -895,13 +895,45 @@ static int pred_usage(opt_t *opt){
 			fprintf(stderr, "         R2.fq     the other end of pair-end sequencing reads\n");
 			return 1;
 }
+static int prob_sort(solution_pair_t *a, solution_pair_t *b){
+   /* compare a to b (cast a and b appropriately)
+    * return (int) -1 if (a < b)
+    * return (int)  0 if (a == b)
+    * return (int)  1 if (a > b)
+    */
+	return (a->prob - b->prob);
+}
 
+static solution_pair_t *solu_uniq(solution_pair_t *sol){
+	if(sol==NULL) return NULL;
+	HASH_SORT(sol, prob_sort);
+	solution_pair_t *s, *t, *cur, *res = NULL;;
+	int i, j;
+	bool flag=false;
+	i=0;
+	for(s=sol; s!=NULL; s=s->hh.next){
+		 j=0; flag=false;
+		for(t=sol; t!=NULL; t=t->hh.next){
+			if(strcmp(s->junc_name, t->junc_name)==0 && strcmp(s->fuse_name, t->fuse_name)==0 && (s->r1->pos==t->r1->pos) && (s->r2->pos==t->r2->pos)){
+				if(j>i) flag=true;
+			}
+			j++;
+		}
+ 		if((cur=find_solution_pair(res, s->idx))==NULL && flag==false){
+			cur = mycalloc(1, solution_pair_t);
+			memcpy(cur, s, sizeof(solution_pair_t));
+			HASH_ADD_STR(res, idx, cur);
+ 		}
+		i++;
+	}
+	return res;
+}
 /*--------------------------------------------------------------------*/
 /* main function. */
 int predict(int argc, char *argv[]) {
 	opt_t *opt = opt_init(); // initlize options with default settings
 	int c, i;
-	//srand48(11);
+	srand48(11);
 	junction_t *junc_ht;
 	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s:h:l:x:a:")) >= 0) {
 				switch (c) {
@@ -968,20 +1000,21 @@ int predict(int argc, char *argv[]) {
 		return -1;		
 	}
 	
-    //fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-    //if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-    //	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-	//	return -1;			
-    //}
-
-	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
+    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+    	return -1;			
+    }
+	
+	SOLU_HT = solu_uniq(SOLU_HT);
+	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\t%d\t%f\t%d\n", s->idx, s->junc_name, s->fuse_name, s->prob, s->r1->pos, s->r1->prob, s->r2->prob, s->r2->pos);}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
-	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
+	fprintf(stderr, "[%s] congradulations! it succeededs! \n", __func__);	
 	return 0;
 }
 
