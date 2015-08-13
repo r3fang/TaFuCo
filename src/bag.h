@@ -102,25 +102,7 @@ bag_destory(bag_t **bag) {
 	int i;
 	HASH_ITER(hh, *bag, bag_cur, bag_tmp) {
 		HASH_DEL(*bag, bag_cur); 
-		if(bag_cur->junc_flag==true){
-			junction_destory(&bag_cur->junc);			
-		}else{
-			if(bag_cur->junc->idx)        free(bag_cur->junc->idx);
-			if(bag_cur->junc->exon1)      free(bag_cur->junc->exon1);
-			if(bag_cur->junc->exon2)      free(bag_cur->junc->exon2);
-			if(bag_cur->junc->s)          free(bag_cur->junc->s);
-			if(bag_cur->junc->transcript) free(bag_cur->junc->transcript);
-			if(bag_cur->junc->S1)         free(bag_cur->junc->S1);
-			if(bag_cur->junc->S2)         free(bag_cur->junc->S2);			
-		}
-		if(bag_cur->edge)                 free(bag_cur->edge);
-		if(bag_cur->gname1)               free(bag_cur->gname1);
-		if(bag_cur->gname2)               free(bag_cur->gname2);
-		if(bag_cur->evidence){  for(i=0; i<bag_cur->weight; i++)    free(bag_cur->evidence[i]);}
-		if(bag_cur->read_names){for(i=0; i<bag_cur->weight; i++)    free(bag_cur->read_names[i]);}
-		if(bag_cur->evidence)             free(bag_cur->evidence);
-		if(bag_cur->read_names)           free(bag_cur->read_names);
-		if(bag_cur)                       free(bag_cur);
+		free(bag_cur);
 	}
 	return 0;
 }
