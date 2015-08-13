@@ -922,36 +922,36 @@ int predict(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
 	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
 
-	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
-	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-		 
-	fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
-	if(bag_uniq(&BAGR_HT)!=0){
-		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
-		return -1;		
-	}
-	if(BAGR_HT == NULL) return 0;
-    
-	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
-	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
-		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
-		return -1;
-	}
-	if(BAGR_HT == NULL) return 0;
-	 	
-	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
-	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
-		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
-		return -1;	
-	}
-	if(BAGR_HT == NULL) return 0;
-      
-    fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
-    if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
-    	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
-    	return -1;	
-    }
-	bag_display(BAGR_HT);
+	//fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
+	//if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+	//	 
+	//fprintf(stderr, "[%s] triming graph by removing duplicate supportive read pairs of each edge ... \n", __func__);
+	//if(bag_uniq(&BAGR_HT)!=0){
+	//	fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
+	//	return -1;		
+	//}
+	//if(BAGR_HT == NULL) return 0;
+    //
+	//fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
+	//if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
+	//	fprintf(stderr, "[%s] fail to trim graph \n", __func__);
+	//	return -1;
+	//}
+	//if(BAGR_HT == NULL) return 0;
+	// 	
+	//fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
+	//if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
+	//	fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
+	//	return -1;	
+	//}
+	//if(BAGR_HT == NULL) return 0;
+    //  
+    //fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+    //if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+    //	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+    //	return -1;	
+    //}
+	//bag_display(BAGR_HT);
 
 	fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
 	if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
@@ -965,7 +965,7 @@ int predict(int argc, char *argv[]) {
 		return -1;			
     }
 	
-	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
+	//solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
