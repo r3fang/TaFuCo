@@ -243,8 +243,8 @@ bag_uniq(bag_t **bag){
 				weight ++;
 			}
 		}
-		if(bag_cur->evidence)    free(bag_cur->evidence);
-		if(bag_cur->read_names)  free(bag_cur->read_names);
+		if(bag_cur->evidence)  {for(i=0; i<bag_cur->weight; i++) free(bag_cur->evidence[i]);   free(bag_cur->evidence);} 
+		if(bag_cur->read_names){for(i=0; i<bag_cur->weight; i++) free(bag_cur->read_names[i]); free(bag_cur->read_names);} 
 		bag_cur->evidence = evidence;
 		bag_cur->read_names = names;
 		bag_cur->weight = weight;
