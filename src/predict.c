@@ -918,6 +918,15 @@ int predict(int argc, char *argv[]) {
 	if(opt->min_hits < MIN_HITS) die("[%s] -h must be within [%d, +INF)", __func__, MIN_HITS); 	
 	if(opt->min_align_score < MIN_ALIGN_SCORE || opt->min_align_score > MAX_ALIGN_SCORE) die("[%s] -a must be within [%d, %d]", __func__, MIN_ALIGN_SCORE, MAX_ALIGN_SCORE); 	
 	
+	fprintf(stderr, "================================= TFC =================================\n");
+	fprintf(stderr, "                                                                       \n");
+	fprintf(stderr, "                        Targeted Fusion Caller                         \n");
+	fprintf(stderr, "                          Version: 08.15.r01                           \n");
+	fprintf(stderr, "                    Rongxin Fang (r3fang@ucsd.edu)                     \n");
+	fprintf(stderr, "                                                                       \n");
+	fprintf(stderr, "=======================================================================\n");
+	
+	
 	fprintf(stderr, "[%s] loading sequences of targeted genes ... \n",__func__);
 	if((EXON_HT = fasta_read(opt->fa)) == NULL) die("[%s] fail to read %s", __func__, opt->fa);	
 	
