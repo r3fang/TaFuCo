@@ -59,41 +59,6 @@ static kmer_t
 	return ret;
 }
 
-/* 
- * Find all genes uniquely matched with kmers on _read.          
- * hash     - a hash table count number of matches between _read and every gene
- * _read    - inqury read
- * _k       - kmer length
- */
-static inline int
-find_all_genes(str_ctr **hash, kmer_t *kmer_ht, char* _read, int _k){
-	/* check parameters */
-	if(_read == NULL || kmer_ht == NULL || _k < 0) die("[%s]: parameter error\n", __func__);
-	/* declare vaiables */
-	str_ctr *s;
-	int _read_pos = 0;
-	int num;
-	kmer_t *s_kmer = NULL; 
-	char buff[_k];
-	char** fields = NULL;
-	int i;
-/*--------------------------------------------------------------------*/
-	while(_read_pos<(strlen(_read)-_k+1)){
-	//	/* copy a kmer of string */
-		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
-		if(strlen(buff) != _k) continue;
-		if((s_kmer=find_kmer(kmer_ht, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
-		if(s_kmer->count == 1){ // only count the uniq match 
-			fields = strsplit(s_kmer->seq_names[0], '.', &num);
-			if(num!=2) continue;
-			str_ctr_add(hash, fields[0]);
-			if(fields) {for(i=0; i<num; i++) free(fields[i]); free(fields);}
-		}
-		_read_pos++;
-	}	
-	return 0;
-}
-
 /*
  * Description:
  *------------
@@ -259,25 +224,56 @@ find_all_exons(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k){
 	if(_read == NULL || _k < 0) die("find_all_MEKMs: parameter error\n");
 /*--------------------------------------------------------------------*/
 	/* declare vaiables */
-	str_ctr *s;
 	int _read_pos = 0;
 	char* exon = NULL;
 	register kmer_t *s_kmer = NULL; 
-	char buff[_k];
+	char *buff = mycalloc(_k+1, char);
 /*--------------------------------------------------------------------*/
 	while(_read_pos<(strlen(_read)-_k+1)){
 		/* copy a kmer of string */
+		memset(buff, '\0', _k+1);
 		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
-		if(strlen(buff) != _k) die("find_next_match: buff strncpy fails\n");
+		if(strlen(buff) != _k) continue;
 		/*------------------------------------------------------------*/
 		if((s_kmer=find_kmer(KMER_HT, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
-		if(s_kmer->count == 1){ // only count the uniq match 
-			exon = strdup(s_kmer->seq_names[0]);
-			if(exon == NULL) die("find_next_match: get_exon_name fails\n");
-			if(str_ctr_add(hash, exon) != 0) die("find_all_MEKMs: str_ctr_add fails\n");
-		}
+		if(s_kmer->count == 1){str_ctr_add(hash, s_kmer->seq_names[0]);}
 		_read_pos++;
 	}
+	if(buff)    free(buff);
+	return 0;
+}
+/*
+ * Find all genes uniquely matched with kmers on _read.          
+ * hash     - a hash table count number of matches between _read and every gene
+ * _read    - inqury read
+ * _k       - kmer length
+ */
+static inline int
+find_all_genes(str_ctr **hash, kmer_t *kmer_ht, char* _read, int _k){
+	/* check parameters */
+	if(_read == NULL || kmer_ht == NULL || _k < 0) die("[%s]: parameter error\n", __func__);
+	/* declare vaiables */
+	str_ctr *s;
+	int _read_pos = 0;
+	int num;
+	kmer_t *s_kmer = NULL; 
+	char buff[_k];
+	char** fields = NULL;
+	int i;
+/*--------------------------------------------------------------------*/
+	while(_read_pos<(strlen(_read)-_k+1)){
+	//	/* copy a kmer of string */
+		strncpy(buff, _read + _read_pos, _k); buff[_k] = '\0';	
+		if(strlen(buff) != _k) continue;
+		if((s_kmer=find_kmer(kmer_ht, buff)) == NULL){_read_pos++; continue;} // kmer not in table but not an error
+		if(s_kmer->count == 1){ // only count the uniq match 
+			fields = strsplit(s_kmer->seq_names[0], '.', &num);
+			if(num!=2) continue;
+			str_ctr_add(hash, fields[0]);
+			if(fields) {for(i=0; i<num; i++) free(fields[i]); free(fields);}
+		}
+		_read_pos++;
+	}	
 	return 0;
 }
 
@@ -287,13 +283,13 @@ static junction_t
 	/* variables */
 	int _k = opt->k;
 	int num;
-	register char* _read1, *_read2, *str1, *str2;
+	register char *str1, *str2;
 	char *ename1, *ename2;
 	char *chrom1, *chrom2;
 	char* idx = NULL;
 	chrom2 = chrom1 = NULL;
 	ename1 = ename2 = NULL;
-	_read1 = _read2 = str1 = str2 = NULL;
+	str1 = str2 = NULL;
 	char *gname1, *gname2;
 	gname1 = eg->gname1;
 	gname2 = eg->gname2;
@@ -304,20 +300,22 @@ static junction_t
 	int start1, start2;
 	int junc_pos;                               /* position of junction */
 	int strlen2;
+	char** fields;
 	junction_t *m, *n, *ret = NULL;
 	
 	for(i=0; i<eg->weight; i++){
-		_read1 = strsplit(eg->evidence[i], '_', &num)[0];
-		_read2 = strsplit(eg->evidence[i], '_', &num)[1];	
-		//printf("%s\t%s\n", _read1, _read2);
-		if(_read1==NULL || _read2==NULL) continue;
+		fields = NULL;
+		fields = strsplit(eg->evidence[i], '_', &num);
+		if(num!=2) continue;
+		if(fields[0]==NULL || fields[1]==NULL) continue;
 		sol1 = sol2 = NULL;
 		/* string concatnated by exon sequences of two genes */
-		if((str1 =  concat_exons(_read1, fasta_u, kmer_ht, _k, gname1, gname2, &ename1, &ename2, &junc_pos, opt->min_kmer_match))!=NULL){
-			if((sol1 =align(_read1, str1, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene))!=NULL){
+		if((str1 =  concat_exons(fields[0], fasta_u, kmer_ht, _k, gname1, gname2, &ename1, &ename2, &junc_pos, opt->min_kmer_match))!=NULL){
+			if((sol1 =align(fields[0], str1, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene))!=NULL){
 				if(sol1->jump == true && sol1->prob >= opt->min_align_score){
 					/* idx = exon1.start.exon2.end (uniq id)*/
 					idx = concat(concat(ename1, "."), ename2); // idx for junction
+					printf("idx=%s\n", idx);
 					HASH_FIND_STR(ret, idx, m);  
 					if(m==NULL){ // add this junction to ret
 						m = junction_init(opt->seed_len);				
@@ -345,10 +343,11 @@ static junction_t
 			}
 		}
 
-		if((str2 =  concat_exons(_read2, fasta_u, kmer_ht, _k, gname1, gname2, &ename1, &ename2, &junc_pos, opt->min_kmer_match))!=NULL){
-			if((sol2 = align(_read2, str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene))!=NULL){
+		if((str2 =  concat_exons(fields[1], fasta_u, kmer_ht, _k, gname1, gname2, &ename1, &ename2, &junc_pos, opt->min_kmer_match))!=NULL){
+			if((sol2 = align(fields[1], str2, junc_pos, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_gene))!=NULL){
 				if(sol2->jump == true && sol2->prob >= opt->min_align_score){			
 					idx = concat(concat(ename1, "."), ename2); // idx for junction
+					printf("idx=%s\n", idx);
 					HASH_FIND_STR(ret, idx, m);
 					if(m==NULL){ // this junction not in ret
 						m = junction_init(opt->seed_len);				
@@ -373,6 +372,8 @@ static junction_t
 				}	
 			}
 		}
+	free(fields[0]); 	
+	free(fields[1]); 	
 	}
 	// delete those junctions with hits < MIN_HITS
 	HASH_ITER(hh, ret, m, n){
@@ -388,8 +389,6 @@ static junction_t
 	if(ename2)         free(ename2);
 	if(str1)           free(str1);
 	if(str2)           free(str2);
-	if(_read1)         free(_read1);
-	if(_read2)         free(_read2);
 	if(sol1)           solution_destory(&sol1);
 	if(sol2)           solution_destory(&sol2);
 	if(idx)            free(idx);
@@ -556,12 +555,12 @@ static char
 	*ename1 = *ename2 = str1 = str2 = gname_cur = NULL;
 	int num_tmp;
 	char buff[_k];
-	str_ctr *s_ctr, *tmp_ctr, *exons=NULL;
+	str_ctr *s_ctr, *exons=NULL;
 	fasta_t *fa_tmp = NULL;
 	/* find all exons that uniquely match with gene by kmer */
 	find_all_exons(&exons, kmer_ht, _read, _k);
 	if(exons==NULL) return NULL; // no exon found
-	HASH_ITER(hh, exons, s_ctr, tmp_ctr) { 
+	for(s_ctr=exons; s_ctr!=NULL; s_ctr=s_ctr->hh.next){
 		if(s_ctr->SIZE >= min_kmer_match){ //denoise
 			gname_cur = strsplit(s_ctr->KEY, '.', &num_tmp)[0]; // name of gene
 			// extract string of gene1
@@ -569,9 +568,9 @@ static char
 				fa_tmp = find_fasta(fa_ht, s_ctr->KEY);
 				if(str1 == NULL){
 					str1 = strdup(fa_tmp->seq);
-					*ename1 = s_ctr->KEY;
+					*ename1 = strdup(s_ctr->KEY);
 				}else{
-					*ename1 = s_ctr->KEY;
+					*ename1 = strdup(s_ctr->KEY);
 					str1 = concat(str1, fa_tmp->seq);
 				}				
 			}
@@ -580,9 +579,8 @@ static char
 				fa_tmp = find_fasta(fa_ht, s_ctr->KEY);
 				if(str2 == NULL){
 					str2 = strdup(fa_tmp->seq);
-					*ename2 = s_ctr->KEY;
+					*ename2 = strdup(s_ctr->KEY);
 				}else{
-					//*ename2 = s_ctr->KEY;
 					str2 = concat(str2, fa_tmp->seq);
 				}				
 			}
@@ -924,7 +922,6 @@ int predict(int argc, char *argv[]) {
 	fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
 	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
 
-	printf("there are %u users\n", HASH_COUNT(KMER_HT));
 	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
 	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
 		 
@@ -941,26 +938,25 @@ int predict(int argc, char *argv[]) {
 		return -1;
 	}
 	if(BAGR_HT == NULL) return 0;
-	bag_display(BAGR_HT);
 	 	
-	//fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
-	//if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
-	//	fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
-	//	return -1;	
-	//}
-	//if(BAGR_HT == NULL) return 0;
-    //
-	//fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
-	//if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
-	//	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
-	//	return -1;	
-	//}
-	//
-	//fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
-	//if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
-	//	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
-	//	return -1;		
-	//}
+	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
+	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
+		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
+		return -1;	
+	}
+	if(BAGR_HT == NULL) return 0;
+      
+    fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+    if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+    	return -1;	
+    }
+
+	fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
+	if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
+		fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
+		return -1;		
+	}
 
 	//fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
 	//if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
