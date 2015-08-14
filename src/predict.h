@@ -31,11 +31,15 @@
 #define MIN_ALIGN_SCORE             0
 #define MAX_ALIGN_SCORE             1
 
-static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
-static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
-static            bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
-static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
-static           gene_t   *GENE_HT     = NULL;  // alignment solition of reads against JUN0_HT
+//gene_t
+typedef struct {
+	char* name; // gap open
+	int len;
+	int exon_num;
+	int hits;
+	char* transcript;
+    UT_hash_handle hh;
+} gene_t;
 
 //opt
 typedef struct {
@@ -56,6 +60,15 @@ typedef struct {
 	int max_mismatch;
 	double min_align_score;
 } opt_t;
+
+
+
+static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
+static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
+static            bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
+static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
+static           gene_t   *GENE_HT     = NULL;  // alignment solition of reads against JUN0_HT
+
 
 static inline opt_t *opt_init(){
 	opt_t *opt = mycalloc(1, opt_t);
@@ -84,24 +97,30 @@ static inline void destory_opt(opt_t *opt){
 	free(opt);
 }
 
-//gene_t
-typedef struct {
-	char* name; // gap open
-	int len;
-	int exon_num;
-	int hits;
-	char* transcript;
-    UT_hash_handle hh;
-} gene_t;
-
 static inline gene_t *gene_init(){
 	gene_t *instance = mycalloc(1, gene_t);
 	instance->name = NULL;
-	instance->len = 0;
 	instance->exon_num = 0;
 	instance->hits = 0;
 	instance->transcript = NULL;
+	instance->len = 0;
 	return instance;
+}
+
+static inline gene_t *find_gene(gene_t *gene, char *quary){
+	if(quary==NULL) return NULL;
+	gene_t *s = NULL;
+	HASH_FIND_STR(gene, quary, s);
+	return s;
+}
+
+static inline int gene_display(gene_t *instance){
+	if(instance==NULL) return -1;
+	gene_t *gene_cur;
+	for(gene_cur=instance; gene_cur!=NULL; gene_cur=gene_cur->hh.next){
+		printf("name=%s\texon_num=%d\thits=%d\tl=%d\n%s\n", gene_cur->name, gene_cur->exon_num, gene_cur->hits, gene_cur->len, gene_cur->transcript);
+	}
+	return 0;
 }
 /*
  * destory the gene_t
@@ -115,7 +134,6 @@ static inline int gene_destory(gene_t **instance){
 	}
 	return 0;
 }
-
 /*
  * Description:
  *------------

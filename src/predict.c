@@ -824,6 +824,37 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 }
 
 
+static gene_t *fasta_get_info(fasta_t *fa_ht){
+	if(fa_ht==NULL) return NULL;
+	fasta_t *fa_cur;
+	gene_t *gene_cur, *gene_ret=NULL;
+	char** fields;
+	int num;
+	int i, j;
+	for(fa_cur=fa_ht; fa_cur!=NULL; fa_cur=fa_cur->hh.next){
+		fields=NULL;
+		fields = strsplit(fa_cur->name, '.', &num);
+		if(num!=2){for(i=0; i<num; i++) free(fields[i]); continue;}
+		printf("%s\n", fields[0]);
+		if((gene_cur = find_gene(gene_ret, fields[0]))==NULL){
+			gene_cur = gene_init();
+			gene_cur->name = strdup(fields[0]);
+			gene_cur->exon_num = 1;
+			gene_cur->hits = 0;
+			gene_cur->transcript = strdup(fa_cur->seq);
+			gene_cur->len = strlen(gene_cur->transcript);
+			HASH_ADD_STR(gene_ret, name, gene_cur);
+		}else{
+			gene_cur->exon_num ++;
+			gene_cur->transcript = concat(gene_cur->transcript, fa_cur->seq);
+			gene_cur->len = strlen(gene_cur->transcript);			
+		}
+		if(fields[0])   free(fields[0]);
+		if(fields[1])   free(fields[1]);
+	}
+	return gene_ret;
+}
+
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -892,7 +923,7 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] getting genes infomration ... \n",__func__);
 	if((GENE_HT = fasta_get_info(EXON_HT)) == NULL) die("[%s] fail to gene genes' information", __func__);	
-	
+	gene_display(GENE_HT);
 	
 	//fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
 	//if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
@@ -939,6 +970,7 @@ int predict(int argc, char *argv[]) {
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
+	if(GENE_HT)           gene_destory(&GENE_HT);
 	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
 	return 0;
 }
