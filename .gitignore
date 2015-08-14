@@ -7,3 +7,5 @@ test.sh
 *.graffle
 *.sam
 *.aln
+test*
+*.fq

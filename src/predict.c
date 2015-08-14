@@ -823,53 +823,6 @@ static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double
 	return junc_res;
 }
 
-//static int 
-//junction_display(junction_t *junc, solution_pair_t *sol){
-//	if(junc==NULL || sol==NULL){
-//		fprintf(stderr, "[%s] junction is empty \n", __func__);
-//		return -1;	
-//	} 
-//	junction_t *junc_cur, *junc_tmp;
-//	int i, j;
-//	solution_pair_t *sol_cur;
-//	char** tmp = mycalloc(3, char*);
-//	
-//	HASH_ITER(hh, junc, junc_cur, junc_tmp) {
-//		if(junc_cur->transcript == NULL) continue;
-//		printf("fusion=%s-%s\thits=%zu\tjunction_pos=%d\tlikelihood=%.2f\n",junc_cur->exon1, junc_cur->exon2, junc_cur->hits, junc_cur->junc_pos, junc_cur->likehood);
-//		for(i=0; i<junc_cur->junc_pos; i++) junc_cur->transcript[i] = tolower(junc_cur->transcript[i]);
-//		printf_line(junc_cur->transcript, 50);
-//		for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next) {
-//			if(sol_cur->junc_name == NULL) continue;
-//			if(strcmp(sol_cur->junc_name, junc_cur->idx)==0){
-//				printf(">%s\n", sol_cur->idx);
-//				if(sol_cur->r1->s1 == NULL || sol_cur->r1->s2 == NULL) continue;
-//				i = 1;
-//				tmp[0] = tmp[1] = tmp[2] = mycalloc(51, char);
-//				memset(tmp[0], '\0', 50);
-//				memset(tmp[1], '\0', 50);
-//				memset(tmp[2], '\0', 50);
-//				while(i<=strlen(sol_cur->r1->s1)){
-//					j = i%50;
-//					tmp[0][j-1] = sol_cur->r1->s1[i-1]; 
-//					tmp[2][j-1] = sol_cur->r1->s2[i-1]; 
-//					if(j == 0){
-//						printf("%s\n%s\n", tmp[0], tmp[2]);
-//						memset(tmp[0], '\0', 50);
-//						memset(tmp[1], '|',  50);
-//						memset(tmp[2], '\0', 50);
-//					}
-//					i++;
-//				}
-//				printf("%s\n%s\n", tmp[0], tmp[2]);
-//				printf("%s\t%d\n%s\n", sol_cur->r1->s2, sol_cur->r1->pos, sol_cur->r1->s1);
-//				//printf("%s\t%d\n%s\n", sol_cur->r2->s2, sol_cur->r2->pos, sol_cur->r2->s1);		
-//			}
-//		 }		
-//	}
-//	return 0;
-//}
-
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -895,13 +848,45 @@ static int pred_usage(opt_t *opt){
 			fprintf(stderr, "         R2.fq     the other end of pair-end sequencing reads\n");
 			return 1;
 }
+static int prob_sort(solution_pair_t *a, solution_pair_t *b){
+   /* compare a to b (cast a and b appropriately)
+    * return (int) -1 if (a < b)
+    * return (int)  0 if (a == b)
+    * return (int)  1 if (a > b)
+    */
+	return (a->prob - b->prob);
+}
 
+static solution_pair_t *solu_uniq(solution_pair_t *sol){
+	if(sol==NULL) return NULL;
+	HASH_SORT(sol, prob_sort);
+	solution_pair_t *s, *t, *cur, *res = NULL;;
+	int i, j;
+	bool flag=false;
+	i=0;
+	for(s=sol; s!=NULL; s=s->hh.next){
+		 j=0; flag=false;
+		for(t=sol; t!=NULL; t=t->hh.next){
+			if(strcmp(s->junc_name, t->junc_name)==0 && strcmp(s->fuse_name, t->fuse_name)==0 && (s->r1->pos==t->r1->pos) && (s->r2->pos==t->r2->pos)){
+				if(j>i) flag=true;
+			}
+			j++;
+		}
+ 		if((cur=find_solution_pair(res, s->idx))==NULL && flag==false){
+			cur = mycalloc(1, solution_pair_t);
+			memcpy(cur, s, sizeof(solution_pair_t));
+			HASH_ADD_STR(res, idx, cur);
+ 		}
+		i++;
+	}
+	return res;
+}
 /*--------------------------------------------------------------------*/
 /* main function. */
 int predict(int argc, char *argv[]) {
 	opt_t *opt = opt_init(); // initlize options with default settings
 	int c, i;
-	//srand48(11);
+	srand48(11);
 	junction_t *junc_ht;
 	while ((c = getopt(argc, argv, "m:w:k:n:u:o:e:g:s:h:l:x:a:")) >= 0) {
 				switch (c) {
@@ -932,6 +917,15 @@ int predict(int argc, char *argv[]) {
 	if(opt->min_edge_weight < MIN_EDGE_WEIGHT) die("[%s] -w must be within [%d, +INF)", __func__, MIN_EDGE_WEIGHT); 	
 	if(opt->min_hits < MIN_HITS) die("[%s] -h must be within [%d, +INF)", __func__, MIN_HITS); 	
 	if(opt->min_align_score < MIN_ALIGN_SCORE || opt->min_align_score > MAX_ALIGN_SCORE) die("[%s] -a must be within [%d, %d]", __func__, MIN_ALIGN_SCORE, MAX_ALIGN_SCORE); 	
+	
+	fprintf(stderr, "================================= TFC =================================\n");
+	fprintf(stderr, "                                                                       \n");
+	fprintf(stderr, "                        Targeted Fusion Caller                         \n");
+	fprintf(stderr, "                          Version: 08.15.r01                           \n");
+	fprintf(stderr, "                    Rongxin Fang (r3fang@ucsd.edu)                     \n");
+	fprintf(stderr, "                                                                       \n");
+	fprintf(stderr, "=======================================================================\n");
+	
 	
 	fprintf(stderr, "[%s] loading sequences of targeted genes ... \n",__func__);
 	if((EXON_HT = fasta_read(opt->fa)) == NULL) die("[%s] fail to read %s", __func__, opt->fa);	
@@ -968,20 +962,20 @@ int predict(int argc, char *argv[]) {
 		return -1;		
 	}
 	
-    //fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-    //if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-    //	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-	//	return -1;			
-    //}
-
-	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
+    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+    	return -1;			
+    }
+	
+	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\t%d\t%f\t%d\n", s->idx, s->junc_name, s->fuse_name, s->prob, s->r1->pos, s->r1->prob, s->r2->prob, s->r2->pos);}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
-	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
+	fprintf(stderr, "[%s] congradulations! it succeededs! \n", __func__);	
 	return 0;
 }
 
