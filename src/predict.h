@@ -37,7 +37,6 @@ typedef struct {
 	int len;
 	int exon_num;
 	int hits;
-	char* transcript;
     UT_hash_handle hh;
 } gene_t;
 
@@ -60,8 +59,6 @@ typedef struct {
 	int max_mismatch;
 	double min_align_score;
 } opt_t;
-
-
 
 static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
 static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
@@ -102,7 +99,6 @@ static inline gene_t *gene_init(){
 	instance->name = NULL;
 	instance->exon_num = 0;
 	instance->hits = 0;
-	instance->transcript = NULL;
 	instance->len = 0;
 	return instance;
 }
@@ -118,7 +114,7 @@ static inline int gene_display(gene_t *instance){
 	if(instance==NULL) return -1;
 	gene_t *gene_cur;
 	for(gene_cur=instance; gene_cur!=NULL; gene_cur=gene_cur->hh.next){
-		printf("name=%s\texon_num=%d\thits=%d\tl=%d\n%s\n", gene_cur->name, gene_cur->exon_num, gene_cur->hits, gene_cur->len, gene_cur->transcript);
+		printf("name=%s\texon_num=%d\thits=%d\tl=%d\n", gene_cur->name, gene_cur->exon_num, gene_cur->hits, gene_cur->len);
 	}
 	return 0;
 }
@@ -167,7 +163,7 @@ static kmer_t *kmer_index(fasta_t *fa, int k);
  *-------
  * BAG_uthash object that contains the graph.
  */
-static bag_t *bag_construct(kmer_t *kmer_uthash, fasta_t *fasta_ht, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
+static bag_t *bag_construct(kmer_t *kmer_uthash, fasta_t *fasta_ht, gene_t **gene_ht, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
 /*
  * Description:
  *------------

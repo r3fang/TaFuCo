@@ -8,7 +8,7 @@
 #include "predict.h"
 
 static kmer_t *kmer_index(fasta_t *, int);
-static bag_t  *bag_construct(kmer_t *, fasta_t *, char*, char*, int, int, int);
+static bag_t  *bag_construct(kmer_t *, fasta_t *, gene_t **, char*, char*, int, int, int);
 static char *concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
 static int find_junction_one_edge(bag_t *eg, fasta_t *fasta_u, opt_t *opt, junction_t **ret);
 static int update_junction(junction_t **junc, solution_pair_t **sol_pair, opt_t *opt, char* fuse_name, char* junc_name);
@@ -79,8 +79,8 @@ static kmer_t
  * BAG_uthash object that contains the graph.
  */
 static bag_t
-*bag_construct(kmer_t *kmer_ht, fasta_t *fasta_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
-	if(kmer_ht==NULL || fq1==NULL || fq2==NULL || fasta_ht==NULL) return NULL;
+*bag_construct(kmer_t *kmer_ht, fasta_t *fasta_ht, gene_t **gene_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
+	if(kmer_ht==NULL || fq1==NULL || fq2==NULL || fasta_ht==NULL || *gene_ht==NULL) return NULL;
 	/* variable declaration */
 	bag_t *bag = NULL;
 	gzFile fp1, fp2;
@@ -90,7 +90,7 @@ static bag_t
 	char *_read1, *_read2, *edge_name;
 	char **hits;
 	str_ctr *s, *gene_counter;
-	
+	gene_t *gene_cur;
 	/* file check */
 	if((fp1 = gzopen(fq1, "r"))==NULL) die("[%s] fail to read fastq files", __func__);
 	if((fp2 = gzopen(fq2, "r"))==NULL) die("[%s] fail to read fastq files", __func__);	
@@ -116,7 +116,15 @@ static bag_t
 		
 		find_all_genes(&gene_counter, kmer_ht, _read1, _k);
 		find_all_genes(&gene_counter, kmer_ht, _read2, _k);
-
+		
+		i=0; for(s=gene_counter; s!=NULL; s=s->hh.next){
+			if(s->SIZE >= min_kmer_matches){
+				if((gene_cur=find_gene(*gene_ht, s->KEY))!=NULL){
+					gene_cur->hits++;
+				}
+			}
+		}
+		
 		if((num = HASH_COUNT(gene_counter))<2){
 			if(_read1)       free(_read1);
 			if(_read2)       free(_read2);
@@ -630,24 +638,30 @@ update_fusion(bag_t **edge, solution_pair_t **res, opt_t *opt){
 	int weight = (*edge)->weight;
 	(*edge)->weight = (*edge)->likehood = 0;
 	int num, rc;
-	register int i;
+	register int i, j;
 	solution_t *sol1, *sol2; sol1 = sol2 = NULL;
 	solution_pair_t *sol_cur;
 	junction_t *junc_cur;
 	register char *read1, *read2; read1 = read2 = NULL;
+	char** fields = NULL;
 	/* iterate every supportive read pair */
 	for(i=0; i<weight; i++){
 		if((*edge)->evidence[i]==NULL || (*edge)->read_names[i]==NULL) continue;
 		if((sol_cur = find_solution_pair(*res, (*edge)->read_names[i]))!=NULL){
 			if(strcmp(sol_cur->fuse_name, (*edge)->edge)==0) continue;					
 		}
-		read1 = strsplit((*edge)->evidence[i], '_', &num)[0]; if(num!=2 || read1==NULL) continue;
-		read2 = strsplit((*edge)->evidence[i], '_', &num)[1]; if(num!=2 || read2==NULL) continue; 
+		fields = NULL;
+		fields = strsplit((*edge)->evidence[i], '_', &num);
+		if(num!=2){for(j=0; j<num; j++) free(fields[j]); continue;}
+		read1 = fields[0]; 		read2 = fields[1]; 
 		/* iterate every junction then */
 		for(junc_cur=(*edge)->junc; junc_cur!=NULL; junc_cur=junc_cur->hh.next){
+			/* release every memory used */
 			if((sol1 = align_exon_jump(read1, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if(sol1->prob < opt->min_align_score){solution_destory(&sol1); continue;}
 			if((sol2 = align_exon_jump(read2, junc_cur->transcript, junc_cur->S1, junc_cur->S2, junc_cur->S1_num, junc_cur->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;			
-			if(sol1->prob < opt->min_align_score || sol2->prob < opt->min_align_score) continue;			
+			if(sol2->prob < opt->min_align_score){solution_destory(&sol2); continue;}
+			
 			if(sol_cur!=NULL){ // if exists and update if align score is high enough
 				if(sol_cur->prob < sol1->prob*sol2->prob){
 					sol_cur->r1        = sol1; 
@@ -655,6 +669,9 @@ update_fusion(bag_t **edge, solution_pair_t **res, opt_t *opt){
 					sol_cur->prob      = (sol1->prob)*(sol2->prob); 
 					sol_cur->junc_name = ((*edge)->junc_flag==true) ? junc_cur->idx : NULL;					
 					sol_cur->fuse_name = (*edge)->edge;
+				}else{ // sol1 and sol2 not used
+					solution_destory(&sol1);
+					solution_destory(&sol2);
 				}
 			}else{
 					sol_cur = solution_pair_init();
@@ -666,11 +683,10 @@ update_fusion(bag_t **edge, solution_pair_t **res, opt_t *opt){
 					sol_cur->fuse_name = (*edge)->edge;
 					HASH_ADD_STR(*res, idx, sol_cur);				
 			}
-
 		}
+		if(fields[0])    free(fields[0]);
+		if(fields[1])    free(fields[1]);
 	}	
-	if(read1)                     free(read1);
-	if(read2)                     free(read2);	
 	return 0;
 }
 
@@ -835,19 +851,16 @@ static gene_t *fasta_get_info(fasta_t *fa_ht){
 		fields=NULL;
 		fields = strsplit(fa_cur->name, '.', &num);
 		if(num!=2){for(i=0; i<num; i++) free(fields[i]); continue;}
-		printf("%s\n", fields[0]);
 		if((gene_cur = find_gene(gene_ret, fields[0]))==NULL){
 			gene_cur = gene_init();
 			gene_cur->name = strdup(fields[0]);
 			gene_cur->exon_num = 1;
 			gene_cur->hits = 0;
-			gene_cur->transcript = strdup(fa_cur->seq);
-			gene_cur->len = strlen(gene_cur->transcript);
+			gene_cur->len = strlen(fa_cur->seq);
 			HASH_ADD_STR(gene_ret, name, gene_cur);
 		}else{
 			gene_cur->exon_num ++;
-			gene_cur->transcript = concat(gene_cur->transcript, fa_cur->seq);
-			gene_cur->len = strlen(gene_cur->transcript);			
+			gene_cur->len += strlen(fa_cur->seq);			
 		}
 		if(fields[0])   free(fields[0]);
 		if(fields[1])   free(fields[1]);
@@ -923,47 +936,55 @@ int predict(int argc, char *argv[]) {
 
 	fprintf(stderr, "[%s] getting genes infomration ... \n",__func__);
 	if((GENE_HT = fasta_get_info(EXON_HT)) == NULL) die("[%s] fail to gene genes' information", __func__);	
-	gene_display(GENE_HT);
 	
-	//fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
-	//if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__); 	
-    //
-	//fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
-	//if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-	//    
-	//fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
-	//if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
-	//	fprintf(stderr, "[%s] fail to trim graph \n", __func__);
-	//	return -1;
-	//}
-	//if(BAGR_HT == NULL) return 0;
-	//
-	//fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
-	//if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
-	//	fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
-	//	return -1;	
-	//}
-	//if(BAGR_HT == NULL) return 0;
-    //  
-    //fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
-    //if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
-    //	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
-    //	return -1;	
-    //}
-    //
-	//fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
-	//if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
-	//	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
-	//	return -1;		
-	//}
-	//
-    //fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-    //if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-    //	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-	//	return -1;			
-    //}
-    //
-	//solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){printf("%s\t%s\t%s\t%f\t%f\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob);}
+	fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
+	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__);
+    
+	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
+	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, &GENE_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+	
+	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
+	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
+		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
+		return -1;
+	}
+	if(BAGR_HT == NULL) return 0;
+	
+	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
+	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
+		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
+		return -1;	
+	}
+	if(BAGR_HT == NULL) return 0;
+	  
+    fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+    if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+    	return -1;	
+    }
+    
+	fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
+	if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
+		fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
+		return -1;		
+	}
+	
+    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+		return -1;			
+    }
+    char *gname1, *gname2;
+	gene_t *s1, *s2;
+	int num;
+	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){
+		gname1 = strsplit(s->fuse_name, '_', &num)[0];
+		gname2 = strsplit(s->fuse_name, '_', &num)[1];
+		s1 = find_gene(GENE_HT, gname1);
+		s2 = find_gene(GENE_HT, gname2);
+		
+		printf("%s\t%s\t%s\t%f\t%f\t%d\t%d\t%d\t%d\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob, s1->hits, s2->hits, s1->len, s2->len);
+	}
 	//
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
