@@ -736,8 +736,7 @@ static int update_junction(junction_t **junc, solution_pair_t **sol_pair, opt_t 
 	// junction
 	(*junc)->hits     = 0;
 	(*junc)->likehood = 0;
-	
-	int mismatch = opt->max_mismatch;
+
 	gzFile fp1, fp2;
 	int l1, l2;
 	kseq_t *seq1, *seq2;
@@ -752,25 +751,38 @@ static int update_junction(junction_t **junc, solution_pair_t **sol_pair, opt_t 
 	
 	while ((l1 = kseq_read(seq1)) >= 0 && (l2 = kseq_read(seq2)) >= 0 ) {
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
-		_read2 = seq2->seq.s;		
-		if(_read1 == NULL || _read2 == NULL) continue;
-		//if(strcmp(seq1->name.s, seq2->name.s) != 0) die("[%s] read pair not matched\n", __func__);
-		if((min_mismatch(_read1, (*junc)->s)) <= mismatch || (min_mismatch(_read2, (*junc)->s)) <= mismatch ){	
+		_read2 = strdup(seq2->seq.s);		
+		if(_read1 == NULL || _read2 == NULL){
+			if(_read1)  free(_read1);
+			if(_read2)  free(_read2);
+			continue;	
+		}
+		if((min_mismatch(_read1, (*junc)->s)) <= opt->max_mismatch || (min_mismatch(_read2, (*junc)->s)) <= opt->max_mismatch ){	
 			// alignment with jump state between exons 
 			if((sol1 = align_exon_jump(_read1, (*junc)->transcript, (*junc)->S1, (*junc)->S2, (*junc)->S1_num, (*junc)->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
+			if(sol1->prob < opt->min_align_score){
+				solution_destory(&sol1);
+				continue;
+			}
 			if((sol2 = align_exon_jump(_read2, (*junc)->transcript, (*junc)->S1, (*junc)->S2, (*junc)->S1_num, (*junc)->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
-			
+			if(sol2->prob < opt->min_align_score){
+				solution_destory(&sol2);
+				continue;
+			}
 			s_sp = find_solution_pair(*sol_pair, seq1->name.s);
 			if(s_sp!=NULL){ // if exists
-				if(s_sp->prob < sol1->prob*sol2->prob && sol1->prob >= opt->min_align_score && sol2->prob >= opt->min_align_score){
+				if(s_sp->prob < sol1->prob*sol2->prob){
 					(*junc)->hits ++;
 					(*junc)->likehood += 10*log(sol1->prob); 				
 					(*junc)->likehood += 10*log(sol2->prob);
 					s_sp->r1 = sol1; s_sp->r2=sol2; 
 					s_sp->prob = (sol1->prob)*(sol2->prob); 
-					s_sp->junc_name = junc_name;
-					s_sp->fuse_name = fuse_name;				
-				}				
+					s_sp->junc_name = strdup(junc_name);
+					s_sp->fuse_name = strdup(fuse_name);		
+				}else{
+					if(sol1) solution_destory(&sol1);
+					if(sol2) solution_destory(&sol2);	
+				}
 			}else{
 				if(sol1->prob >= opt->min_align_score && sol2->prob >= opt->min_align_score){
 					(*junc)->hits ++;
@@ -778,8 +790,8 @@ static int update_junction(junction_t **junc, solution_pair_t **sol_pair, opt_t 
 					(*junc)->likehood += 10*log(sol2->prob); 				
 					s_sp = solution_pair_init();
 					s_sp->idx = strdup(seq1->name.s); 
-					s_sp->junc_name = junc_name;
-					s_sp->fuse_name = fuse_name;				
+					s_sp->junc_name = strdup(junc_name);
+					s_sp->fuse_name = strdup(fuse_name);				
 					s_sp->r1 = sol1;			
 					s_sp->r2 = sol2;
 					s_sp->prob = sol1->prob*sol2->prob;
@@ -787,6 +799,8 @@ static int update_junction(junction_t **junc, solution_pair_t **sol_pair, opt_t 
 				}
 			}
 		}
+		if(_read1)  free(_read1);
+		if(_read2)  free(_read2);
 	}
 	if(seq1)     kseq_destroy(seq1);
 	if(seq2)     kseq_destroy(seq2);	
