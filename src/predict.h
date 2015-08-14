@@ -35,6 +35,7 @@ static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
 static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
 static            bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
 static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
+static           gene_t   *GENE_HT     = NULL;  // alignment solition of reads against JUN0_HT
 
 //opt
 typedef struct {
@@ -102,7 +103,9 @@ static inline gene_t *gene_init(){
 	instance->transcript = NULL;
 	return instance;
 }
-
+/*
+ * destory the gene_t
+ */
 static inline int gene_destory(gene_t **instance){
 	if(*instance==NULL) return -1;
 	gene_t *gene_cur, *gene_tmp;
