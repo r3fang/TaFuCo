@@ -16,11 +16,12 @@
 #include <math.h>
 #include <regex.h>
 #include "kseq.h"
+#include "alignment.h"
 #include "kmer_uthash.h"
 #include "bag.h"
 #include "fasta_uthash.h"
 #include "utils.h"
-#include "alignment.h"
+#include "uthash.h"
 
 #define MAX_KMER_LEN                40
 #define MIN_KMER_LEN                10
@@ -80,6 +81,36 @@ static inline void destory_opt(opt_t *opt){
 	if(opt->fq2) free(opt->fq2);
 	if(opt->fa)  free(opt->fa);
 	free(opt);
+}
+
+//gene_t
+typedef struct {
+	char* name; // gap open
+	int len;
+	int exon_num;
+	int hits;
+	char* transcript;
+    UT_hash_handle hh;
+} gene_t;
+
+static inline gene_t *gene_init(){
+	gene_t *instance = mycalloc(1, gene_t);
+	instance->name = NULL;
+	instance->len = 0;
+	instance->exon_num = 0;
+	instance->hits = 0;
+	instance->transcript = NULL;
+	return instance;
+}
+
+static inline int gene_destory(gene_t **instance){
+	if(*instance==NULL) return -1;
+	gene_t *gene_cur, *gene_tmp;
+	HASH_ITER(hh, *instance, gene_cur, gene_tmp) {
+	    HASH_DEL(*instance, gene_cur);  /* delete; users advances to next */
+		free(gene_cur);            /* optional- if you want to free  */
+	}
+	return 0;
 }
 
 /*

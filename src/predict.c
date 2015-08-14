@@ -639,7 +639,7 @@ update_fusion(bag_t **edge, solution_pair_t **res, opt_t *opt){
 	for(i=0; i<weight; i++){
 		if((*edge)->evidence[i]==NULL || (*edge)->read_names[i]==NULL) continue;
 		if((sol_cur = find_solution_pair(*res, (*edge)->read_names[i]))!=NULL){
-			if((sol_cur->fuse_name, (*edge)->edge)==0) continue;					
+			if(strcmp(sol_cur->fuse_name, (*edge)->edge)==0) continue;					
 		}
 		read1 = strsplit((*edge)->evidence[i], '_', &num)[0]; if(num!=2 || read1==NULL) continue;
 		read2 = strsplit((*edge)->evidence[i], '_', &num)[1]; if(num!=2 || read2==NULL) continue; 
