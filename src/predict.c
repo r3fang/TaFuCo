@@ -890,6 +890,26 @@ static gene_t *fasta_get_info(fasta_t *fa_ht){
 	return gene_ret;
 }
 
+static int prob_sort(solution_pair_t *a, solution_pair_t *b){
+	return (a->prob - b->prob);
+}
+
+static solution_pair_t *solution_uniq(solution_pair_t *sol){
+	if(sol==NULL) return NULL;
+	HASH_SORT(sol, prob_sort);
+	solution_pair_t *sol_cur, *sol_i, *sol_j, *sol_ret = NULL;
+	for(sol_i=sol; sol_i!=NULL; sol_i=sol_i->hh.next){
+		printf("%s\t%f\n", sol_i->idx, sol_i->prob);
+		//for(sol_j=sol_i; sol_j!=NULL; sol_j=sol_j->hh.next){
+		//	if((strcmp(sol_j->fuse_name, sol_i->fuse_name)==0) && (strcmp(sol_j->junc_name, sol_i->junc_name)==0) && (sol_i->r1->pos==sol_j->r1->pos) && (sol_i->r2->pos==sol_j->r2->pos)){
+		//		sol_cur = sol_j;
+		//	}
+		//}
+		//HASH_ADD_STR(sol_ret, idx, sol_cur);
+	}
+	return sol_ret;
+}
+
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -979,39 +999,32 @@ int predict(int argc, char *argv[]) {
 	}
 	if(BAGR_HT == NULL) return 0;
 
-   //fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
-   //if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
-   //	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
-   //	return -1;	
-   //}
-   //
-   //fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
-   //if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
-   //	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
-   //	return -1;		
-   //}
-   //
-   //fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-   //if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-   //	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-   //	return -1;			
-   //}
-   //char *gname1, *gname2;
-   //gene_t *s1, *s2;
-   //int num;
-   //solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){
-   //	gname1 = strsplit(s->fuse_name, '_', &num)[0];
-   //	gname2 = strsplit(s->fuse_name, '_', &num)[1];
-   //	s1 = find_gene(GENE_HT, gname1);
-   //	s2 = find_gene(GENE_HT, gname2);
-   //	printf("%s\t%s\t%s\t%f\t%f\t%d\t%d\t%d\t%d\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob, s1->hits, s2->hits, s1->len, s2->len);
-   //}
-	//
+    fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+    if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+    	return -1;	
+    }
+    
+    fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
+    if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
+    	return -1;		
+    }
+    
+    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+    	return -1;			
+    }
+
+	SOLU_UNIQ_HT = solution_uniq(SOLU_HT);
+	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
+	//if(SOLU_UNIQ_HT)  solution_pair_destory(&SOLU_UNIQ_HT);
 	if(GENE_HT)           gene_destory(&GENE_HT);
 	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
 	return 0;
