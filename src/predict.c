@@ -191,10 +191,10 @@ static bag_t
 	gzclose(fp1);
 	gzclose(fp2);
 	
-	if(bag_uniq(&bag)!=0){
-		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
-		return NULL;		
-	}
+	//if(bag_uniq(&bag)!=0){
+	//	fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
+	//	return NULL;		
+	//}
 	return bag;
 }
 
@@ -914,6 +914,24 @@ static solution_pair_t *solution_uniq(solution_pair_t *sol){
 	return sol_ret;
 }
 
+static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha, int beta){
+	if(sol==NULL || *bag==NULL) return -1;
+	solution_pair_t *sol_cur;
+	bag_t *bag_cur;
+	/* initilize */
+	for(bag_cur=*bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){
+		bag_cur->likehood = 0;
+		bag_cur->weight = 0;
+	}
+	for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next){
+		if((bag_cur=find_edge(*bag, sol_cur->fuse_name))!=NULL){
+			bag_cur->likehood += (sol_cur->junc_name!=NULL) ? alpha*log(1-sol_cur->r1->prob)*log(1-sol_cur->r2->prob) : beta*log(1-sol_cur->r1->prob)*log(1-sol_cur->r2->prob);
+			bag_cur->weight   += (sol_cur->junc_name!=NULL) ? alpha : beta;
+		}
+	}
+	return 0;
+}
+
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -1002,7 +1020,7 @@ int predict(int argc, char *argv[]) {
 		return -1;	
 	}
 	if(BAGR_HT == NULL) return 0;
-
+	
     fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
     if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
     	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
@@ -1021,12 +1039,21 @@ int predict(int argc, char *argv[]) {
     	return -1;			
     }
 	/* get rid of the duplicate reads*/
-	SOLU_UNIQ_HT = solution_uniq(SOLU_HT);
+	if((SOLU_UNIQ_HT = solution_uniq(SOLU_HT))==NULL) return 0;
 	
-	solution_pair_t *s;
-	for(s=SOLU_UNIQ_HT; s!=NULL; s=s->hh.next){
-		printf("%s\t%f\n", s->idx, s->prob);
+	/* score the fusion */
+	if(fuse_score(SOLU_UNIQ_HT, &BAGR_HT, 3, 1)!=0){
+    	fprintf(stderr, "[%s] fail to score fusion\n", __func__);
+    	return -1;		
 	}
+	
+	//printf("gene1      gene2      #hits        L          p  \n");
+	//printf("-----      -----      -----      -----      -----\n");
+	//bag_t *s;
+	//for(s=BAGR_HT; s!=NULL; s=s->hh.next){
+	//	printf("%5s      %3s      %5d       %.2f       %.2f\n", s->gname1, s->gname2, s->weight, s->likehood, 0.06);		
+	//}
+	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);

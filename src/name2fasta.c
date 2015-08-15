@@ -1,7 +1,7 @@
 #include "name2fasta.h"
 
-fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
-	if(fname == NULL || fname_db == NULL || HG19_HT == NULL) return NULL;
+fasta_t *extract_seq(char* fname, char *fname_db, fasta_t *HG19_HT, char* genr){
+	if(fname==NULL || fname_db==NULL || HG19_HT==NULL || genr==NULL) return NULL;
 	fasta_t *s_fasta, *cur_fasta, *ret_fasta = NULL;
 	str_ctr *s_ctr, *ctr = NULL, *gene_name_ctr = NULL;
 	char  *line = NULL;
@@ -9,23 +9,25 @@ fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 	int l;
 	ssize_t read;
 	char  **fields = NULL;
+	char  **fields_tmp = NULL;
+	
 	int i, j, num;
 	register char *gname = NULL;
 	register char *category=NULL;
 	register char *chrom = NULL;
 	register int start, end;
 	register char *strand;
-	register char *exon_name = NULL;
+	register char *name = NULL;
 	fasta_t *s;
 	char *seq;
-	char exon_idx[50];
+	char idx[50];
 	
 	FILE * fp0 = fopen (fname, "r");
 	if(fp0==NULL) die("[%s] can't open %s", __func__, fname); 
-
 	while ((read = getline(&line, &len, fp0)) != -1) {
 		if((fields = strsplit(line, 0, &num))==NULL) continue; // get rid of \n 
 		str_ctr_add(&gene_name_ctr, strToUpper(fields[0]));		
+		for(i=0; i<num; i++) free(fields[i]);
 	}
 	fclose(fp0);
 
@@ -35,107 +37,104 @@ fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 	while ((read = getline(&line, &len, fp)) != -1) {
 		// get information of exons
 		if((fields = strsplit(line, 0, &num))==NULL) continue;
-		if(num < 7) continue;
-		if((chrom = fields[0])==NULL) continue;
-		if((category = fields[2])==NULL) continue;
-		if((start = atoi(fields[3]))<0) continue;
-		if((end = atoi(fields[4]))<0) continue;
-		if((strand = fields[5])==NULL) continue;
-		if((gname = strToUpper(fields[6]))==NULL) continue;
-		if(strcmp(category, "exon")!=0) continue;
-		if((ctr_s=find_str_ctr(gene_name_ctr, gname)) == NULL) continue; // only for targetted genes
-		ctr_s->SIZE++;
-		if((end - start)<=0) continue;
-		// counting exon index of gene
-		str_ctr_add(&ctr, gname);
-		//// get sequence
-		if((s = find_fasta(HG19_HT, chrom))==NULL) continue;
-		l =  end - start;
-		s_ctr = find_ctr(ctr, gname);
-		//// add to FASTA_HT
-		sprintf(exon_idx, "%d", s_ctr->SIZE);
-		exon_name = concat(concat(gname, "."), exon_idx);
-		if((s_fasta = find_fasta(ret_fasta, exon_name)) == NULL){
-			s_fasta = mycalloc(1, fasta_t);
-			s_fasta->name = exon_name;
-			s_fasta->chrom = chrom;
-			s_fasta->start = start;
-			s_fasta->end = end;
-			s_fasta->seq = mycalloc(l+1, char);
-			memset(s_fasta->seq, '\0',l+1);	
-			memcpy(s_fasta->seq, &s->seq[start], l);
-			if(strcmp(strand, "-") == 0) s_fasta->seq = rev_com(s_fasta->seq);	
-			s_fasta->l = l;
-			HASH_ADD_STR(ret_fasta, name, s_fasta);
+		if(num<20){for(i=0; i<num; i++) free(fields[i]);continue;}
+		
+		chrom = fields[0];
+		category = fields[2];
+		start = atoi(fields[3]);
+		end = atoi(fields[4]);
+		strand = fields[6];
+		gname = fields[17];
+		if(chrom==NULL || category==NULL || strand==NULL || gname==NULL){
+			if(chrom)     free(chrom);
+			if(category)  free(category);
+			if(strand)    free(strand);
+			if(gname)     free(gname);
+			continue;
 		}
+		fields_tmp = strsplit(fields[17], '"', &j);
+		if(j!=2){for(i=0; i<j; i++) free(fields_tmp[i]); continue;}
+		gname = fields_tmp[0];
+		if(strcmp(category, genr)==0 && (ctr_s=find_str_ctr(gene_name_ctr, gname))!=NULL && ((end - start)>0)){
+			ctr_s->SIZE++;
+			str_ctr_add(&ctr, gname);
+			if((s = find_fasta(HG19_HT, chrom))==NULL) continue;
+			l =  end - start;
+			s_ctr = find_ctr(ctr, gname);
+			sprintf(idx, "%d", s_ctr->SIZE);
+			name = concat(concat(gname, "."), idx);
+			if((s_fasta = find_fasta(ret_fasta, name)) == NULL){
+				s_fasta = mycalloc(1, fasta_t);
+				s_fasta->name = name;
+				s_fasta->chrom = chrom;
+				s_fasta->start = start;
+				s_fasta->end = end;
+				s_fasta->seq = mycalloc(l+1, char);
+				memset(s_fasta->seq, '\0',l+1);	
+				memcpy(s_fasta->seq, &s->seq[start], l);
+				if(strcmp(strand, "-") == 0) s_fasta->seq = rev_com(s_fasta->seq);	
+				s_fasta->l = l;
+				HASH_ADD_STR(ret_fasta, name, s_fasta);
+			}
+		}
+		if(fields){for(i=0; i<num; i++) free(fields[i]); free(fields);}
+		if(fields_tmp){for(i=0; i<2; i++) free(fields_tmp[i]); free(fields_tmp);}
 	}
+	fclose(fp);
+
 	HASH_ITER(hh, gene_name_ctr, ctr_s, ctr_tmp) {
 		if(ctr_s->SIZE == 1) fprintf(stderr,"%s not found\n", ctr_s->KEY);
 	}
-	fclose(fp);
-	if(gname) free(gname);
-	if (line) free(line);
-	if(strand)   free(strand);
-	if(category) free(category);
 	return ret_fasta;
 }
 
 int name2fasta_usage(){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc name2fasta [options] <gname.txt> <in.fa.gz> <exons.fa> \n\n");
+			fprintf(stderr, "Usage:   tfc name2fasta [options] <gname.txt> <gencode.gtf> <in.fa.gz> <exons.fa> \n\n");
 			fprintf(stderr, "Details: name2fasta is to extract genomic sequence of gene candiates\n\n");
-			fprintf(stderr, "Options: -g          organism - 0 for human; 1 for mouse\n\n");
-			fprintf(stderr, "Inputs:  gname.txt   plain txt file contains names of gene candiates e.g. [genes.txt]\n");
-			fprintf(stderr, "         hg19.fa     fasta file contains the whole genome sequence   e.g. [hg19.fa.gz]\n");
-			fprintf(stderr, "         out.fa      output fasta files contains extracted seq of targeted genes\n");
+			fprintf(stderr, "Options: -g          'exon' or 'transcript' \n\n");
+			fprintf(stderr, "Inputs:  .txt        plain txt file contains names of gene candiates e.g. [genes.txt]\n");
+			fprintf(stderr, "         .gtf        gft file that contains gene annotation\n");
+			fprintf(stderr, "         .fa         fasta file contains the whole genome sequence   e.g. [hg19.fa.gz]\n");
+			fprintf(stderr, "         .fa         output fasta files contains extracted seq of targeted genes\n");
 			return 1;
 }
 
 int name2fasta(int argc, char *argv[]) {
 	int c, i;
 	srand48(11);
-	char *gene_name, *gff_name, *oname, *iname;
-	int orgsm = -1;
+	char *gene_name, *gff_name, *oname, *iname, *genr;
 	while ((c = getopt(argc, argv, "g:c")) >= 0) {
 				switch (c) {
-				case 'g': orgsm = atoi(optarg); break;
+				case 'g': genr = optarg; break;
 				default: return 1;
 		}
 	}
-
-	if (optind + 3 > argc) return name2fasta_usage();
+	
+	if(strcmp(genr, "transcript")!=0 && strcmp(genr, "exon")!=0){
+		fprintf(stderr, "-g unrecognized gener 'exon' or 'transcript'\n");
+		return -1;
+	}
+	if (optind + 4 > argc) return name2fasta_usage();
 	gene_name = argv[optind];
-	iname = argv[optind+1];
-	oname = argv[optind+2];
-
-	if(orgsm==-1) {
-		fprintf(stderr, "[%s] organism missing\n", __func__);
-		return 1;
-	}
+	gff_name = argv[optind+1];
+	iname = argv[optind+2];
+	oname = argv[optind+3];
 		
-	if(orgsm != 0 && orgsm != 1) {
-		fprintf(stderr, "[%s] unrecognized organism, must be 0 or 1\n", __func__);
-		return 1;
-	}
-	
-	if(orgsm==0) gff_name = "data/hg.bed";
-	if(orgsm==1) gff_name = "data/mm.bed";	
-	
 	fasta_t *GENO_HT = NULL;
 	fasta_t *EXON_HT = NULL;
-	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	
+	fprintf(stderr, "[%s] loading reference genome sequences ... \n",__func__);
 	if((GENO_HT = fasta_read(iname)) == NULL) die("[%s] can't load reference genome %s", __func__, iname);	
-	printf("%s\t%s\n", gene_name, gff_name);
 	
 	fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
-	if((EXON_HT = extract_exon_seq(gene_name, gff_name, GENO_HT))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
+	if((EXON_HT = extract_seq(gene_name, gff_name, GENO_HT, genr))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
 
 	fprintf(stderr, "[%s] writing down sequences ... \n",__func__);
 	if((fasta_write(EXON_HT, oname))!=0) die("[%s] can't write down to %s", __func__, oname);
-
+    
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
-
+    
 	if(EXON_HT)   fasta_destroy(&EXON_HT);
 	if(GENO_HT)   fasta_destroy(&GENO_HT);    
 	return 0;
