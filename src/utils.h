@@ -38,7 +38,7 @@ typedef enum { true, false } bool;
 typedef struct
 {
 	char 	*KEY;
-	size_t  SIZE;
+	int  SIZE;
 	UT_hash_handle hh;
 } str_ctr;
 

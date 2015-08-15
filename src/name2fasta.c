@@ -53,7 +53,7 @@ fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 		l =  end - start;
 		s_ctr = find_ctr(ctr, gname);
 		//// add to FASTA_HT
-		sprintf(exon_idx, "%zu", s_ctr->SIZE);
+		sprintf(exon_idx, "%d", s_ctr->SIZE);
 		exon_name = concat(concat(gname, "."), exon_idx);
 		if((s_fasta = find_fasta(ret_fasta, exon_name)) == NULL){
 			s_fasta = mycalloc(1, fasta_t);

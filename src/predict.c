@@ -117,12 +117,20 @@ static bag_t
 		find_all_genes(&gene_counter, kmer_ht, _read1, _k);
 		find_all_genes(&gene_counter, kmer_ht, _read2, _k);
 		
-		i=0; for(s=gene_counter; s!=NULL; s=s->hh.next){
-			if(s->SIZE >= min_kmer_matches){
-				if((gene_cur=find_gene(*gene_ht, s->KEY))!=NULL){
-					gene_cur->hits++;
-				}
+		// count hits of the gene
+		int max_hits = -10;
+		char *max_gene = NULL;
+		
+		for(s=gene_counter; s!=NULL; s=s->hh.next){
+			if(s->SIZE > max_hits){
+				max_hits = s->SIZE; 
+				max_gene = strdup(s->KEY);
 			}
+		}
+		if(max_hits >= min_kmer_matches*2 && max_gene!=NULL){
+			if((gene_cur=find_gene(*gene_ht, max_gene))!=NULL){
+				gene_cur->hits++;
+			}			
 		}
 		
 		if((num = HASH_COUNT(gene_counter))<2){
@@ -970,35 +978,34 @@ int predict(int argc, char *argv[]) {
 		return -1;	
 	}
 	if(BAGR_HT == NULL) return 0;
-	  
-    fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
-    if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
-    	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
-    	return -1;	
-    }
-    
-	fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
-	if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
-		fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
-		return -1;		
-	}
-	
-    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-		return -1;			
-    }
-    char *gname1, *gname2;
-	gene_t *s1, *s2;
-	int num;
-	solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){
-		gname1 = strsplit(s->fuse_name, '_', &num)[0];
-		gname2 = strsplit(s->fuse_name, '_', &num)[1];
-		s1 = find_gene(GENE_HT, gname1);
-		s2 = find_gene(GENE_HT, gname2);
-		
-		printf("%s\t%s\t%s\t%f\t%f\t%d\t%d\t%d\t%d\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob, s1->hits, s2->hits, s1->len, s2->len);
-	}
+
+   //fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+   //if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+   //	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+   //	return -1;	
+   //}
+   //
+   //fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
+   //if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
+   //	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
+   //	return -1;		
+   //}
+   //
+   //fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+   //if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+   //	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+   //	return -1;			
+   //}
+   //char *gname1, *gname2;
+   //gene_t *s1, *s2;
+   //int num;
+   //solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){
+   //	gname1 = strsplit(s->fuse_name, '_', &num)[0];
+   //	gname2 = strsplit(s->fuse_name, '_', &num)[1];
+   //	s1 = find_gene(GENE_HT, gname1);
+   //	s2 = find_gene(GENE_HT, gname2);
+   //	printf("%s\t%s\t%s\t%f\t%f\t%d\t%d\t%d\t%d\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob, s1->hits, s2->hits, s1->len, s2->len);
+   //}
 	//
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
