@@ -891,21 +891,25 @@ static gene_t *fasta_get_info(fasta_t *fa_ht){
 }
 
 static int prob_sort(solution_pair_t *a, solution_pair_t *b){
-	return (a->prob - b->prob);
+	return ((a->prob - b->prob) > 0) ? 1 : -1;	
 }
 
 static solution_pair_t *solution_uniq(solution_pair_t *sol){
 	if(sol==NULL) return NULL;
 	HASH_SORT(sol, prob_sort);
 	solution_pair_t *sol_cur, *sol_i, *sol_j, *sol_ret = NULL;
+	int i, j;
+	i = 0;
 	for(sol_i=sol; sol_i!=NULL; sol_i=sol_i->hh.next){
-		printf("%s\t%f\n", sol_i->idx, sol_i->prob);
-		//for(sol_j=sol_i; sol_j!=NULL; sol_j=sol_j->hh.next){
-		//	if((strcmp(sol_j->fuse_name, sol_i->fuse_name)==0) && (strcmp(sol_j->junc_name, sol_i->junc_name)==0) && (sol_i->r1->pos==sol_j->r1->pos) && (sol_i->r2->pos==sol_j->r2->pos)){
-		//		sol_cur = sol_j;
-		//	}
-		//}
-		//HASH_ADD_STR(sol_ret, idx, sol_cur);
+		sol_cur = solution_pair_init();
+		for(sol_j=sol_i; sol_j!=NULL; sol_j=sol_j->hh.next){
+			if((strcmp(sol_i->fuse_name, sol_j->fuse_name)==0) && (strcmp(sol_i->junc_name, sol_j->junc_name)==0) && (sol_i->r1->pos==sol_j->r1->pos) && (sol_i->r2->pos==sol_j->r2->pos)){
+				sol_cur = solution_pair_copy(sol_j);
+			}
+		}		
+		if(sol_cur!=NULL){if((find_solution_pair(sol_ret, sol_cur->idx))==NULL){
+				HASH_ADD_STR(sol_ret, idx, sol_cur);				
+		}}
 	}
 	return sol_ret;
 }
@@ -1016,15 +1020,19 @@ int predict(int argc, char *argv[]) {
     	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
     	return -1;			
     }
-
+	/* get rid of the duplicate reads*/
 	SOLU_UNIQ_HT = solution_uniq(SOLU_HT);
 	
+	solution_pair_t *s;
+	for(s=SOLU_UNIQ_HT; s!=NULL; s=s->hh.next){
+		printf("%s\t%f\n", s->idx, s->prob);
+	}
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
-	//if(SOLU_UNIQ_HT)  solution_pair_destory(&SOLU_UNIQ_HT);
+	if(SOLU_UNIQ_HT)  solution_pair_destory(&SOLU_UNIQ_HT);
 	if(GENE_HT)           gene_destory(&GENE_HT);
 	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
 	return 0;

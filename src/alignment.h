@@ -220,6 +220,22 @@ static inline void solution_destory(solution_t **s){
 	free(*s);
 }
 
+static inline solution_t* solution_copy(solution_t *s){
+	if(s==NULL) return NULL;
+	solution_t *ret = solution_init();
+	if((ret->s1 = strdup(s->s1))==NULL) return NULL;;
+	if((ret->s2 = strdup(s->s2))==NULL) return NULL;
+	ret->score = s->score;
+	ret->jump = s->jump;
+	ret->jump_start = s->jump_start;
+	ret->jump_end = s->jump_end;
+	ret->pos = s->pos;
+	ret->insertion = s->insertion;
+	ret->deletion = s->deletion;
+	ret->prob = s->prob;
+	return ret;
+}
+
 static inline solution_pair_t 
 *solution_pair_init(){
 	solution_pair_t* s = mycalloc(1, solution_pair_t);
@@ -252,6 +268,19 @@ solution_pair_destory(solution_pair_t **s){
 	}
 }
 
+static inline solution_pair_t 
+*solution_pair_copy(solution_pair_t *s){
+	if(s==NULL) return NULL;
+	solution_pair_t *ret = solution_pair_init();
+	ret->idx = strdup(s->idx);
+	ret->junc_name = strdup(s->junc_name);
+	ret->fuse_name = strdup(s->fuse_name);
+	ret->prob = s->prob;
+	ret->r1 = solution_copy(s->r1);
+	ret->r2 = solution_copy(s->r2);
+	return ret;
+}
+	
 static inline solution_t* 
 trace_back(matrix_t *S, char *s1, char *s2, int state, int i, int j){
 	if(S == NULL || s1 == NULL || s2 == NULL) die("trace_back: paramter error");
