@@ -932,6 +932,27 @@ static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha, int beta){
 	return 0;
 }
 
+static int output(bag_t *bag, gene_t *gene, opt_t *opt){
+	if(bag==NULL) return -1;
+	if(HASH_COUNT(bag)==0) return -1;
+	printf("gene1      gene2      hits       L  \n");
+	printf("-----      -----      -----      -----\n");
+	bag_t  *cur_bag;
+	gene_t *cur_gene1, *cur_gene2;
+	for(cur_bag=BAGR_HT; cur_bag!=NULL; cur_bag=cur_bag->hh.next){
+		if(cur_bag->weight < opt->min_edge_weight) continue;
+		cur_gene1 = find_gene(gene, cur_bag->gname1);
+		cur_gene2 = find_gene(gene, cur_bag->gname2);
+		if(cur_gene1==NULL || cur_gene2==NULL){
+			if(cur_gene1) gene_destory(&cur_gene1);
+			if(cur_gene2) gene_destory(&cur_gene2);
+			continue;
+		}
+		printf("%5s      %s      %5d      %.2f\n", cur_bag->gname1, cur_bag->gname2, cur_bag->weight, cur_bag->likehood/(cur_gene1->hits + cur_gene2->hits+1));	
+	}
+	return 0;
+}
+
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -1048,12 +1069,11 @@ int predict(int argc, char *argv[]) {
     	return -1;		
 	}
 	
-	printf("gene1      gene2      hits       L  \n");
-	printf("-----      -----      -----      -----\n");
-	bag_t *s;
-	for(s=BAGR_HT; s!=NULL; s=s->hh.next){
-		if(s->weight < opt->min_edge_weight) continue;
-		printf("%5s      %s      %5d      %.2f\n", s->gname1, s->gname2, s->weight, s->likehood);		
+	output(BAGR_HT, GENE_HT, opt);
+	
+	solution_pair_t *s;
+	for(s=SOLU_HT; s!=NULL; s=s->hh.next){
+		printf("%s\t%s\t%f\t%f\n", s->idx, s->fuse_name, s->r1->prob, s->r2->prob);
 	}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	

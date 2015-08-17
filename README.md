@@ -23,8 +23,6 @@ Usage:   tfc <command> [options]
 
 Command: name2fasta     extract exon sequences
          predict        predict gene fusion
-
-
 ```
 
  - name2fasta
