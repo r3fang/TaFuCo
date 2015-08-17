@@ -69,7 +69,7 @@ Options: -k INT    kmer length for indexing genome [15]
 		 -x INT    max mismatches of junction string match [2]
 		 -A INT    alpha
 		 -B INT    beta
-
+		 
 Inputs:  exon.fa   fasta file that contains exon sequences of targeted 
                    genes with no flanking sequence which can be generated: 
                    tfc name2fasta <genes.txt> <in.fa> <exon.fa> 
@@ -87,7 +87,6 @@ Inputs:  exon.fa   fasta file that contains exon sequences of targeted
 2. Does tfc need reads to be mapped in advance?
 3. How precise is tfc?
 4. Does tfc work for single-end reads?
-5. How to give credits to tfc?
 
 #### Version
 08.05-r15
