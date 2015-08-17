@@ -67,6 +67,8 @@ Options: -k INT    kmer length for indexing genome [15]
 		 -h INT    min unique read hits for a junction [3]
 		 -l INT    length for junction string [20]         
 		 -x INT    max mismatches of junction string match [2]
+		 -A INT    alpha
+		 -B INT    beta
 
 Inputs:  exon.fa   fasta file that contains exon sequences of targeted 
                    genes with no flanking sequence which can be generated: 
