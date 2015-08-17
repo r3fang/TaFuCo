@@ -43,7 +43,7 @@ typedef struct{
 	char *edge;
 	char *gname1; // gene1 and gene2 has order
 	char *gname2;
-	size_t weight;
+	int weight;
 	char **read_names;  /* stores the name of read pair that support this edge*/
 	char **evidence;    /* stores the read pair that support this edge*/
 	bool junc_flag;
@@ -128,7 +128,7 @@ static inline int bag_display(bag_t *bag) {
 	register bag_t *bag_cur;
 	for(bag_cur=bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){
 		printf("Fusion:\n---------\n");
-		printf("%s\t%s\tweight=%zu\tlikelihood=%f\n\n", bag_cur->gname1, bag_cur->gname2, bag_cur->weight, bag_cur->likehood);
+		printf("%s\t%s\tweight=%dm\tlikelihood=%f\n\n", bag_cur->gname1, bag_cur->gname2, bag_cur->weight, bag_cur->likehood);
 		printf("Junction:\n-------\n");
 		//if(bag_cur->junc_flag == true) junction_display(bag_cur->junc);
 		junction_display(bag_cur->junc);

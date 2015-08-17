@@ -925,7 +925,7 @@ static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha, int beta){
 	}
 	for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next){
 		if((bag_cur=find_edge(*bag, sol_cur->fuse_name))!=NULL){
-			bag_cur->likehood += (sol_cur->junc_name!=NULL) ? alpha*log(1-sol_cur->r1->prob)*log(1-sol_cur->r2->prob) : beta*log(1-sol_cur->r1->prob)*log(1-sol_cur->r2->prob);
+			bag_cur->likehood += (sol_cur->junc_name!=NULL) ? alpha*log(1-sol_cur->r1->prob+EPSILON)*log(1-sol_cur->r2->prob+EPSILON) : beta*log(1-sol_cur->r1->prob+EPSILON)*log(1-sol_cur->r2->prob+EPSILON);
 			bag_cur->weight   += (sol_cur->junc_name!=NULL) ? alpha : beta;
 		}
 	}
@@ -1032,27 +1032,29 @@ int predict(int argc, char *argv[]) {
     	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
     	return -1;		
     }
-    
+
     fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
     if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
     	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
     	return -1;			
     }
+	
 	/* get rid of the duplicate reads*/
-	if((SOLU_UNIQ_HT = solution_uniq(SOLU_HT))==NULL) return 0;
+	//if((SOLU_UNIQ_HT = solution_uniq(SOLU_HT))==NULL) return 0;
 	
 	/* score the fusion */
-	if(fuse_score(SOLU_UNIQ_HT, &BAGR_HT, 3, 1)!=0){
+	if(fuse_score(SOLU_HT, &BAGR_HT, 3, 1)!=0){
     	fprintf(stderr, "[%s] fail to score fusion\n", __func__);
     	return -1;		
 	}
 	
-	//printf("gene1      gene2      #hits        L          p  \n");
-	//printf("-----      -----      -----      -----      -----\n");
-	//bag_t *s;
-	//for(s=BAGR_HT; s!=NULL; s=s->hh.next){
-	//	printf("%5s      %3s      %5d       %.2f       %.2f\n", s->gname1, s->gname2, s->weight, s->likehood, 0.06);		
-	//}
+	printf("gene1      gene2      hits       L  \n");
+	printf("-----      -----      -----      -----\n");
+	bag_t *s;
+	for(s=BAGR_HT; s!=NULL; s=s->hh.next){
+		if(s->weight < opt->min_edge_weight) continue;
+		printf("%5s      %s      %5d      %.2f\n", s->gname1, s->gname2, s->weight, s->likehood);		
+	}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);

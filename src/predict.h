@@ -30,7 +30,7 @@
 #define MIN_HITS                    1
 #define MIN_ALIGN_SCORE             0
 #define MAX_ALIGN_SCORE             1
-
+#define EPSILON                     0.1
 //gene_t
 typedef struct {
 	char* name; // gap open
