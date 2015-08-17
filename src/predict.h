@@ -63,8 +63,9 @@ typedef struct {
 static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
 static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
 static            bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
+static           gene_t   *GENE_HT     = NULL; 
 static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
-static           gene_t   *GENE_HT     = NULL;  // alignment solition of reads against JUN0_HT
+static  solution_pair_t   *SOLU_UNIQ_HT     = NULL;  // alignment solition of reads against JUN0_HT
 
 
 static inline opt_t *opt_init(){

@@ -191,10 +191,10 @@ static bag_t
 	gzclose(fp1);
 	gzclose(fp2);
 	
-	if(bag_uniq(&bag)!=0){
-		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
-		return NULL;		
-	}
+	//if(bag_uniq(&bag)!=0){
+	//	fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
+	//	return NULL;		
+	//}
 	return bag;
 }
 
@@ -890,6 +890,48 @@ static gene_t *fasta_get_info(fasta_t *fa_ht){
 	return gene_ret;
 }
 
+static int prob_sort(solution_pair_t *a, solution_pair_t *b){
+	return ((a->prob - b->prob) > 0) ? 1 : -1;	
+}
+
+static solution_pair_t *solution_uniq(solution_pair_t *sol){
+	if(sol==NULL) return NULL;
+	HASH_SORT(sol, prob_sort);
+	solution_pair_t *sol_cur, *sol_i, *sol_j, *sol_ret = NULL;
+	int i, j;
+	i = 0;
+	for(sol_i=sol; sol_i!=NULL; sol_i=sol_i->hh.next){
+		sol_cur = solution_pair_init();
+		for(sol_j=sol_i; sol_j!=NULL; sol_j=sol_j->hh.next){
+			if((strcmp(sol_i->fuse_name, sol_j->fuse_name)==0) && (strcmp(sol_i->junc_name, sol_j->junc_name)==0) && (sol_i->r1->pos==sol_j->r1->pos) && (sol_i->r2->pos==sol_j->r2->pos)){
+				sol_cur = solution_pair_copy(sol_j);
+			}
+		}		
+		if(sol_cur!=NULL){if((find_solution_pair(sol_ret, sol_cur->idx))==NULL){
+				HASH_ADD_STR(sol_ret, idx, sol_cur);				
+		}}
+	}
+	return sol_ret;
+}
+
+static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha, int beta){
+	if(sol==NULL || *bag==NULL) return -1;
+	solution_pair_t *sol_cur;
+	bag_t *bag_cur;
+	/* initilize */
+	for(bag_cur=*bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){
+		bag_cur->likehood = 0;
+		bag_cur->weight = 0;
+	}
+	for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next){
+		if((bag_cur=find_edge(*bag, sol_cur->fuse_name))!=NULL){
+			bag_cur->likehood += (sol_cur->junc_name!=NULL) ? alpha*log(1-sol_cur->r1->prob)*log(1-sol_cur->r2->prob) : beta*log(1-sol_cur->r1->prob)*log(1-sol_cur->r2->prob);
+			bag_cur->weight   += (sol_cur->junc_name!=NULL) ? alpha : beta;
+		}
+	}
+	return 0;
+}
+
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
@@ -978,40 +1020,46 @@ int predict(int argc, char *argv[]) {
 		return -1;	
 	}
 	if(BAGR_HT == NULL) return 0;
-
-   //fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
-   //if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
-   //	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
-   //	return -1;	
-   //}
-   //
-   //fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
-   //if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
-   //	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
-   //	return -1;		
-   //}
-   //
-   //fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-   //if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-   //	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-   //	return -1;			
-   //}
-   //char *gname1, *gname2;
-   //gene_t *s1, *s2;
-   //int num;
-   //solution_pair_t *s; for(s=SOLU_HT; s!=NULL; s=s->hh.next){
-   //	gname1 = strsplit(s->fuse_name, '_', &num)[0];
-   //	gname2 = strsplit(s->fuse_name, '_', &num)[1];
-   //	s1 = find_gene(GENE_HT, gname1);
-   //	s2 = find_gene(GENE_HT, gname2);
-   //	printf("%s\t%s\t%s\t%f\t%f\t%d\t%d\t%d\t%d\n", s->idx, s->junc_name,  s->fuse_name, s->r1->prob, s->r2->prob, s1->hits, s2->hits, s1->len, s2->len);
-   //}
-	//
+	
+    fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+    if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+    	return -1;	
+    }
+    
+    fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
+    if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
+    	return -1;		
+    }
+    
+    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+    	return -1;			
+    }
+	/* get rid of the duplicate reads*/
+	if((SOLU_UNIQ_HT = solution_uniq(SOLU_HT))==NULL) return 0;
+	
+	/* score the fusion */
+	if(fuse_score(SOLU_UNIQ_HT, &BAGR_HT, 3, 1)!=0){
+    	fprintf(stderr, "[%s] fail to score fusion\n", __func__);
+    	return -1;		
+	}
+	
+	//printf("gene1      gene2      #hits        L          p  \n");
+	//printf("-----      -----      -----      -----      -----\n");
+	//bag_t *s;
+	//for(s=BAGR_HT; s!=NULL; s=s->hh.next){
+	//	printf("%5s      %3s      %5d       %.2f       %.2f\n", s->gname1, s->gname2, s->weight, s->likehood, 0.06);		
+	//}
+	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
+	if(SOLU_UNIQ_HT)  solution_pair_destory(&SOLU_UNIQ_HT);
 	if(GENE_HT)           gene_destory(&GENE_HT);
 	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
 	return 0;
