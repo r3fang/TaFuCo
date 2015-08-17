@@ -10,3 +10,6 @@ test.sh
 test*
 *.fq
 *.fastq.gz
+art_illumina_linux
+img/*
+transcript.fa
