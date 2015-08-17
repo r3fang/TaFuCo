@@ -269,4 +269,21 @@ static inline int
 	*num = count;
 	return res;
 }
+
+static inline char* 
+join (int num, ... )
+{
+    va_list arguments;                     
+	char *ret = NULL;
+	int i;
+    /* Initializing arguments to store all values after num */
+    va_start ( arguments, num );           
+
+    for (i = 0; i < num; i++){
+        ret = concat(ret, va_arg (arguments, char*)); 
+    }
+    va_end (arguments);                  // Cleans up the list
+    return ret;                      
+}
+
 #endif

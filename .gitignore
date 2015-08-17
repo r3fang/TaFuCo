@@ -14,3 +14,4 @@ test*
 art_illumina_linux
 img/*
 transcript.fa
+genes.sorted.gtf

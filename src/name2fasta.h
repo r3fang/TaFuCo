@@ -33,7 +33,7 @@
  *-------
  * fasta_uthash object that contains extracted sequences.
  */
-static fasta_t *extract_exon_seq(char* gname, char *fname_db, fasta_t *HG19_HT, char* genr);
+static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT);
 
 /*
  * usage info

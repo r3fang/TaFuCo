@@ -15,10 +15,16 @@
 typedef struct{
     char *name;                /* key */
 	char *chrom;
+	int idx;
 	int start;
 	int end;
 	int l;
 	char *seq;
+	char *strand; 
+	char *transcript_id;
+	char *gene_id;
+	char *gene_name;
+	char *tss_id;
     UT_hash_handle hh;         /* makes this structure hashable */
 }fasta_t;
 
