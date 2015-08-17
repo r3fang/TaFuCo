@@ -4,7 +4,7 @@
 $ git clone git@github.com:r3fang/tfc.git
 $ cd tfc
 $ make
-$ ./tfc -predict exon.fa reads1.fq.gz reads2.fq.gz > tfc.out
+$ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
 
 
@@ -16,7 +16,7 @@ TFC is a super lightwieght, stand-alone, ultrafast, C-implemented, mapping-free 
 $ ./tfc
 
 Program: tfc (targeted gene fusion calling)
-Version: 08.05-r15
+Version: 08.17-r15
 Contact: Rongxin Fang <r3fang@ucsd.edu>
 
 Usage:   tfc <command> [options]
@@ -67,6 +67,7 @@ Options: -k INT    kmer length for indexing genome [15]
 		 -h INT    min unique read hits for a junction [3]
 		 -l INT    length for junction string [20]         
 		 -x INT    max mismatches of junction string match [2]
+
 		 -A INT    alpha
 		 -B INT    beta
 		 
@@ -89,7 +90,7 @@ Inputs:  exon.fa   fasta file that contains exon sequences of targeted
 4. Does tfc work for single-end reads?
 
 #### Version
-08.05-r15
+08.17-r15
 
 #### Author
 Rongxin Fang (r3fang@eng.ucsd.edu)
