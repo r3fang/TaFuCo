@@ -230,6 +230,15 @@ static inline void printf_line(char *s, int l){
 	printf("\n");
 }
 
+static inline void fprintf_line(FILE *fp, char *s, int l){
+	if(fp==NULL || s==NULL) die("[%s] string is empty", __func__);
+	int i; for(i=1; i<=strlen(s); i++){
+		fprintf(fp, "%c", s[i-1]);
+		if (i % l == 0) fprintf(fp, "\n");
+	}
+	fprintf(fp, "\n");
+}
+
 static inline char
 **str_arr_uniq(char** arr, int *num){
 	if(arr==NULL){

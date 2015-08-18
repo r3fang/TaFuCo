@@ -111,4 +111,10 @@ static inline fasta_t
     HASH_FIND_STR(tb, quary_name, s);  /* s: output pointer */
 	return s;
 }
+
+static inline int 
+name_sort(fasta_t *a, fasta_t *b) {
+    return strcmp(a->name, b->name);
+}
+
 #endif

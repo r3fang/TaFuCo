@@ -935,8 +935,8 @@ static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha, int beta){
 static int output(bag_t *bag, gene_t *gene, opt_t *opt){
 	if(bag==NULL) return -1;
 	if(HASH_COUNT(bag)==0) return -1;
-	printf("gene1      gene2      hits       L  \n");
-	printf("-----      -----      -----      -----\n");
+	//printf("gene1      gene2      hits       L  \n");
+	//printf("-----      -----      -----      -----\n");
 	bag_t  *cur_bag;
 	gene_t *cur_gene1, *cur_gene2;
 	for(cur_bag=BAGR_HT; cur_bag!=NULL; cur_bag=cur_bag->hh.next){
@@ -948,7 +948,7 @@ static int output(bag_t *bag, gene_t *gene, opt_t *opt){
 			if(cur_gene2) gene_destory(&cur_gene2);
 			continue;
 		}
-		printf("%5s      %s      %5d      %.2f\n", cur_bag->gname1, cur_bag->gname2, cur_bag->weight, cur_bag->likehood/(cur_gene1->hits + cur_gene2->hits+1));	
+		printf("%s      %s      %5d      %.2f\n", cur_bag->gname1, cur_bag->gname2, cur_bag->weight, cur_bag->likehood/(cur_gene1->hits + cur_gene2->hits+1));	
 	}
 	return 0;
 }
@@ -1053,7 +1053,7 @@ int predict(int argc, char *argv[]) {
     	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
     	return -1;		
     }
-
+    
     fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
     if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
     	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);

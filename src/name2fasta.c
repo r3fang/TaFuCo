@@ -1,5 +1,6 @@
 #include "name2fasta.h"
 
+
 static char *name_trim(char *s, char delim){
 	if(s==NULL || strlen(s) <= 3) return NULL;
 	int num, i;
@@ -91,13 +92,13 @@ static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 		end   = atoi(fields[4]);
 		
 		if(strcmp(category, "exon")==0 && ((ctr_s=find_str_ctr(gene_name_ctr, gene_name))!=NULL) && ((end - start)>0)){
-			ctr_s->SIZE++;
-			str_ctr_add(&ctr, gene_name);
 			if((s = find_fasta(HG19_HT, chrom))==NULL) goto CONTINUE;
 			l =  end - start;
-			s_ctr = find_ctr(ctr, gene_name);
 			name = join(7, chrom, ".", fields[3], ".", fields[4], ".", gene_name);
 			if((s_fasta = find_fasta(ret_fasta, name)) == NULL){
+				ctr_s->SIZE++;
+				str_ctr_add(&ctr, gene_name);
+				s_ctr = find_ctr(ctr, gene_name);
 				s_fasta = fasta_init();
 				s_fasta->name = strdup(name);
 				s_fasta->idx = s_ctr->SIZE;
@@ -276,9 +277,10 @@ static int fasta_write_transcript(fasta_t * fa, char* fname){
 	fasta_t *s;
 	int i;
 	if(fp==NULL) die("[%s] can't open %s", __func__, fname);	
+	HASH_SORT(fa, name_sort);
 	for(s=fa; s!=NULL; s=s->hh.next){
 		fprintf(fp, ">%s\n", s->name);
-		fprintf(fp, "%s\n", s->seq);
+		fprintf_line(fp, s->seq, 60);
 	}
 	fclose(fp);
 	return 0;
@@ -290,8 +292,9 @@ static int fasta_write_exon(fasta_t *fa, char* fname){
 	fasta_t *s;
 	int i;
 	if(fp==NULL) die("[%s] can't open %s", __func__, fname);	
+	HASH_SORT(fa, name_sort);
 	for(s=fa; s!=NULL; s=s->hh.next){
-		fprintf(fp, ">%s|%d|%s.%d|\tstrand\t%s\tgene_id\t%s\tgene_id\t%s\t", s->chrom, s->start, s->gene_name, s->idx, s->strand, s->gene_id, s->gene_name);
+		fprintf(fp, ">%s.%d\t%s|%d\tstrand\t%s\tgene_id\t%s\tgene_id\t%s\t", s->gene_name, s->idx, s->chrom, s->start, s->strand, s->gene_id, s->gene_name);
 		s->transcript_id = str_arr_uniq(s->transcript_id, &(s->transcript_num));
 		s->tss_id = str_arr_uniq(s->tss_id, &(s->tss_num));
 		fprintf(fp, "transcript_id\t");
@@ -308,7 +311,7 @@ static int fasta_write_exon(fasta_t *fa, char* fname){
 			for(i=0; i<s->tss_num; i++) fprintf(fp, "%s|", s->tss_id[i]);
 		}
 		fprintf(fp, "\n");
-		fprintf(fp, "%s\n", s->seq);
+		fprintf_line(fp, s->seq, 60);
 	}
 	fclose(fp);
 	return 0;
