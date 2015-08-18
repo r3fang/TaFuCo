@@ -232,8 +232,12 @@ static inline void printf_line(char *s, int l){
 
 static inline char
 **str_arr_uniq(char** arr, int *num){
-	if(arr==NULL) return NULL;
-	*num = sizeof(arr)/sizeof(arr[0]);
+	if(arr==NULL){
+		*num = 0;
+		return NULL;	
+	}
+	//*num = sizeof(*arr)/sizeof(arr[0]);
+	//printf("%d\n", *num);
 	char** res = mycalloc(*num, char*);
 	register int i, j, count;
 	bool repeat;

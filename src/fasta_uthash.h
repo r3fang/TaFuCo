@@ -21,12 +21,24 @@ typedef struct{
 	int l;
 	char *seq;
 	char *strand; 
-	char *transcript_id;
+	int transcript_num;
+	int tss_num;
+	char **transcript_id;
+	char **tss_id;
 	char *gene_id;
 	char *gene_name;
-	char *tss_id;
     UT_hash_handle hh;         /* makes this structure hashable */
 }fasta_t;
+
+/* initilize fasta_t object */
+static inline fasta_t
+*fasta_init(){
+	fasta_t *res = mycalloc(1, fasta_t);
+	res->name  = res->chrom = res->seq = res->strand = res->gene_name = res->gene_id = NULL;
+	res->transcript_id = res->tss_id = NULL;
+	res->tss_num = res->transcript_num = 0;
+	return res;
+}
 
 static inline int 
 fasta_destroy(fasta_t **tb) {

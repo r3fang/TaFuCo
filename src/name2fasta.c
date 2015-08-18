@@ -83,14 +83,22 @@ static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 			s_ctr = find_ctr(ctr, gene_name);
 			name = join(7, chrom, ".", fields[3], ".", fields[4], ".", gene_name);
 			if((s_fasta = find_fasta(ret_fasta, name)) == NULL){
-				s_fasta = mycalloc(1, fasta_t);
+				s_fasta = fasta_init();
 				s_fasta->name = strdup(name);
 				s_fasta->idx = s_ctr->SIZE;
 				s_fasta->chrom = strdup(chrom);
 				s_fasta->gene_name = strdup(gene_name);
 				s_fasta->gene_id = strdup(gene_id);
-				s_fasta->tss_id = strdup(tss_id);
-				s_fasta->transcript_id = strdup(transcript_id);
+
+				s_fasta->transcript_id = mycalloc(1, char*);
+				s_fasta->tss_id = mycalloc(1, char*);
+
+				s_fasta->transcript_id[0] =strdup(transcript_id);
+				s_fasta->tss_id[0] = strdup(tss_id);
+				
+				s_fasta->transcript_num = 1;
+				s_fasta->tss_num = 1;
+				
 				s_fasta->strand = strdup(strand);
 				s_fasta->start = start;
 				s_fasta->end = end;
@@ -100,6 +108,13 @@ static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 				if(strcmp(strand, "-") == 0) s_fasta->seq = rev_com(s_fasta->seq);	
 				s_fasta->l = l;
 				HASH_ADD_STR(ret_fasta, name, s_fasta);
+			}else{
+				s_fasta->transcript_num++;
+				s_fasta->tss_num++;
+				s_fasta->transcript_id = realloc(s_fasta->transcript_id, s_fasta->transcript_num * sizeof(*s_fasta->transcript_id));
+				s_fasta->tss_id = realloc(s_fasta->tss_id, s_fasta->tss_num * sizeof(*s_fasta->tss_id));
+				s_fasta->transcript_id[s_fasta->transcript_num-1] = strdup(transcript_id);
+				s_fasta->tss_id[s_fasta->tss_num-1] = strdup(tss_id);
 			}
 		}
 		/* skip current item */
@@ -131,9 +146,26 @@ static int fasta_write_exon(fasta_t *fa, char* fname){
 	if(fa==NULL) return -1;
 	FILE *fp = fopen(fname, "w");
 	fasta_t *s;
+	int i;
 	if(fp==NULL) die("[%s] can't open %s", __func__, fname);	
 	for(s=fa; s!=NULL; s=s->hh.next){
-		fprintf(fp, ">%s|%d|%s.%d| strand %s gene_id %s transcript_id %s tss_id %s\n", s->chrom, s->start, s->gene_name, s->idx, s->strand, s->gene_id, s->transcript_id,  s->tss_id);
+		fprintf(fp, ">%s|%d|%s.%d|\tstrand\t%s\tgene_id\t%s\tgene_id\t%s\t", s->chrom, s->start, s->gene_name, s->idx, s->strand, s->gene_id, s->gene_name);
+		s->transcript_id = str_arr_uniq(s->transcript_id, &(s->transcript_num));
+		s->tss_id = str_arr_uniq(s->tss_id, &(s->tss_num));
+		fprintf(fp, "transcript_id\t");
+		if(s->transcript_num<1){
+			fprintf(fp, "|\t", s->transcript_id[i]);
+		}else{
+			for(i=0; i<s->transcript_num; i++) fprintf(fp, "%s|", s->transcript_id[i]);			
+		}
+		fprintf(fp, "\t");
+		fprintf(fp, "tss_id\t");		
+		if(s->tss_num<1){
+			fprintf(fp, "|\t", s->tss_id[i]);
+		}else{			
+			for(i=0; i<s->tss_num; i++) fprintf(fp, "%s|", s->tss_id[i]);
+		}
+		fprintf(fp, "\n");
 		fprintf(fp, "%s\n", s->seq);
 	}
 	fclose(fp);
@@ -146,7 +178,7 @@ int name2fasta_usage(){
 			fprintf(stderr, "Details: name2fasta is to extract genomic sequence of gene candiates\n\n");
 			fprintf(stderr, "Options: -g          'exon' or 'transcript' \n\n");
 			fprintf(stderr, "Inputs:  .txt        plain txt file contains names of gene candiates e.g. [genes.txt]\n");
-			fprintf(stderr, "         .gtf        gft file that contains gene annotation\n");
+			fprintf(stderr, "         .gtf        gft file that contains gene annotation [genes.gtf]\n");
 			fprintf(stderr, "         .fa         fasta file contains the whole genome sequence   e.g. [hg19.fa.gz]\n");
 			fprintf(stderr, "         .fa         output fasta files contains extracted seq of targeted genes\n");
 			return 1;
@@ -163,15 +195,16 @@ int name2fasta(int argc, char *argv[]) {
 		}
 	}
 	
-	if(strcmp(genr, "transcript")!=0 && strcmp(genr, "exon")!=0){
-		fprintf(stderr, "-g unrecognized gener 'exon' or 'transcript'\n");
-		return -1;
-	}
 	if (optind + 4 > argc) return name2fasta_usage();
 	gene_name = argv[optind];
 	gff_name = argv[optind+1];
 	iname = argv[optind+2];
 	oname = argv[optind+3];
+
+	if(strcmp(genr, "transcript")!=0 && strcmp(genr, "exon")!=0){
+		fprintf(stderr, "-g unrecognized gener 'exon' or 'transcript'\n");
+		return -1;
+	}
 		
 	fasta_t *GENO_HT = NULL;
 	fasta_t *EXON_HT = NULL;
