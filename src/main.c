@@ -5,7 +5,7 @@
 #include "predict.h"
 
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "08.17-r15"
+#define PACKAGE_VERSION "08.19-r15"
 #endif
 
 int name2fasta(int argc, char *argv[]);
@@ -18,8 +18,8 @@ static int usage()
 	fprintf(stderr, "Version: %s\n", PACKAGE_VERSION);
 	fprintf(stderr, "Contact: Rongxin Fang <r3fang@ucsd.edu>\n\n");
 	fprintf(stderr, "Usage:   tfc <command> [options]\n\n");
-	fprintf(stderr, "Command: name2fasta     extract exon sequences\n");
-	fprintf(stderr, "         predict        predict gene fusion\n");
+	fprintf(stderr, "Command: name2fasta     extract DNA sequences\n");
+	fprintf(stderr, "         predict        predict gene fusions\n");
 	fprintf(stderr, "\n");
 	return 1;
 }

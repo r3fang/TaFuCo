@@ -8,7 +8,7 @@
 #include "predict.h"
 
 static kmer_t *kmer_index(fasta_t *, int);
-static bag_t  *bag_construct(kmer_t *, fasta_t *, gene_t **, char*, char*, int, int, int);
+static bag_t  *bag_construct(kmer_t *, gene_t **, char*, char*, int, int, int);
 static char *concat_exons(char* _read, fasta_t *fa_ht, kmer_t *kmer_ht, int _k, char *gname1, char* gname2, char** ename1, char** ename2, int *junction, int min_kmer_match);
 static int find_junction_one_edge(bag_t *eg, fasta_t *fasta_u, opt_t *opt, junction_t **ret);
 static int update_junction(junction_t **junc, solution_pair_t **sol_pair, opt_t *opt, char* fuse_name, char* junc_name);
@@ -30,7 +30,7 @@ static int update_fusion(bag_t **edge, solution_pair_t **res, opt_t *opt);
 
  * Output: 
  *-------
- * kmer_t hash table that contains kmer and its occurnace positions on input seq.
+ * kmer_t object that contains kmer and its occurnace positions on input seq.
  */
 static kmer_t 
 *kmer_index(fasta_t *tb, int k){
@@ -68,9 +68,10 @@ static kmer_t
 
  * Input: 
  *-------
- * kmer_ht            - kmer hash table returned by kmer_index
- * fq1                - 5' to 3' end of read
- * fq2                - the other end of read
+ * kmer_ht            - kmer_t object returned by kmer_index
+ * *gene_ht           - gene_t object that will store a gene is supported by # of reads
+ * fq1                - fastq file that contains 5' to 3' read
+ * fq2                - fastq file that contains the other end of read 
  * min_kmer_matches   - min number kmer matches between a gene and read needed 
  * min_edge_weight    - edges in the graph with weight smaller than min_edge_weight will be deleted
  * k                  - length of kmer
@@ -79,8 +80,8 @@ static kmer_t
  * BAG_uthash object that contains the graph.
  */
 static bag_t
-*bag_construct(kmer_t *kmer_ht, fasta_t *fasta_ht, gene_t **gene_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
-	if(kmer_ht==NULL || fq1==NULL || fq2==NULL || fasta_ht==NULL || *gene_ht==NULL) return NULL;
+*bag_construct(kmer_t *kmer_ht, gene_t **gene_ht, char* fq1, char* fq2, int min_kmer_matches, int min_edge_weight, int _k){
+	if(kmer_ht==NULL || fq1==NULL || fq2==NULL || *gene_ht==NULL) return NULL;
 	/* variable declaration */
 	bag_t *bag = NULL;
 	gzFile fp1, fp2;
@@ -774,15 +775,9 @@ static int update_junction(junction_t **junc, solution_pair_t **sol_pair, opt_t 
 		if((min_mismatch(_read1, (*junc)->s)) <= opt->max_mismatch || (min_mismatch(_read2, (*junc)->s)) <= opt->max_mismatch ){	
 			// alignment with jump state between exons 
 			if((sol1 = align_exon_jump(_read1, (*junc)->transcript, (*junc)->S1, (*junc)->S2, (*junc)->S1_num, (*junc)->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
-			if(sol1->prob < opt->min_align_score){
-				solution_destory(&sol1);
-				continue;
-			}
+			if(sol1->prob < opt->min_align_score){ solution_destory(&sol1); continue;}
 			if((sol2 = align_exon_jump(_read2, (*junc)->transcript, (*junc)->S1, (*junc)->S2, (*junc)->S1_num, (*junc)->S2_num, opt->match, opt->mismatch, opt->gap, opt->extension, opt->jump_exon))==NULL) continue;
-			if(sol2->prob < opt->min_align_score){
-				solution_destory(&sol2);
-				continue;
-			}
+			if(sol2->prob < opt->min_align_score){solution_destory(&sol2);  continue;}
 			s_sp = find_solution_pair(*sol_pair, seq1->name.s);
 			if(s_sp!=NULL){ // if exists
 				if(s_sp->prob < sol1->prob*sol2->prob){
@@ -962,29 +957,38 @@ static int output(bag_t *bag, gene_t *gene, opt_t *opt){
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
 			fprintf(stderr, "Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>\n\n");
-			fprintf(stderr, "Details: predict gene fusion from RNA-seq data\n\n");
-			fprintf(stderr, "Options: -k INT    kmer length for indexing [%d]\n", opt->k);
-			fprintf(stderr, "         -n INT    min uniq kmer matches for a gene and read match [%d]\n", opt->min_kmer_match);
+			fprintf(stderr, "Details: predict gene fusion from pair-end RNA-seq data\n\n");
+			fprintf(stderr, "Options:\n");
+			
+			fprintf(stderr, "   -- Graph:\n");
+			fprintf(stderr, "         -k INT    kmer length for indexing in.fa [%d]\n", opt->k);
+			fprintf(stderr, "         -n INT    min unique kmer matches for a hit between gene and pair [%d]\n", opt->min_kmer_match);
 			fprintf(stderr, "         -w INT    edges in graph of weight smaller than -w will be removed [%d]\n", opt->min_edge_weight);
-			fprintf(stderr, "         -m INT    score for match in alignment [%d]\n", opt->match);
-			fprintf(stderr, "         -u INT    score for mismatch in alignment [%d]\n", opt->mismatch);
+			
+			fprintf(stderr, "   -- Alignment:\n");
+			fprintf(stderr, "         -m INT    score for match [%d]\n", opt->match);
+			fprintf(stderr, "         -u INT    penality for mismatch[%d]\n", opt->mismatch);
 			fprintf(stderr, "         -o INT    penality for gap open [%d]\n", opt->gap);
 			fprintf(stderr, "         -e INT    penality for gap extension [%d]\n", opt->extension);
 			fprintf(stderr, "         -j INT    penality for jump between genes [%d]\n", opt->jump_gene);
 			fprintf(stderr, "         -s INT    penality for jump between exons [%d]\n", opt->jump_exon);
+			fprintf(stderr, "         -a FLOAT  min identity score for alignment [%.2f]\n", opt->min_align_score);
+			
+			fprintf(stderr, "   -- Junction:\n");
 			fprintf(stderr, "         -h INT    min hits for a junction [%d]\n", opt->min_hits);					
 			fprintf(stderr, "         -l INT    length for junction string [%d]\n", opt->seed_len);
-			fprintf(stderr, "         -x INT    max mismatches of junction string match [%d]\n", opt->max_mismatch);					
-			fprintf(stderr, "         -A INT    weight for junction containing reads for likelihood [%d]\n", opt->alpha);					
-			fprintf(stderr, "         -B INT    weight for not junction containing reads for likelihood [%d]\n", opt->beta);					
-			fprintf(stderr, "         -a FLOAT  min identity score for alignment [%.2f]\n", opt->min_align_score);
-			fprintf(stderr, "         -p FLOAT  p-value cutoff [%.2f]\n", opt->pvalue);
+			fprintf(stderr, "         -x INT    max mismatches allowed for junction string match [%d]\n", opt->max_mismatch);					
+
+			fprintf(stderr, "   -- Fusion:\n");
+			fprintf(stderr, "         -A INT    weight for junction containing reads [%d]\n", opt->alpha);					
+			fprintf(stderr, "         -p FLOAT  p-value cutoff for fusions [%.2f]\n", opt->pvalue);
+			
 			fprintf(stderr, "\n");
-			fprintf(stderr, "Inputs:  exon.fa   fasta file that contains exon sequences of \n");
+			fprintf(stderr, "Inputs:  exon.fa   .fasta file that contains exon sequences of \n");
 			fprintf(stderr, "                   targeted genes, which can be generated by: \n");
-			fprintf(stderr, "                   tfc name2fasta <genes.txt> <in.fa> <exon.fa> \n");
+			fprintf(stderr, "                   tfc name2fasta <gname.txt> <genes.gtf> <in.fa> <exon.fa>  \n");
 			fprintf(stderr, "         R1.fq     5'->3' end of pair-end sequencing reads\n");
-			fprintf(stderr, "         R2.fq     the other end of pair-end sequencing reads\n");
+			fprintf(stderr, "         R2.fq     the other end of sequencing reads\n");
 			return 1;
 }
 
@@ -1035,7 +1039,7 @@ int predict(int argc, char *argv[]) {
 	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__);
     
 	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
-	if((BAGR_HT = bag_construct(KMER_HT, EXON_HT, &GENE_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+	if((BAGR_HT = bag_construct(KMER_HT, &GENE_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
 	
 	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
 	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
@@ -1085,10 +1089,10 @@ int predict(int argc, char *argv[]) {
 	
 	output(BAGR_HT, GENE_HT, opt);
 
-	solution_pair_t *s;
-	for(s=SOLU_HT; s!=NULL; s=s->hh.next){
-		printf("%s\t%s\t%f\t%f\n", s->idx, s->fuse_name, s->r1->prob, s->r2->prob);
-	}
+	//solution_pair_t *s;
+	//for(s=SOLU_HT; s!=NULL; s=s->hh.next){
+	//	printf("%s\t%s\t%f\t%f\n", s->idx, s->fuse_name, s->r1->prob, s->r2->prob);
+	//}
 	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);

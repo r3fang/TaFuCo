@@ -1,5 +1,8 @@
 #include "name2fasta.h"
 
+/*
+ * "CTCF"; -> CTCF
+ */
 static char *name_trim(char *s, char delim){
 	if(s==NULL || strlen(s) <= 3) return NULL;
 	int num, i;
@@ -317,13 +320,13 @@ static int fasta_write_exon(fasta_t *fa, char* fname){
 
 int name2fasta_usage(){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc name2fasta [options] <gname.txt> <gencode.gtf> <in.fa.gz> <exons.fa> \n\n");
+			fprintf(stderr, "Usage:   tfc name2fasta [options] <gname.txt> <genes.gtf> <in.fa> <out.fa> \n\n");
 			fprintf(stderr, "Details: name2fasta is to extract genomic sequence of gene candiates\n\n");
-			fprintf(stderr, "Options: -g          'exon' or 'transcript' \n\n");
-			fprintf(stderr, "Inputs:  .txt        plain txt file contains names of gene candiates e.g. [genes.txt]\n");
-			fprintf(stderr, "         .gtf        gft file that contains gene annotation [genes.gtf]\n");
-			fprintf(stderr, "         .fa         fasta file contains the whole genome sequence   e.g. [hg19.fa.gz]\n");
-			fprintf(stderr, "         .fa         output fasta files contains extracted seq of targeted genes\n");
+			fprintf(stderr, "Options: -g               'exon' or 'transcript' or 'CDS' \n\n");
+			fprintf(stderr, "Inputs:  gname.txt        .txt file contains the names of gene candiates\n");
+			fprintf(stderr, "         genes.gtf        .gft file that contains gene annotations\n");
+			fprintf(stderr, "         in.fa            .fa file contains the whole genome sequence e.g. [hg19.fa]\n");
+			fprintf(stderr, "         out.fa           .fa files contains output sequences\n");
 			return 1;
 }
 

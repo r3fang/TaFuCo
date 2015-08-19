@@ -1,10 +1,11 @@
 /*--------------------------------------------------------------------*/
 /* predict.c                                                          */
 /* Author: Rongxin Fang                                               */
-/* E-mail: r3fang@ucsd.edu                                            */
+/* Contact: r3fang@ucsd.edu                                           */
 /* Created Date: 08-07-2015                                           */
-/* Predict Gene Fusion by RNA-seq data.                               */
+/* Targeted Gene Fusion Calling (tfc) from RNA-seq data.              */
 /*--------------------------------------------------------------------*/
+
 #ifndef _PREDICT_H
 #define _PREDICT_H
 
@@ -23,7 +24,7 @@
 #include "utils.h"
 #include "uthash.h"
 
-//define parameter ranges 
+//define input parameter valid range 
 #define MAX_KMER_LEN                40
 #define MIN_KMER_LEN                10
 #define MIN_MIN_KMER_MATCH          1
@@ -35,20 +36,21 @@
 
 //gene_t
 typedef struct {
-	char* name; // gap open
+	char* name;
 	int len;
 	int exon_num;
 	int hits;
     UT_hash_handle hh;
 } gene_t;
+
 //opt
 typedef struct {
-	char* fq1; // gap open
-	char* fq2; // gap open
-	char* fa; // gap open
-	int k; // gap extension
-	int min_kmer_match; // match
-	int min_edge_weight; // unmatch
+	char* fq1; 
+	char* fq2; 
+	char* fa; 
+	int k;
+	int min_kmer_match; 
+	int min_edge_weight;
 	int match;
 	int mismatch;
 	int gap;
@@ -59,11 +61,11 @@ typedef struct {
 	int seed_len;
 	int max_mismatch;
 	int alpha;
-	int beta;
 	double min_align_score;
 	double pvalue;
 } opt_t;
 
+/* global variables */
 static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
 static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
 static            bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
@@ -71,7 +73,7 @@ static           gene_t   *GENE_HT     = NULL;
 static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
 static  solution_pair_t   *SOLU_UNIQ_HT     = NULL;  // alignment solition of reads against JUN0_HT
 
-
+/* intitlize opt_t object */
 static inline opt_t *opt_init(){
 	opt_t *opt = mycalloc(1, opt_t);
 	opt->fq1 = NULL;
@@ -92,9 +94,10 @@ static inline opt_t *opt_init(){
 	opt->max_mismatch = 2;
 	opt->pvalue=0.05;
 	opt->alpha=3;
-	opt->beta=1;
 	return opt;
 }
+
+/* destory opt_t object */
 static inline void destory_opt(opt_t *opt){
 	if(opt->fq1) free(opt->fq1);
 	if(opt->fq2) free(opt->fq2);
@@ -102,6 +105,7 @@ static inline void destory_opt(opt_t *opt){
 	free(opt);
 }
 
+/* intitlize gene_t object */
 static inline gene_t *gene_init(){
 	gene_t *instance = mycalloc(1, gene_t);
 	instance->name = NULL;
@@ -126,9 +130,8 @@ static inline int gene_display(gene_t *instance){
 	}
 	return 0;
 }
-/*
- * destory the gene_t
- */
+
+/* destory the gene_t */
 static inline int gene_destory(gene_t **instance){
 	if(*instance==NULL) return -1;
 	gene_t *gene_cur, *gene_tmp;
@@ -138,106 +141,7 @@ static inline int gene_destory(gene_t **instance){
 	}
 	return 0;
 }
-/*
- * Description:
- *------------
- * index input sequences by kmer hash table
 
- * Input: 
- *-------
- * fa        - fasta_t hash table contains sequences to be indexed
- * k         - length of kmer
-
- * Output: 
- *-------
- * kmer_t hash table that contains kmer and its occurnace positions on input seq.
- */
-static kmer_t *kmer_index(fasta_t *fa, int k);
-
-/*
- * Description:
- *------------
- * construct breakend associated graph (BAG) by kmer_hash table and RNA-seq reads
-
- * Input: 
- *-------
- * kmer_uthash        - kmer hash table returned by kmer_uthash_construct
- * fq1                - 5' to 3' end of read
- * fq2                - the other end of read
- * min_kmer_matches   - min number kmer matches between a gene and read needed 
- * min_edge_weight    - edges in the graph with weight smaller than min_edge_weight will be deleted
- * k                  - length of kmer
- * Output: 
- *-------
- * BAG_uthash object that contains the graph.
- */
-static bag_t *bag_construct(kmer_t *kmer_uthash, fasta_t *fasta_ht, gene_t **gene_ht, char* fq1, char* fq2, int min_kmer_match, int min_edge_weight, int k);
-/*
- * Description:
- *------------
- * find junction sites by aligning supportive reads to concatnated string of gene1 and gene2
-
- * Input: 
- *-------
- * bag        - BAG_utash object: breakend associated graph returned by BAG_uthash_construct
- * fa         - fasta_uthash object: input sequence returned by fasta_uthash_load
- * opt        - opt_t object: contains all input parameters
-
- * Output: 
- *-------
- * junction_t object that contains identified junctions.
- */
-static int bag_junction_gen(bag_t **bag, fasta_t *fa, kmer_t *kmer, opt_t *opt);
-/*
- * Description:
- *------------
- * construct fused transcript by identified fusion
-
- * Input: 
- *-------
- * junc_ht        - junction_t object: return by junction_construct
- * exon_ht        - fasta_uthash object: input sequence returned by fasta_uthash_load
-
- * Output: 
- *-------
- * junction_t object that contains identified junctions with one more property -> transcript.
- */
-static junction_t *transcript_construct(junction_t *junc_ht, fasta_t *exon_ht);
-/*
- * Description:
- *------------
- * 1) find subset of pairs that contain 20bp junction string by at most 2 mismatches
- * 2) align those reads to constructed transcript returned by transcript_construct
-
- * Input: 
- *-------
- * junc_ht        - junction_t object: return by transcript_construct
- * opt            - opt_t object: contains all input parameters
-
- * Output: 
- *-------
- * solution_pair_t object that contains alignment results of all reads.
- */
-static int align_reads_to_transcript(solution_pair_t **res, bag_t *bag, opt_t *opt);
-
-/*
- * Description:
- *------------
- * revisit junction sites and score them based on alignment results
- 
- * Input: 
- *-------
- * sol              - alignment results returned by align_to_transcript
- * junc             - previously identified junction
- * min_align_score  - min accepted alignment identity, alignment with identity < min_align_score will be filtered
- * junc_str_len     - length of junction string 
-
- * Output: 
- *-------
- * junction_t object that contains identified junctions with one more property -> transcript.
- */
-
-static junction_t *junction_score(solution_pair_t *sol, junction_t *junc, double min_align_score, int junc_str_len);
 /*
  * usage info
  */
