@@ -92,16 +92,16 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
  1. **How fast is TFC?**   
  TFC is 100% implemented in C which implies it could have the potential to be really fast. But the question is how fast? We tested TCF (predict) on 43 different targeted RNA-seq data sets with various number of reads ranging from 0.9m to 20m against 506 targeted genes, here is the running time. On average, TFC runs 6min per sample.   
  
-    |Sample         | Reads Number   | Running Time |
-    |:-------------:| :-------------:| -------------|
-    |1       | 10M            | 6min         |
-    |2  | 5M             | 5min         |
-    |3              | 0.4M           | 5min         |
-    |4              | 5M             | 5min         |
-    |...            | ...            | ...          |
-    |41             | 5M             | 5min         |
-    |42             | 5M             | 5min         |
-    |43             | 5M             | 5min         |
+	|Sample         | Reads Number   | Running Time |
+	|:-------------:| :-------------:| -------------|
+	|1       | 10M            | 6min         |
+	|2  | 5M             | 5min         |
+	|3              | 0.4M           | 5min         |
+	|4              | 5M             | 5min         |
+	|...            | ...            | ...          |
+	|41             | 5M             | 5min         |
+	|42             | 5M             | 5min         |
+	|43             | 5M             | 5min         |
  
  2. **Does TFC require a lot of memory?**   
  3. **Does TFC depend on any third-party software?**   
