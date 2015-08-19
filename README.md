@@ -25,7 +25,8 @@ Command: name2fasta     extract DNA sequences
 ```
 
 - **name2fasta** 
-  >extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column `sort -k5,5n genes.gtf > genes.sorted.gtf`;
+  
+> extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column `sort -k5,5n genes.gtf > genes.sorted.gtf`;
  
 ```
 $./tfc name2fasta
@@ -43,7 +44,8 @@ Inputs:  gname.txt        .txt file contains the names of gene candiates
 ```
 
 - **predict** 
-  >predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary
+  
+> predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary
 
 ```
 # sort R1.fq and R2.fq if necessary
