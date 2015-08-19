@@ -23,14 +23,16 @@
 #include "utils.h"
 #include "uthash.h"
 
+//define parameter ranges 
 #define MAX_KMER_LEN                40
 #define MIN_KMER_LEN                10
-#define MIN_KMER_MATCH              1
-#define MIN_EDGE_WEIGHT             1
-#define MIN_HITS                    1
-#define MIN_ALIGN_SCORE             0
-#define MAX_ALIGN_SCORE             1
+#define MIN_MIN_KMER_MATCH          1
+#define MIN_MIN_EDGE_WEIGHT         1
+#define MIN_MIN_HITS                1
+#define MIN_MIN_ALIGN_SCORE         0
+#define MAX_MIN_ALIGN_SCORE         1
 #define EPSILON                     0.1
+
 //gene_t
 typedef struct {
 	char* name; // gap open
@@ -39,7 +41,6 @@ typedef struct {
 	int hits;
     UT_hash_handle hh;
 } gene_t;
-
 //opt
 typedef struct {
 	char* fq1; // gap open
@@ -57,7 +58,10 @@ typedef struct {
 	int min_hits;
 	int seed_len;
 	int max_mismatch;
+	int alpha;
+	int beta;
 	double min_align_score;
+	double pvalue;
 } opt_t;
 
 static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
@@ -86,6 +90,9 @@ static inline opt_t *opt_init(){
 	opt->min_align_score = 0.8;
 	opt->seed_len = 20;
 	opt->max_mismatch = 2;
+	opt->pvalue=0.05;
+	opt->alpha=3;
+	opt->beta=1;
 	return opt;
 }
 static inline void destory_opt(opt_t *opt){
