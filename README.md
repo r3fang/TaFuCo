@@ -24,7 +24,8 @@ Command: name2fasta     extract DNA sequences
          predict        predict gene fusions
 ```
 
-- **name2fasta** is to extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column `sort -k5,5n genes.gtf > genes.sorted.gtf`;
+- **name2fasta** 
+  >extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column `sort -k5,5n genes.gtf > genes.sorted.gtf`;
  
 ```
 $./tfc name2fasta
@@ -41,8 +42,8 @@ Inputs:  gname.txt        .txt file contains the names of gene candiates
          out.fa           .fa files contains output sequences
 ```
 
-- **predict** is to predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary 
-
+- **predict** 
+  >predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary
 
 ```
 # sort R1.fq and R2.fq if necessary
@@ -83,16 +84,18 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
          R2.fq     the other end of sequencing reads
 ```
 
+## FAQ
+
+ 1. **How fast is TFC?**
+ 2. **Does TFC depend on any third-party software?**\n
+    >No. TFC is compeletely stand-alone which means it depends on nothing.
+ 3. **How precise is tfc?**
+ 4. **Does tfc work for single-end reads?**
+
 ## Workflow
 
 ![workflow](https://github.com/r3fang/tfc/blob/master/img/workflow.jpg)
 
-## FAQ
-
-1. How fast is tfc?
-2. Does tfc need reads to be mapped in advance?
-3. How precise is tfc?
-4. Does tfc work for single-end reads?
 
 #### Version
 08.19-r15
