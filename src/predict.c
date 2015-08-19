@@ -103,8 +103,8 @@ static bag_t
 		gene_counter = NULL;
 		hits = NULL;
 		_read1 = rev_com(seq1->seq.s); // reverse complement of read1
-		_read2 =  strdup(seq2->seq.s);	
-		
+		_read2 =  strdup(seq2->seq.s);
+			
 		if(_read1 == NULL || _read2 == NULL){
 			if(_read1) free(_read1);
 			if(_read2) free(_read2);
@@ -127,6 +127,7 @@ static bag_t
 				max_gene = strdup(s->KEY);
 			}
 		}
+		
 		if(max_hits >= min_kmer_matches*2 && max_gene!=NULL){
 			if((gene_cur=find_gene(*gene_ht, max_gene))!=NULL){
 				gene_cur->hits++;
@@ -151,9 +152,15 @@ static bag_t
 				if(rc==0) edge_name = NULL;
 				if(edge_name!=NULL) if(bag_add(&bag, edge_name, seq1->name.s, concat(concat(_read1, "_"), _read2)) != 0) die("BAG_uthash_add fails\n");					
 		}}
+		
 		// clean the mess up
 		if(edge_name)    free(edge_name);
-		if(hits)		 for(i--;i>0; i--){if(hits[i]) free(hits[i]);free(hits);}
+		if(hits){
+			for(i--;i>0; i--){
+				if(hits[i]) free(hits[i]);
+		   }
+		   free(hits);
+		}		
 		if(_read1)       free(_read1);
 		if(_read2)       free(_read2);
 		if(gene_counter) str_ctr_destory(&gene_counter);
@@ -191,13 +198,12 @@ static bag_t
 	gzclose(fp1);
 	gzclose(fp2);
 	
-	//if(bag_uniq(&bag)!=0){
-	//	fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
-	//	return NULL;		
-	//}
+	if(bag_uniq(&bag)!=0){
+		fprintf(stderr, "[%s] fail to remove duplicate supportive reads \n", __func__);
+		return NULL;		
+	}
 	return bag;
 }
-
 
 /*
  * determine the order of fusion genes.
@@ -1063,6 +1069,11 @@ int predict(int argc, char *argv[]) {
 	/* get rid of the duplicate reads*/
 	//if((SOLU_UNIQ_HT = solution_uniq(SOLU_HT))==NULL) return 0;
 	
+	if(SOLU_HT==NULL){
+    	fprintf(stderr, "[%s] no fusion identified\n", __func__);
+    	return 0;		
+	}
+
 	/* score the fusion */
 	if(fuse_score(SOLU_HT, &BAGR_HT, 3, 1)!=0){
     	fprintf(stderr, "[%s] fail to score fusion\n", __func__);
@@ -1070,7 +1081,7 @@ int predict(int argc, char *argv[]) {
 	}
 	
 	output(BAGR_HT, GENE_HT, opt);
-	
+
 	solution_pair_t *s;
 	for(s=SOLU_HT; s!=NULL; s=s->hh.next){
 		printf("%s\t%s\t%f\t%f\n", s->idx, s->fuse_name, s->r1->prob, s->r2->prob);
