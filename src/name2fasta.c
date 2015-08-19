@@ -1,6 +1,5 @@
 #include "name2fasta.h"
 
-
 static char *name_trim(char *s, char delim){
 	if(s==NULL || strlen(s) <= 3) return NULL;
 	int num, i;
@@ -71,7 +70,7 @@ static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 	str_ctr *ctr_s, *ctr_tmp;
 	while ((read = getline(&line, &len, fp)) != -1) {
 		fields=NULL;
-		name=category=chrom=strand=name=gene_id=gene_name=transcript_id=tss_id=NULL;
+		name=category=chrom=strand=gene_id=gene_name=transcript_id=tss_id=NULL;
 		if(strlen(line)<15) goto CONTINUE;
 		// get information of exons
 		if((fields = strsplit(line, 0, &num))==NULL) goto CONTINUE;
@@ -159,7 +158,6 @@ static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 }
 
 
-
 static fasta_t *extract_transcript_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 	if(fname==NULL || fname_db==NULL || HG19_HT==NULL) return NULL;
 	fasta_t *s_fasta, *cur_fasta, *ret_fasta = NULL;
@@ -200,7 +198,7 @@ static fasta_t *extract_transcript_seq(char* fname, char *fname_db, fasta_t *HG1
 	str_ctr *ctr_s, *ctr_tmp;
 	while ((read = getline(&line, &len, fp)) != -1) {
 		fields=NULL;
-		name=category=chrom=strand=name=gene_id=gene_name=transcript_id=tss_id=NULL;
+		category=chrom=strand=name=gene_id=gene_name=transcript_id=tss_id=NULL;
 		if(strlen(line)<15) goto CONTINUE;
 		// get information of exons
 		if((fields = strsplit(line, 0, &num))==NULL) goto CONTINUE;
@@ -294,19 +292,19 @@ static int fasta_write_exon(fasta_t *fa, char* fname){
 	if(fp==NULL) die("[%s] can't open %s", __func__, fname);	
 	HASH_SORT(fa, name_sort);
 	for(s=fa; s!=NULL; s=s->hh.next){
-		fprintf(fp, ">%s.%d\t%s|%d\tstrand\t%s\tgene_id\t%s\tgene_id\t%s\t", s->gene_name, s->idx, s->chrom, s->start, s->strand, s->gene_id, s->gene_name);
+		fprintf(fp, ">%s.%d\t%s|%d\tstrand\t%s\tgene_id\t%s\tgene_name\t%s\t", s->gene_name, s->idx, s->chrom, s->start, s->strand, s->gene_id, s->gene_name);
 		s->transcript_id = str_arr_uniq(s->transcript_id, &(s->transcript_num));
 		s->tss_id = str_arr_uniq(s->tss_id, &(s->tss_num));
 		fprintf(fp, "transcript_id\t");
 		if(s->transcript_num<1){
-			fprintf(fp, "|\t", s->transcript_id[i]);
+			fprintf(fp, "m|\t");
 		}else{
 			for(i=0; i<s->transcript_num; i++) fprintf(fp, "%s|", s->transcript_id[i]);			
 		}
 		fprintf(fp, "\t");
 		fprintf(fp, "tss_id\t");		
 		if(s->tss_num<1){
-			fprintf(fp, "|\t", s->tss_id[i]);
+			fprintf(fp, "|\t");
 		}else{			
 			for(i=0; i<s->tss_num; i++) fprintf(fp, "%s|", s->tss_id[i]);
 		}
