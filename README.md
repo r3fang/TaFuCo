@@ -24,7 +24,7 @@ Command: name2fasta     extract DNA sequences
          predict        predict gene fusions
 ```
 
-1. **name2fasta** is to extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column `sort -k5,5n genes.gtf > genes.sorted.gtf`;
+- **name2fasta** is to extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column `sort -k5,5n genes.gtf > genes.sorted.gtf`;
  
 ```
 $./tfc name2fasta
@@ -41,11 +41,14 @@ Inputs:  gname.txt        .txt file contains the names of gene candiates
          out.fa           .fa files contains output sequences
 ```
 
-2. **predict** is to predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary 
-* `zcat R1.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R1.sorted.fq.gz`
-* `zcat R2.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R2.sorted.fq.gz`
+- **predict** is to predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary 
+
 
 ```
+# sort R1.fq and R2.fq if necessary
+$ zcat R1.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R1.sorted.fq.gz
+$ zcat R2.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R2.sorted.fq.gz
+
 $ ./tfc predict
 
 Usage:   tfc predict [options] <exon.fa> <R1.fq> <R2.fq>
