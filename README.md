@@ -24,7 +24,10 @@ Command: name2fasta     extract DNA sequences
          predict        predict gene fusions
 ```
 
-- **name2fasta** is to extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column `sort -k5,5n genes.gtf > genes.sorted.gtf`:
+- **name2fasta** 
+  
+> extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column 
+`sort -k5,5n genes.gtf > genes.sorted.gtf`;
  
 ```
 $./tfc name2fasta
@@ -41,8 +44,9 @@ Inputs:  gname.txt        .txt file contains the names of gene candiates
          out.fa           .fa files contains output sequences
 ```
 
-- **predict** is to predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary:
-
+- **predict** 
+  
+> predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary
 
 ```
 # sort R1.fq and R2.fq if necessary
@@ -85,10 +89,23 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
 
 ## FAQ
 
-1. How fast is TFC?
-2. Does tfc need reads to be mapped in advance?
-3. How precise is tfc?
-4. Does tfc work for single-end reads?
+ 1. **How fast is TFC?**   
+ TFC is 100% implemented in C which implies it could have the potential to be really fast. But the question is how fast? We tested TCF (predict) on 20 different targeted RNA-seq data sets with various number of reads ranging from 0.9m to 20m against 506 targeted genes, here is the running time. On average, TFC runs 6min per sample.   
+ 
+|Sample         | Reads Number   | Running Time |
+|:-------------:| :-------------:| -------------|
+|10M            | 10M            | 6min         |
+|5M             | 5M             | 5min         |
+|0.4M           | 0.4M           | 5min         |
+|5M             | 5M             | 5min         |
+|5M             | 5M             | 5min         |
+
+ 
+ 2. **Does TFC require a lot of memory?**   
+ 3. **Does TFC depend on any third-party software?**   
+ No. TFC is compeletely stand-alone which means it depends on nothing.
+ 4. **How precise is tfc?**
+ 5. **Does tfc work for single-end reads?**
 
 ## Workflow
 
