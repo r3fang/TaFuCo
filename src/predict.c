@@ -949,7 +949,7 @@ static int output(bag_t *bag, gene_t *gene, opt_t *opt){
 			if(cur_gene2) gene_destory(&cur_gene2);
 			continue;
 		}
-		printf("%s      %s      %5d      %.2f\n", cur_bag->gname1, cur_bag->gname2, cur_bag->weight, cur_bag->likehood/(cur_gene1->hits + cur_gene2->hits+1));	
+		printf("%s\t%s\t%5d\t%.2f\n", cur_bag->gname1, cur_bag->gname2, cur_bag->weight, cur_bag->likehood/(cur_gene1->hits + cur_gene2->hits+1));	
 	}
 	return 0;
 }
