@@ -49,7 +49,7 @@ Inputs:  gname.txt        .txt file contains the names of gene candiates
 > predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary
 
 ```
-# sort R1.fq and R2.fq if necessary
+// sort R1.fq and R2.fq if necessary
 $ zcat R1.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R1.sorted.fq.gz
 $ zcat R2.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R2.sorted.fq.gz
 
@@ -86,11 +86,14 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
          R1.fq.gz  5'->3' end of pair-end sequencing reads
          R2.fq.gz  the other end of sequencing reads
 ```
+## Workflow
+
+![workflow](https://github.com/r3fang/tfc/blob/master/img/workflow.jpg)
 
 ## FAQ
 
  1. **How fast is TFC?**   
- TFC is 100% implemented in C which implies it could have the potential to be really fast. But the question is how fast? We tested TCF (predict) on 43 different targeted RNA-seq data sets with various number of reads ranging from 0.9m to 20m against 506 targeted genes, here is the running time. On average, TFC runs 6min per sample.   
+ TFC is 100% implemented in C. We tested TCF (predict) on 43 different targeted RNA-seq data sets with various number of reads ranging from 0.9m to 20m against 506 targeted genes, here is the running time. On average, TFC runs 6min per sample.   
  
   |Sample         | Reads Number   | Running Time |
   |:-------------:| :-------------:| -------------|
@@ -104,23 +107,19 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
   |43             | 5M             | 5min         |  
   
  2. **What's the minimum memory requirement for TFC?**   
- No, **1G** would be the up limit for most of the cases.
- The majority (~95%) of memory occupied by TFC is used to store the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, probably the more memory will be occupied (it also depends on the complexity of the sequences). Based on our tons of simulations, testing ~500 genes with k=15 always takes less than 1GB memory, which means you can definately run TFC on most of today's PCs. 
+ **1G** would be the up limit for most of the cases.   
+ The majority (~95%) of memory occupied by TFC is used to store the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, probably the more memory will be needed (it also depends on the complexity of the sequences). Based on our tons of simulations, predicting ~500 genes with k=15 always takes less than **1GB** memory, which means you can definately run TFC on most of today's PCs. 
  3. **Does TFC depend on any third-party software?**   
  No. TFC is compeletely stand-alone.
  4. **How precise is tfc?**
- 5. **How does TFC guarantee specificity when sequencing reads are only compared with the targeted genes?**
- we have several strict criteria to filter out read pairs that might come from regions outside targeted loci. For instance, both ends of a pair are aligned to the fused transcript and those pairs of one end not being aligned with a fair score will be discarded. Also, any pair with too large or too small insertion size will be filtered out. 
- 6. **Does tfc work for single-end reads?**
+ 5. **How does TFC guarantee specificity when sequencing reads are only compared with the targeted genes?**   
+ we have several strict criteria to filter out read pairs that are likely to come from regions outside targeted loci. For instance, both ends of a pair are aligned to the fused transcript and those pairs of any end not being aligned with a fair score will be discarded. Also, any pair with too large or too small insertion size will be filtered out. 
+ 6. **Does tfc work for single-end reads?**  
  Unfornately, TFC only works for pair-end sequencing data now, but have it also run for single-end read is a feature we would love to add in the near future.
- 7. **Is there anything I should be very careful about?**
+ 7. **Is there anything I should be very careful about?**  
  Yes, when you run `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, R1.fq and R2.fq (RNA-seq) must be in the right order that R2.fq should be identical to the psoitive strand of reference genome. 
- 8. **Does TFC support parallel computing?**  
+ 8. **Does TFC support parallel computing?**    
  No. We realize TFC is fast enough for most cases, but this is a feature we would love to add in the near future. 
-
-## Workflow
-
-![workflow](https://github.com/r3fang/tfc/blob/master/img/workflow.jpg)
 
 #### Version
 08.19-r15
