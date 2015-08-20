@@ -9,12 +9,12 @@ $ ./tfc predict exon.fa.gz A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_
 
 ##Introduction
 
-TFC is a super lightweight, stand-alone, ultrafast, C-implemented, mapping-free and sensitive software designed for fusion detection between candidate genes from RNA-seq data. It consists of two major components:
+**TFC** is a super *lightweight*, *stand-alone*, *ultrafast*, *C-implemented*, *mapping-free* and *sensitive* Bioinformatics software for **fusion detection** between candidate genes from RNA-seq data. It consists of two major components:
  
 ```
 $ ./tfc 
 
-Program: tfc (targeted gene fusion calling)
+Program: tfc (targeted fusion calling)
 Version: 08.19-r15
 Contact: Rongxin Fang <r3fang@ucsd.edu>
 
@@ -26,8 +26,8 @@ Command: name2fasta     extract DNA sequences
 
 - **name2fasta** 
   
-> extract *exon/transcript/CDS* sequences of targeted genes, the usage information is as below. Before running it, genes.gtf has to be sorted based on the 4th column 
-`sort -k5,5n genes.gtf > genes.sorted.gtf`;
+> extract *exon/transcript/CDS* sequences of targeted genes. Before running it, .gtf file has to be sorted based on the 4th column by  
+`sort -k5,5n genes.gtf > genes.sorted.gtf`
  
 ```
 $./tfc name2fasta
@@ -39,20 +39,20 @@ Details: name2fasta is to extract genomic sequence of gene candiates
 Options: -g               'exon' or 'transcript' or 'CDS' 
 
 Inputs:  gname.txt        .txt file contains the names of gene candiates
-         genes.gtf        .gft file that contains gene annotations
+         genes.gtf        .gft file that contains gene annotations sorted by 4th column
          in.fa            .fa file contains the whole genome sequence e.g. [hg19.fa]
          out.fa           .fa files contains output sequences
 ```
 
 - **predict** 
   
-> predict fusions between targeted genes. Before running it, user has to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary
-
+> predict fusions between targeted genes. **IMPORTANT** before running it, you need to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary  
 ```
-// sort R1.fq and R2.fq if necessary
 $ zcat R1.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R1.sorted.fq.gz
 $ zcat R2.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R2.sorted.fq.gz
+```
 
+```
 $ ./tfc predict
 
 Usage:   tfc predict [options] <exon.fa> <R1.fq.gz> <R2.fq.gz>
@@ -96,7 +96,7 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
  TFC is 100% implemented in C. We tested TCF (predict) on 43 different targeted RNA-seq data sets with various number of reads ranging from 0.9m to 20m against 506 targeted genes, here is the running time. On average, TFC runs 6min per sample.   
  
   |Sample         | Reads Number   | Running Time |
-  |:-------------:| :-------------:| -------------|
+  |:-------------:| :-------------:| :-------------:|
   |1       | 10M            | 6min         |
   |2  | 5M             | 5min         |
   |3              | 0.4M           | 5min         |
