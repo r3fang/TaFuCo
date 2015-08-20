@@ -39,14 +39,14 @@ Details: name2fasta is to extract genomic sequence of gene candiates
 Options: -g               'exon' or 'transcript' or 'CDS' 
 
 Inputs:  gname.txt        .txt file contains the names of gene candiates
-         genes.gtf        .gft file that contains gene annotations sorted by 4th column
+         genes.gtf        .gft file contains gene annotations sorted by 5th column
          in.fa            .fa file contains the whole genome sequence e.g. [hg19.fa]
          out.fa           .fa files contains output sequences
 ```
 
 - **predict** 
   
-> predict fusions between targeted genes. **IMPORTANT** before running it, you need to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary  
+> predict fusions between targeted genes. **IMPORTANT** before running it, you need to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary 
 ```
 $ zcat R1.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R1.sorted.fq.gz
 $ zcat R2.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R2.sorted.fq.gz
