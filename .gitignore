@@ -1,5 +1,3 @@
-build/
-bin/
 tmp.*
 tfc.dSYM/*
 tfc
@@ -12,7 +10,6 @@ test*
 *.fastq.gz
 *.fastq
 art_illumina_linux
-img/*
 transcript.fa
 genes.sorted.gtf
 tfc.res.txt
