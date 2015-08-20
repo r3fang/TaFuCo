@@ -104,10 +104,13 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
   |43             | 5M             | 5min         |
  
  2. **Does TFC require a lot of memory?**   
+ No, 1G would be the up limit for most of the cases.  
+ The majority (~95%) of TFC's occupied memory is used to store the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, the longer reference sequences would be, probably the more memory will be occupied (it also depends on the complexity of the sequences). Based on our tons of simulation, testing ~500 genes with k=15 always takes less than 1GB memory, which means you can run TFC on your own PC. 
  3. **Does TFC depend on any third-party software?**   
- No. TFC is compeletely stand-alone which means it depends on nothing.
+ No. TFC is compeletely stand-alone.
  4. **How precise is tfc?**
- 5. **Does tfc work for single-end reads?**
+ 5. **How does TFC guarantee specificity if sequencing reads are only compared with the targeted genes?**
+ 6. **Does tfc work for single-end reads?**
 
 ## Workflow
 

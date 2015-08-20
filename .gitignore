@@ -15,3 +15,6 @@ art_illumina_linux
 img/*
 transcript.fa
 genes.sorted.gtf
+tfc.res.txt
+simulation.sh
+tfc.log.txt
