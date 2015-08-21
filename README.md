@@ -107,8 +107,8 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  4. **How is likelihood of fusion being calculated?**   
  In very brief, likelihood equals the product of alignment score of reads that support the fusion normalized by sequencing depth.   
  In detail, let *e(i,j)* indicates the fusion between *gene(i)* and *gene(j)* and *s(i,j)* and *junc(i,j)* be the transcript string and junction site of *e(i,j)*. Let *f(x, y)* be the alignment function between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let **S(i)** and **S(j)** be the subset of read pairs that aligned to *gene(i)* and *gene(j)* respectively. **S1(i,j)** is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and **S2(i,j)** be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
- ![equation](http://www.sciweavers.org/download/Tex2Img_1440195124.jpg)    
- in which ![equation](http://www.sciweavers.org/download/Tex2Img_1440193971.jpg)
+ ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440195992.jpg)    
+ in which ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440196064.jpg)
 
  5. **What's the null model for calculating p-value?**   
  In brief, p-value is the probability of observing the likelihood by null model.   
