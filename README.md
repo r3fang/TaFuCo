@@ -112,10 +112,10 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
  3. **Does TFC depend on any third-party software?**   
  No. TFC is compeletely stand-alone.
  4. **How precise is tfc?**  
- Based on our simulation, TFC is able to achieve $$0.85\pm0.04$$ for sensitivity and $$0.99\pm0.005$$ for specificity.  
- We randomly generated 50 fused transcripts and simulated illumina pair-end sequencing reads from fused transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) by  
+ Based on our simulation, TFC is able to achieve <img src="http://www.sciweavers.org/tex2img.php?eq=%24%240.85%5Cpm0.04%24%24&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=0" align="center" border="0" alt="$$0.85\pm0.04$$" width="100" height="17" /> for sensitivity and <img src="http://www.sciweavers.org/tex2img.php?eq=%24%240.99%5Cpm0.005%24%24&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=0" align="center" border="0" alt="$$0.99\pm0.005$$" width="111" height="17" /> for specificity.  
+ We randomly generated 50 fused transcripts and simulated illumina pair-end sequencing reads from fused transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) by command   
  `art_illumina -i transript.fa -p -l 75 -ss HS25 -f 30 -m 200 -s 10 -o paired_reads`   
- and run TFC on *paired_reads1.fq* and *paired_reads1.fq* then caculate Sensitivity and Specificity. Repeat above process for 100 time. 
+ and run TFC on *paired_reads1.fq* and *paired_reads2.fq* then caculate Sensitivity and Specificity. Repeat above process for 100 time. 
  5. **How does TFC guarantee specificity when sequencing reads are only compared with the targeted genes?**   
  we have several strict criteria to filter out read pairs that are likely to come from regions outside targeted loci. For instance, both ends of a pair are aligned to the fused transcript and those pairs of any end not being aligned with a fair score will be discarded. Also, any pair with too large or too small insertion size will be filtered out. 
  6. **Does tfc work for single-end reads?**  
