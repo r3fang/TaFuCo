@@ -25,9 +25,7 @@ Command: name2fasta     extract DNA sequences
          predict        predict gene fusions
 ```
 
-- **name2fasta**  
-  
-> extract *exon/transcript/CDS* sequences of targeted genes.
+- **name2fasta** (extract *exon/transcript/CDS* sequences of targeted genes)
  
 ```
 $./tfc name2fasta
@@ -44,9 +42,7 @@ Inputs:  gname.txt        .txt file contains the names of gene candiates
          out.fa           .fa files contains output sequences
 ```
 
-- **predict** 
-  
-> predict fusions between targeted genes.
+- **predict** (predict fusions between targeted genes).
 
 ```
 $ ./tfc predict
@@ -109,14 +105,17 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  We randomly generated 50 fused transcripts and simulated illumina pair-end sequencing reads from constructed transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end read simulation mode with parameters setting `-l 75 -ss HS25 -f 30 -m 200 -s 10` and run TFC against *paired_reads1.fq* and *paired_reads2.fq* then caculate sensitivity and specificity. Repeat above process for 200 time.
 
  4. **How is likelihood of fusion being calculated?**   
- Let *e(i,j)* indicates the fusion between *gene(i)* and *gene(j)*. *e(i,j)* has following properties: 1) transcript string *s(i,j)* and 2) junction site *junc(i,j)*. Let *f(x, y)* be the alignment function between quary string *x* and reference *y*, for any *x* and *y*, *f(x,y)* is always between [0,1]. **S1(i,j)** is the subset of read pairs that for any *s* in **S1(i,j)**, 1) *s* has *f(s, s(i,j)) >0.8*; and 2) *s* is overlaped with *junc(i,j)*. Let **S2(i,j)** be the subset of read pairs also with *f(s, s(i,j)) >0.8* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
- ![equation](http://www.sciweavers.org/download/Tex2Img_1440193440.jpg)   
+ In very brief, likelihood equals the product of alignment score of reads that support the fusion normalized by sequencing depth.   
+ In detail, let *e(i,j)* indicates the fusion between *gene(i)* and *gene(j)* and *s(i,j)* and *junc(i,j)* be the transcript string and junction site of *e(i,j)*. Let *f(x, y)* be the alignment function between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let **S(i)** and **S(j)** be the subset of read pairs that aligned to *gene(i)* and *gene(j)* respectively. **S1(i,j)** is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and **S2(i,j)** be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
+ ![equation](http://www.sciweavers.org/download/Tex2Img_1440195124.jpg)    
+ in which ![equation](http://www.sciweavers.org/download/Tex2Img_1440193971.jpg)
 
- 5. **How does TFC guarantee specificity without comparing sequencing reads against regions outside targeted genes?**   
+ 5. **What's the null model for calculating p-value?**   
+ In brief, p-value is the probability of observing the likelihood by null model.   
+ We extracted all transcripts of targeted genes and simulate pair-end reads by art. Then run `./tfc predict` against simulated data and calculate likelihood for all gene pairs. Repeat this for 200 times and get the distribution of likelihood of every gene pair. 
+
+ 6. **How does TFC guarantee specificity without comparing sequencing reads against regions outside targeted genes?**   
  we have several strict criteria to filter out read pairs that are likely to come from regions outside targeted loci. For instance, both ends of a pair are aligned to the constructed transcript and those pairs of any end not being aligned with score smaller than `-a FLOAT min identity score for alignment` will be discarded. Also, any pair with too large or too small insertion size will be filtered out. 
-
- 6. **Does TFC depend on any third-party software?**   
- No. TFC is compeletely stand-alone.
 
  7. **Does tfc work for single-end reads?**   
  Unfornately, TFC only works for pair-end sequencing data now, but having it run for single-end read is a feature we would love to add in the near future.
