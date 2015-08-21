@@ -125,14 +125,14 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
  Unfornately, TFC only works for pair-end sequencing data now, but have it also run for single-end read is a feature we would love to add in the near future.
  7. **Is there anything I should be very careful about for `./tfc predict`?**  
  3 things.     
- + First, exon.fa has to be in the following format:     
+- First, exon.fa has to be in the following format:     
  *\>SORT1.1	chr1|109852188	strand	- gene_id	SORT1	transcript_id	NM_002959|NM_001205228|	tss_id	TSS12777|TSS22486|*     
  *ATCCAGTT...TTAACACAC*    
  *\>SORT1.2        chr1|109856883  strand  - gene_id SORT1   transcript_id   NM_002959|NM_001205228| tss_id  TSS12777|TSS22486|*  
  *TACACAC...TTTTTTTTTAA*       
- in which *SORT1.1* indicates this is the first exon of gene *SORT1*.
- + Second, When you run `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, R1.fq and R2.fq (RNA-seq) must be in the right order that R2.fq must be identical to the psoitive strand of reference genome.    
- + Third, the name of reads has to be matched up in R1.fq and R2.fq, run below command to sort R1.fq and R2.fq if needed.         
+ in which *SORT1.1* indicates this is the first exon of gene *SORT1*.    
+- Second, When you run `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, R1.fq and R2.fq (RNA-seq) must be in the right order that R2.fq must be identical to the psoitive strand of reference genome.      
+- Third, the name of reads has to be matched up in R1.fq and R2.fq, run below command to sort R1.fq and R2.fq if needed.         
 ``` 
 $ zcat R1.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R1.sorted.fq.gz
 $ zcat R2.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R2.sorted.fq.gz
