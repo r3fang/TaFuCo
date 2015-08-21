@@ -11,8 +11,10 @@ test*
 *.fastq
 art_illumina_linux
 transcript.fa
+transcript_simulated.fa
 genes.sorted.gtf
 tfc.res.txt
 simulation.sh
 tfc.log.txt
 tfc.result.txt
+transcript_simu.fa
