@@ -111,7 +111,11 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
  The majority (~95%) of memory occupied by TFC is used to store the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, probably the more memory will be needed (it also depends on the complexity of the sequences). Based on our tons of simulations, predicting ~500 genes with k=15 always takes less than **1GB** memory, which means you can definately run TFC on most of today's PCs.
  3. **Does TFC depend on any third-party software?**   
  No. TFC is compeletely stand-alone.
- 4. **How precise is tfc?**
+ 4. **How precise is tfc?**  
+ Based on our simulation, TFC is able to achieve $$0.85\pm0.04$$ for sensitivity and $$0.99\pm0.005$$ for specificity.  
+ We randomly generated 50 fused transcripts and simulated illumina pair-end sequencing reads from fused transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) by  
+ `art_illumina -i transript.fa -p -l 75 -ss HS25 -f 30 -m 200 -s 10 -o paired_reads`   
+ and run TFC on *paired_reads1.fq* and *paired_reads1.fq* then caculate Sensitivity and Specificity. Repeat above process for 100 time. 
  5. **How does TFC guarantee specificity when sequencing reads are only compared with the targeted genes?**   
  we have several strict criteria to filter out read pairs that are likely to come from regions outside targeted loci. For instance, both ends of a pair are aligned to the fused transcript and those pairs of any end not being aligned with a fair score will be discarded. Also, any pair with too large or too small insertion size will be filtered out. 
  6. **Does tfc work for single-end reads?**  
