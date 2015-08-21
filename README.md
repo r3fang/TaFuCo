@@ -96,7 +96,7 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
 ## FAQ
 
  1. **How fast is TFC?**     
- On average, ~6min for 1 million read pairs.     
+ **~6min** for 1 million read pairs.     
  TFC is 100% implemented in C. We tested TCF on 43 real RNA-seq data with various number of reads ranging from 0.9m to 4m against 506 targeted genes. On average, TFC has ~6min run per million reads.   
  
  2. **What's the maximum memory requirement for TFC?**   
@@ -104,7 +104,7 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  The majority (~90%) of the memory occupied by TFC is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, the more memory will probably be needed (it also depends on the complexity of the sequences). Based on our simulations, predicting on ~500 genes with k=15 always takes less than **1GB** memory, which means you can definately run TFC on most of today's PC.
 
  3. **How precise is TFC?**  
- **0.85+-0.04** for sensitivity and **0.99+-0.005** for specificity based on our simulations.     
+ **~0.85** and **~0.99** for sensitivity and specificity on our simulated data.     
  We randomly generated 50 fused transcripts and simulated illumina pair-end sequencing reads from fused transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end read simulation mode with parameters `-l 75 -ss HS25 -f 30 -m 200 -s 10` and run TFC on *paired_reads1.fq* and *paired_reads2.fq* then caculate Sensitivity and Specificity. Repeat above process for 100 time.
 
  4. **Does TFC depend on any third-party software?**   
