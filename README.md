@@ -5,7 +5,8 @@ $ cd tfc
 $ make
 $ ./tfc predict exon.fa.gz A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
-###Author   
+##Author   
+
 [Rongxin Fang](r3fang@eng.ucsd.edu)
 
 ##Introduction
@@ -93,7 +94,7 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
 ## FAQ
 
  1. **How fast is TFC?**     
- **~6min** for 1 million read pairs.     
+ **~6min** per million read pairs using one CPU core.     
  TFC is 100% implemented in C. We tested TFC on 43 real RNA-seq data with various number of reads ranging from 0.9m to 4m against 506 targeted genes. On average, TFC has ~6min run per million reads for ~500 targeted genes.   
  
  2. **What's the maximum memory requirement for TFC?**   
