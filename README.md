@@ -5,9 +5,6 @@ $ cd tfc
 $ make
 $ ./tfc predict exon.fa.gz A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
-##Author   
-
-[Rongxin Fang](r3fang@eng.ucsd.edu)
 
 ##Introduction
 
@@ -137,3 +134,8 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  *TACACAC...TTTTTTTTTAA*       
 - Second, when you run `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, R1.fq and R2.fq (RNA-seq) must be in the right order that R2.fq must be identical to the psoitive strand of reference genome.         
 - Third, name of reads has to be paired up in R1.fq and R2.fq, sort them based on read name if necessary.
+
+####Author   
+
+Rongxin Fang
+r3fang@eng.ucsd.edu
