@@ -9,7 +9,7 @@ $ ./tfc predict exon.fa.gz A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_
 
 ##Introduction
 
-**TFC** is a super *lightweight*, *stand-alone*, *ultrafast*, *C-implemented*, *mapping-free* and *sensitive* Bioinformatics software for **fusion detection** between candidate genes from RNA-seq data. It consists of two major components:
+**TFC** is a super *lightweight*, *stand-alone*, *ultrafast*, *C-implemented*, *mapping-free* and *precise* Bioinformatics software for **fusion detection** between candidate genes from RNA-seq data. It consists of two major components:
  
 ```
 $ ./tfc 
@@ -26,8 +26,7 @@ Command: name2fasta     extract DNA sequences
 
 - **name2fasta** 
   
-> extract *exon/transcript/CDS* sequences of targeted genes. Before running it, .gtf file has to be sorted based on the 4th column by  
-`sort -k5,5n genes.gtf > genes.sorted.gtf`
+> extract *exon/transcript/CDS* sequences of targeted genes.
  
 ```
 $./tfc name2fasta
@@ -46,11 +45,7 @@ Inputs:  gname.txt        .txt file contains the names of gene candiates
 
 - **predict** 
   
-> predict fusions between targeted genes. **IMPORTANT** before running it, you need to make sure R1.fq and R2.fq have their read's name matched up. Sort R1.fq and R2.fq based on id if necessary 
-```
-$ zcat R1.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R1.sorted.fq.gz
-$ zcat R2.fq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > R2.sorted.fq.gz
-```
+> predict fusions between targeted genes.
 
 ```
 $ ./tfc predict
@@ -90,34 +85,30 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
 
 ![workflow](https://github.com/r3fang/tfc/blob/master/img/workflow.jpg)
 
+## A Full Example
+```
+$ sort -k5,5n genes.gtf > genes.sorted.gtf
+$ ./tfc name2fasta genes.txt genes.sorted.gtf hg19.fa.gz exon.fa
+$ zcat A431-1-ABGHI_S1_L001_R1_001.fastq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz
+$ zcat A431-1-ABGHI_S1_L001_R2_001.fastq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > A431-1-ABGHI_S1_L001_R2_001.sorted.fastq.gz
+$ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI_S1_L001_R2_001.sorted.fastq.gz
+```
 ## FAQ
 
  1. **How fast is TFC?**     
  On average, ~6min for 1 million read pairs.     
  TFC is 100% implemented in C. We tested TCF on 43 real RNA-seq data with various number of reads ranging from 0.9m to 4m against 506 targeted genes. On average, TFC has ~6min run per million reads.   
  
-  |Sample         | Reads Number   | Running Time |
-  |:-------------:| :-------------:| :-------------:|
-  |1       | 10M            | 6min         |
-  |2  | 5M             | 5min         |
-  |3              | 0.4M           | 5min         |
-  |4              | 5M             | 5min         |
-  |...            | ...            | ...          |
-  |41             | 5M             | 5min         |
-  |42             | 5M             | 5min         |
-  |43             | 5M             | 5min         |  
-  |**average**        | **1.7M**           | **8min**         |  
-  
  2. **What's the maximum memory requirement for TFC?**   
  **1GB** would be the up limit for most of the cases.   
  The majority (~90%) of the memory occupied by TFC is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, the more memory will probably be needed (it also depends on the complexity of the sequences). Based on our simulations, predicting on ~500 genes with k=15 always takes less than **1GB** memory, which means you can definately run TFC on most of today's PC.
 
- 3. **Does TFC depend on any third-party software?**   
- No. TFC is compeletely stand-alone.
-
- 4. **How precise is TFC?**  
+ 3. **How precise is TFC?**  
  **0.85+-0.04** for sensitivity and **0.99+-0.005** for specificity based on our simulations.     
  We randomly generated 50 fused transcripts and simulated illumina pair-end sequencing reads from fused transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end read simulation mode with parameters `-l 75 -ss HS25 -f 30 -m 200 -s 10` and run TFC on *paired_reads1.fq* and *paired_reads2.fq* then caculate Sensitivity and Specificity. Repeat above process for 100 time.
+
+ 4. **Does TFC depend on any third-party software?**   
+ No. TFC is compeletely stand-alone.
 
  5. **How does TFC guarantee specificity without comparing sequencing reads against regions outside targeted genes?**   
  we have several strict criteria to filter out read pairs that are likely to come from regions outside targeted loci. For instance, both ends of a pair are aligned to the constructed transcript and those pairs of any end not being aligned with a fair score will be discarded. Also, any pair with too large or too small insertion size will be filtered out.
@@ -128,7 +119,10 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
  7. **Does TFC support parallel computing?**    
  No. We realize TFC is fast enough, but this is a feature we would love to add in the near future.
 
- 8. **Is there anything I should be very careful about for `./tfc predict`?**  
+ 8.  **Is there anything I should be very careful about for `./tfc name2fasta`?**    
+ Yes, genes.gtf needs to be sorted by its 5th column as shown above. 
+
+ 9. **Is there anything I should be very careful about for `./tfc predict`?**  
  3 things.    
 
 - First, exon.fa has to be in the following format, in which *SORT1.1* indicates this is the first exon of gene *SORT1*. exon.fa can be generated by **name2fasta**     
@@ -136,7 +130,7 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
  *ATCCAGTT...TTAACACAC*    
  *\>SORT1.2        chr1|109856883  strand  - gene_id SORT1   transcript_id   NM_002959|NM_001205228| tss_id  TSS12777|TSS22486|*  
  *TACACAC...TTTTTTTTTAA*       
-- Second, When you run `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, R1.fq and R2.fq (RNA-seq) must be in the right order that R2.fq must be identical to the psoitive strand of reference genome.         
+- Second, when you run `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, R1.fq and R2.fq (RNA-seq) must be in the right order that R2.fq must be identical to the psoitive strand of reference genome.         
 - Third, name of reads has to be paired up in R1.fq and R2.fq, sort them based on read name if necessary.
 
 #### Version
