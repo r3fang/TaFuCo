@@ -24,7 +24,7 @@ Command: name2fasta     extract DNA sequences
          predict        predict gene fusions
 ```
 
-- **name2fasta** 
+- **name2fasta**  
   
 > extract *exon/transcript/CDS* sequences of targeted genes.
  
@@ -97,7 +97,7 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
 
  1. **How fast is TFC?**     
  **~6min** for 1 million read pairs.     
- TFC is 100% implemented in C. We tested TCF on 43 real RNA-seq data with various number of reads ranging from 0.9m to 4m against 506 targeted genes. On average, TFC has ~6min run per million reads.   
+ TFC is 100% implemented in C. We tested TFC on 43 real RNA-seq data with various number of reads ranging from 0.9m to 4m against 506 targeted genes. On average, TFC has ~6min run per million reads.   
  
  2. **What's the maximum memory requirement for TFC?**   
  **1GB** would be the up limit for most of the cases.   
