@@ -8,7 +8,7 @@ $ ./tfc predict exon.fa.gz A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_
 
 ##Introduction
 
-**TFC** is a super *lightweight*, *stand-alone*, *ultrafast*, *C-implemented*, *mapping-free* and *precise* Bioinformatics software desgined for **fast fusion detection** of targeted genes from RNA-seq data. It consists of two major components:
+**TFC** is a *lightweight*, *stand-alone*, *fast*, *C-implemented*, *mapping-free* and *precise* Bioinformatics software desgined for **fusion detection** between targeted genes from RNA-seq data. It consists of two major components:
  
 ```
 $ ./tfc 
@@ -83,7 +83,7 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
 ## A Full Example
 ```
 $ sort -k5,5n genes.gtf > genes.sorted.gtf
-$ ./tfc name2fasta genes.txt genes.sorted.gtf hg19.fa.gz exon.fa
+$ ./tfc name2fasta -g exon genes.txt genes.sorted.gtf hg19.fa.gz exon.fa
 $ zcat A431-1-ABGHI_S1_L001_R1_001.fastq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz
 $ zcat A431-1-ABGHI_S1_L001_R2_001.fastq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > A431-1-ABGHI_S1_L001_R2_001.sorted.fastq.gz
 $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI_S1_L001_R2_001.sorted.fastq.gz
@@ -96,24 +96,23 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  
  2. **What's the maximum memory requirement for TFC?**   
  **1GB** would be the up limit for most of the cases.   
- The majority (~90%) of the memory occupied by TFC is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, the more memory will probably be needed (it also depends on the complexity of the sequences). Based on our simulations, predicting on ~500 genes with k=15 always takes less than **1GB** memory, which means you can definately run TFC on most of today's PC.
+ The majority (~90%) of the memory occupied by TFC is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, the more memory will probably be needed (also depends on the complexity of the sequences). Based on our simulations, predicting against ~500 genes with k=15 always takes less than **1GB** memory, which means TFC can definately be used on most of today's PCs.
 
  3. **How precise is TFC?**  
- **~0.85** and **~0.99** for sensitivity and specificity on our simulated data.     
- We randomly generated 50 fused transcripts and simulated illumina pair-end sequencing reads from constructed transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end read simulation mode with parameters setting `-l 75 -ss HS25 -f 30 -m 200 -s 10` and run TFC against *paired_reads1.fq* and *paired_reads2.fq* then caculate sensitivity and specificity. Repeat above process for 200 time.
+ **~0.85** and **~0.99** for sensitivity and specificity on the simulated data.     
+ We randomly constructed 50 fused transcripts and simulated illumina pair-end sequencing reads from constructed transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end read simulation mode with parameters setting as `-l 75 -ss HS25 -f 30 -m 200 -s 10` and run TFC against simulated reads, then caculate sensitivity and specificity. Repeat above process for 200 time and get the average sensitivity and specificity.
 
- 4. **How is likelihood of fusion being calculated?**   
- In very brief, likelihood equals the product of alignment score of reads that support the fusion normalized by sequencing depth.   
- In detail, let *e(i,j)* indicates the fusion between *gene(i)* and *gene(j)* and *s(i,j)* and *junc(i,j)* be the transcript string and junction site of *e(i,j)*. Let *f(x, y)* be the alignment function between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let **S(i)** and **S(j)** be the subset of read pairs that aligned to *gene(i)* and *gene(j)* respectively. **S1(i,j)** is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and **S2(i,j)** be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
- ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440195992.jpg)    
+ 4. **How is the likelihood of fusion calculated?**   
+ In very brief, likelihood equals the product of alignment score of the reads that support the fusion normalized by sequencing depth.   
+ In detail, let *e_ij* indicates the fusion between *gene_i* and *gene_j* and *s_ij* and *junc_ij* be the real transcript string and junction of *e(i,j)*. Let *f(x, y)* be the alignment between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let *S(i)* and *S(j)* be the set of read pairs that aligned to *gene(i)* and *gene(j)* respectively. *S1_ij* is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and **S2_ij** be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
+ ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440266851.jpg)    
  in which ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440196064.jpg)
 
  5. **What's the null model for calculating p-value?**   
- In brief, p-value is the probability of observing the likelihood by null model.   
- We extracted all transcripts of targeted genes and simulate pair-end reads by art. Then run `./tfc predict` against simulated data and calculate likelihood for all gene pairs. Repeat this for 200 times and get the distribution of likelihood of every gene pair. 
+ We extracted all transcripts of targeted genes and simulated pair-end reads by art. Then run predict against the simulated data and calculate likelihood for all gene pairs. Repeat this for 200 times and get the distribution of likelihood of every gene pair as the null model. 
 
  6. **How does TFC guarantee specificity without comparing sequencing reads against regions outside targeted genes?**   
- we have several strict criteria to filter out read pairs that are likely to come from regions outside targeted loci. For instance, both ends of a pair are aligned to the constructed transcript and those pairs of any end not being aligned with score smaller than `-a FLOAT min identity score for alignment` will be discarded. Also, any pair with too large or too small insertion size will be filtered out. 
+ we have several strict criteria to filter out reads that are likely to come from regions outside targeted intervals. For instance, both ends of a pair are aligned against the constructed transcript and those pairs of any end not being successfully aligned will be discarded. Also, any pair with too large or too small insertion size will be filtered out. The likelihood of fusion will be normalized by sequencing depth of the two genes before p-value is calculated.
 
  7. **Does tfc work for single-end reads?**   
  Unfornately, TFC only works for pair-end sequencing data now, but having it run for single-end read is a feature we would love to add in the near future.
@@ -122,18 +121,13 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  No. We realize TFC is fast enough, but this is a feature we would love to add in the near future.
 
  9.  **Is there anything I should be very careful about for `./tfc name2fasta`?**    
- Yes, genes.gtf needs to be sorted by its 5th column as shown above. 
+ Yes, genes.gtf needs to be sorted by its 5th column, the end position of the feature.
 
  10. **Is there anything I should be very careful about for `./tfc predict`?**  
  3 things.    
 
-- First, exon.fa has to be in the following format, in which *SORT1.1* indicates this is the first exon of gene *SORT1*. exon.fa can be generated by **name2fasta**     
- *\>SORT1.1	chr1|109852188	strand	- gene_id	SORT1	transcript_id	NM_002959|NM_001205228|	tss_id	TSS12777|TSS22486|*     
- *ATCCAGTT...TTAACACAC*    
- *\>SORT1.2        chr1|109856883  strand  - gene_id SORT1   transcript_id   NM_002959|NM_001205228| tss_id  TSS12777|TSS22486|*  
- *TACACAC...TTTTTTTTTAA*       
-- Second, when you run `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, R1.fq and R2.fq (RNA-seq) must be in the right order that R2.fq must be identical to the psoitive strand of reference genome.         
-- Third, name of reads has to be paired up in R1.fq and R2.fq, sort them based on read name if necessary.
+- First, before running `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, user has to make sure R1.fq and R2.fq (RNA-seq) are in the right order(R2.fq must be identical to the psoitive strand of reference genome).         
+- Second, name of reads has to be paired up in R1.fq and R2.fq, sort them based on read name if necessary.
 
 ####Version     
 08.19-r15

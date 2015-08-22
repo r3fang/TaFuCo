@@ -18,3 +18,10 @@ simulation.sh
 tfc.log.txt
 tfc.result.txt
 transcript_simu.fa
+art_illumina
+art_illumina_linux
+eval.py	
+simu_fuse_transpt.py
+reads*
+test.sh
+transcript.fa
