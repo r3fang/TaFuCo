@@ -104,7 +104,7 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
 
  4. **How is the likelihood of fusion calculated?**   
  In very brief, likelihood equals the product of alignment score of the reads that support the fusion normalized by sequencing depth.   
- In detail, let *e_ij* indicates the fusion between *gene_i* and *gene_j* and *s_ij* and *junc_ij* be the real transcript string and junction of *e(i,j)*. Let *f(x, y)* be the alignment between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let *S(i)* and *S(j)* be the set of read pairs that aligned to *gene(i)* and *gene(j)* respectively. *S1_ij* is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and **S2_ij** be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
+ In detail, let *e_ij* indicates the fusion between *gene_i* and *gene_j* and *s_ij* and *junc_ij* be the real transcript string and junction of *e(i,j)*. Let *f(x, y)* be the alignment between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let *S(i)* and *S(j)* be the set of read pairs that aligned to *gene(i)* and *gene(j)* respectively. *S1_ij* is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and *S2_ij* be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
  ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440266851.jpg)    
  in which ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440196064.jpg)
 
@@ -124,7 +124,7 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  Yes, genes.gtf needs to be sorted by its 5th column, the end position of the feature.
 
  10. **Is there anything I should be very careful about for `./tfc predict`?**  
- 3 things.    
+ 2 things.    
 
 - First, before running `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, user has to make sure R1.fq and R2.fq (RNA-seq) are in the right order(R2.fq must be identical to the psoitive strand of reference genome).         
 - Second, name of reads has to be paired up in R1.fq and R2.fq, sort them based on read name if necessary.
