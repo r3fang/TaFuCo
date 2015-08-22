@@ -1,6 +1,6 @@
 ##Get Started     
 ```
-$ git clone git@github.com:r3fang/tfc.git
+$ git clone https://github.com/r3fang/tfc.git
 $ cd tfc
 $ make
 $ ./tfc predict exon.fa.gz A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz

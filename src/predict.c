@@ -1093,7 +1093,6 @@ int predict(int argc, char *argv[]) {
 	//for(s=SOLU_HT; s!=NULL; s=s->hh.next){
 	//	printf("%s\t%s\t%f\t%f\n", s->idx, s->fuse_name, s->r1->prob, s->r2->prob);
 	//}
-	
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
