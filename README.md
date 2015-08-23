@@ -91,8 +91,8 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
 ## FAQ
 
  1. **How fast is TFC?**     
- **~6min** per million read pairs using one CPU core.     
- TFC is 100% implemented in C. We tested TFC on 43 real RNA-seq data with various number of reads ranging from 0.9m to 4m against 506 targeted genes. On average, TFC has ~6min run per million reads for ~500 targeted genes.   
+ **~6min** per million pairs of reads using a single 2.7 GHz Intel Core i5 processor.
+ TFC is 100% implemented in C. We tested TFC oo more than 43 real RNA-seq data with various number of reads ranging from 0.9m to 4m against 506 targeted genes. On average, TFC has ~6min run per million reads for predicting ~500 targeted genes.   
  
  2. **What's the maximum memory requirement for TFC?**   
  **1GB** would be the up limit for most of the cases.   
@@ -100,16 +100,16 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
 
  3. **How precise is TFC?**  
  **~0.85** and **~0.99** for sensitivity and specificity on the simulated data.     
- We randomly constructed 50 fused transcripts and simulated illumina pair-end sequencing reads from constructed transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end read simulation mode with parameters setting as `-l 75 -ss HS25 -f 30 -m 200 -s 10` and run TFC against simulated reads, then caculate sensitivity and specificity. Repeat above process for 200 time and get the average sensitivity and specificity.
+ We randomly constructed 50 fused transcripts and simulated illumina pair-end sequencing reads from constructed transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end mode with parameters setting as `-p -l 75 -ss HS25 -f 30 -m 200 -s 10` and run TFC against simulated reads, then caculate sensitivity and specificity. Repeat above process for 200 time and get the average sensitivity and specificity.
 
  4. **How is the likelihood of fusion calculated?**   
- In very brief, likelihood equals the product of alignment score of the reads that support the fusion normalized by sequencing depth.   
+ In very brief, likelihood equals the product of alignment score of the reads that support the fusion normalized by the sequencing depth.   
  In detail, let *e_ij* indicates the fusion between *gene_i* and *gene_j* and *s_ij* and *junc_ij* be the real transcript string and junction of *e(i,j)*. Let *f(x, y)* be the alignment between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let *S(i)* and *S(j)* be the set of read pairs that aligned to *gene(i)* and *gene(j)* respectively. *S1_ij* is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and *S2_ij* be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
  ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440266851.jpg)    
  in which ![equation](https://github.com/r3fang/tfc/blob/master/img/Tex2Img_1440196064.jpg)
 
- 5. **What's the null model for calculating p-value?**   
- We extracted all transcripts of targeted genes and simulated pair-end reads by art. Then run predict against the simulated data and calculate likelihood for all gene pairs. Repeat this for 200 times and get the distribution of likelihood of every gene pair as the null model. 
+ 5. **What's the null model for p-value?**   
+ We extracted all transcripts of targeted genes and simulated pair-end reads by art. Then run TFC against the simulated data and calculate the likelihood for every gene pair. Repeat this for 200 times and get the distribution of likelihood of every gene pair as the null model. 
 
  6. **How does TFC guarantee specificity without comparing sequencing reads against regions outside targeted genes?**   
  we have several strict criteria to filter out reads that are likely to come from regions outside targeted intervals. For instance, both ends of a pair are aligned against the constructed transcript and those pairs of any end not being successfully aligned will be discarded. Also, any pair with too large or too small insertion size will be filtered out. The likelihood of fusion will be normalized by sequencing depth of the two genes before p-value is calculated.
