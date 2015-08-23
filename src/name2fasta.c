@@ -35,7 +35,7 @@ static char *name_trim(char *s, char delim){
  *-------
  * fasta_uthash object that contains extracted sequences.
  */
-static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
+static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT, char *genr){
 	if(fname==NULL || fname_db==NULL || HG19_HT==NULL) return NULL;
 	fasta_t *s_fasta, *cur_fasta, *ret_fasta = NULL;
 	str_ctr *s_ctr, *ctr = NULL, *gene_name_ctr = NULL;
@@ -93,7 +93,7 @@ static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT){
 		start = atoi(fields[3]);
 		end   = atoi(fields[4]);
 		
-		if(strcmp(category, "exon")==0 && ((ctr_s=find_str_ctr(gene_name_ctr, gene_name))!=NULL) && ((end - start)>0)){
+		if(strcmp(category, genr)==0 && ((ctr_s=find_str_ctr(gene_name_ctr, gene_name))!=NULL) && ((end - start)>0)){
 			if((s = find_fasta(HG19_HT, chrom))==NULL) goto CONTINUE;
 			l =  end - start;
 			name = join(7, chrom, ".", fields[3], ".", fields[4], ".", gene_name);
@@ -334,6 +334,7 @@ int name2fasta(int argc, char *argv[]) {
 	int c, i;
 	srand48(11);
 	char *gene_name, *gff_name, *oname, *iname, *genr;
+	gene_name = gff_name = oname = iname = genr = NULL;
 	while ((c = getopt(argc, argv, "g:c")) >= 0) {
 				switch (c) {
 				case 'g': genr = optarg; break;
@@ -346,9 +347,13 @@ int name2fasta(int argc, char *argv[]) {
 	gff_name = argv[optind+1];
 	iname = argv[optind+2];
 	oname = argv[optind+3];
-
-	if(strcmp(genr, "transcript")!=0 && strcmp(genr, "exon")!=0){
-		fprintf(stderr, "-g unrecognized gener 'exon' or 'transcript'\n");
+	
+	if(genr==NULL){
+		fprintf(stderr, "-g unrecognized gener 'exon', 'transcript' or 'CDS'\n");
+		return -1;		
+	}		
+	if(strcmp(genr, "transcript")!=0 && strcmp(genr, "exon")!=0 && strcmp(genr, "CDS")!=0){
+		fprintf(stderr, "-g unrecognized gener 'exon', 'transcript' or 'CDS'\n");
 		return -1;
 	}
 	
@@ -360,7 +365,7 @@ int name2fasta(int argc, char *argv[]) {
 	//
 	if(strcmp(genr, "exon")==0){
 		fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
-		if((EXON_HT = extract_exon_seq(gene_name, gff_name, GENO_HT))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
+		if((EXON_HT = extract_exon_seq(gene_name, gff_name, GENO_HT, genr))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
 	
 		fprintf(stderr, "[%s] writing down sequences ... \n",__func__);
 		if((fasta_write_exon(EXON_HT, oname))!=0) die("[%s] can't write down to %s", __func__, oname);		
@@ -373,6 +378,15 @@ int name2fasta(int argc, char *argv[]) {
 		fprintf(stderr, "[%s] writing down sequences ... \n",__func__);
 		if((fasta_write_transcript(EXON_HT, oname))!=0) die("[%s] can't write down to %s", __func__, oname);		
 	}
+
+	if(strcmp(genr, "CDS")==0){
+		fprintf(stderr, "[%s] extracting targeted gene sequences ... \n",__func__);
+		if((EXON_HT = extract_exon_seq(gene_name, gff_name, GENO_HT, genr))==NULL) die("[%s] can't extract exon sequences of %s", __func__, gene_name);
+	
+		fprintf(stderr, "[%s] writing down sequences ... \n",__func__);
+		if((fasta_write_exon(EXON_HT, oname))!=0) die("[%s] can't write down to %s", __func__, oname);		
+	}
+
 
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
     
