@@ -8,7 +8,7 @@ $ ./tfc predict exon.fa.gz A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_
 
 ##Introduction
 
-**TFC** is a *lightweight*, *stand-alone*, *fast*, *C-implemented*, *mapping-free* and *precise* Bioinformatics software desgined for **fusion detection** between targeted genes from RNA-seq data. It consists of two major components:
+**TFC** is a *lightweight*, *robust*, *stand-alone*, *fast*, *C-implemented*, *mapping-free* and *precise* Bioinformatics software desgined for **fusion detection** between targeted genes from RNA-seq data. It consists of two major components:
  
 ```
 $ ./tfc 
@@ -108,7 +108,7 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  4. **How many genes should I test each time?**  
  Let's make it clear, the more genes being tested, the more memory TFC will grep. The raltionship between number of tested genes (N) and memory usage is linear(R=0.99 when N<3000). However, running time is not affected very much by the number of tested genes, rather it is determined by the amount of fusions in the sample as has been explained in the first question. 
 
- | # of tested genes  | vmsize | vmpeak | vmrss | vmhwm |   
+ | # of tested genes  | vmsize(GB) | vmpeak(GB) | vmrss(GB) | vmhwm(GB) |   
  |:------------------:|:-------------:|:-----:|:------:|:-------:|
  | 500  | 0.29	| 0.29	|0.28	| 0.28 |
  | 1000 | 0.57	| 0.57	|0.56	| 0.56 |
