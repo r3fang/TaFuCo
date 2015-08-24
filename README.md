@@ -106,8 +106,17 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
  We randomly constructed 50 fused transcripts and simulated illumina pair-end sequencing reads from constructed transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end mode with parameters setting as `-p -l 75 -ss HS25 -f 30 -m 200 -s 10` and run TFC against simulated reads, then caculate sensitivity and specificity. Repeat above process for 200 time and get the average sensitivity and specificity.
 
  4. **How many genes should I test each time?**  
- Let's make it clear, the more genes being tested, the more memory TFC will grep. The raltionship between number of genes and memory usage is shown below figure. However, running time is not affected much by the number of tested genes, rather it is determined by the amount of fusion in the sample as explained in the first question. 
+ Let's make it clear, the more genes being tested, the more memory TFC will grep. The raltionship between number of tested genes (N) and memory usage is linear(R=0.99 when N<3000). However, running time is not affected very much by the number of tested genes, rather it is determined by the amount of fusions in the sample as has been explained in the first question. 
 
+ | # of tested genes  | vmsize | vmpeak | vmrss | vmhwm |
+ |:------------------:|:-------------:|:-----:|:---------:
+ |500  |0.29	|0.29	|0.28	|0.28|
+ |1000 |0.57	|0.57	|0.56	|0.56|
+ |1500 |0.89	|0.89	|0.88	|0.88|
+ |2000 |1.19	|1.19	|1.19	|1.19|
+ |2500 |1.54	|1.59	|1.53	|1.58|
+ |3000 |1.89	|1.89	|1.88	|1.88|
+ 
  5. **How is the likelihood of fusion calculated?**   
  In very brief, likelihood equals the product of alignment score of the reads that support the fusion normalized by the sequencing depth.   
  In detail, let *e_ij* indicates the fusion between *gene_i* and *gene_j* and *s_ij* and *junc_ij* be the real transcript string and junction of *e(i,j)*. Let *f(x, y)* be the alignment between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let *S(i)* and *S(j)* be the set of read pairs that aligned to *gene(i)* and *gene(j)* respectively. *S1_ij* is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and *S2_ij* be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by      
