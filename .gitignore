@@ -25,3 +25,5 @@ simu_fuse_transpt.py
 reads*
 test.sh
 transcript.fa
+eval.py
+files.txt
