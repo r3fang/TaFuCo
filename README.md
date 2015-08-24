@@ -91,8 +91,54 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI
 ## FAQ
 
  1. **How fast is TFC?**     
- **~6min** per million pairs of reads using a single 2.7 GHz Intel Core i5 processor.
- TFC is 100% implemented in C. We tested TFC oo more than 43 real RNA-seq data with various number of reads ranging from 0.9m to 4m against 506 targeted genes. On average, TFC has ~6min run per million reads for predicting ~500 targeted genes.   
+ **~5min** per million read pairs using a single 2.7 GHz Intel Core i5 processor.
+ TFC is 100% implemented in C. We tested TFC against 43 real RNA-seq data with various number of reads ranging from ~6000 to 2.4 million against 506 targeted genes. On average, TFC has ~5min run per million reads for predicting ~500 targeted genes.   
+ 
+ | Sample Name        | Reads Number  | Time Span  |
+ |:------------- |:-------------:| -----:|
+ | A431-1-ABGHI_S1_L001 | 859413 | 6 min 12 sec |
+ | A431-2-ABGHI_S2_L001 | 839632 | 6 min 28 sec |
+ | A549-1-ABGHI_S3_L001 | 536633 | 0 min 43 sec |
+ | A549-2-ABGHI_S4_L001 | 696223 | 1 min 5 sec |
+ | BT549-1-ABGHI_S5_L001 | 631508 | 0 min 49 sec |
+ | BT549-2-ABGHI_S6_L001 | 712527 | 0 min 45 sec |
+ | hek293-1-ABGHI_S7_L001 | 357691 | 0 min 36 sec |
+ | hek293-2-ABGHI_S8_L001 | 181119 | 0 min 20 sec |
+ | hela-1-ABGHI_S9_L001 | 531210 | 0 min 50 sec |
+ | hela-2-ABGHI_S10_L001 | 439563 | 0 min 28 sec |
+ | HL60-1-ABGHI_S11_L001 | 887683 | 1 min 16 sec |
+ | HL60-2-ABGHI_S12_L001 | 593616 | 0 min 49 sec |
+ | jurkat-1-ABGHI_S13_L001 | 487665 | 0 min 39 sec |
+ | jurkat-2-ABGHI_S14_L001 | 583061 | 1 min 3 sec |
+ | k562-1-ABGHI_S15_L001 | 694068 | 18 min 55 sec |
+ | K562-2-ABGHI_S16_L001 | 620246 | 14 min 7 sec |
+ | LNCAP-1-ABGHI_S17_L001 | 663056 | 1 min 0 sec |
+ | LNCAP-2-ABGHI_S18_L001 | 736238 | 1 min 1 sec |
+ | mcf7-1-ABGHI_S19_L001 | 722421 | 0 min 50 sec |
+ | mcf7-2-ABGHI_S20_L001 | 941838 | 1 min 21 sec |
+ | MCF7-e10-1-ABGHI_S41_L001 | 1053021 | 7 min 1 sec |
+ | MCF7-e10-2-ABGHI_S42_L001 | 821918 | 4 min 42 sec |
+ | MCF7-e6-1-ABGHI_S33_L001 | 536352 | 6 min 40 sec |
+ | MCF7-e6-2-ABGHI_S34_L001 | 697105 | 12 min 19 sec |
+ | MCF7-e7-1-ABGHI_S35_L001 | 642580 | 7 min 3 sec |
+ | MCF7-e7-2-ABGHI_S36_L001 | 721377 | 4 min 2 sec |
+ | MCF7-e8-1-ABGHI_S37_L001 | 504761 | 3 min 9 sec |
+ | MCF7-e8-2-ABGHI_S38_L001 | 507259 | 2 min 45 sec |
+ | MCF7-e9-1-ABGHI_S39_L001 | 417075 | 2 min 18 sec |
+ | MCF7-e9-2-ABGHI_S40_L001 | 772557 | 4 min 13 sec |
+ | PC3-1-ABGHI_S21_L001 | 1003453 | 2 min 6 sec |
+ | PC3-2-ABGHI_S22_L001 | 979234 | 1 min 44 sec |
+ | RAJI-1-ABGHI_S23_L001 | 766189 | 1 min 4 sec |
+ | RAJI-2-ABGHI_S24_L001 | 834701 | 1 min 4 sec |
+ | T47D-1-ABGHI_S25_L001 | 449749 | 0 min 36 sec |
+ | T47D-2-ABGHI_S26_L001 | 336883 | 0 min 27 sec |
+ | thp1-1-ABGHI_S27_L001 | 494608 | 4 min 13 sec |
+ | THP1-2-ABGHI_S28_L001 | 462955 | 4 min 42 sec |
+ | U2OS-1-ABGHI_S29_L001 | 6049 | 0 min 6 sec |
+ | U2OS-2-ABGHI_S30_L001 | 645021 | 0 min 43 sec |
+ | UHRR-1-ABGHI_S31_L001 | 2356035 | 7 min 28 sec |
+ | UHRR-2-ABGHI_S32_L001 | 1815085 | 7 min 22 sec |
+ | Undetermined_S0_L001 | 1861592 | 26 min 55 sec |
  
  2. **What's the maximum memory requirement for TFC?**   
  **1GB** would be the up limit for most of the cases.   
