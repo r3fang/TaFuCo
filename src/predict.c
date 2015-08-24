@@ -915,10 +915,11 @@ static solution_pair_t *solution_uniq(solution_pair_t *sol){
 	return sol_ret;
 }
 
-static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha, int beta){
+static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha){
 	if(sol==NULL || *bag==NULL) return -1;
 	solution_pair_t *sol_cur;
 	bag_t *bag_cur;
+	float prob;
 	/* initilize */
 	for(bag_cur=*bag; bag_cur!=NULL; bag_cur=bag_cur->hh.next){
 		bag_cur->likehood = 0;
@@ -926,8 +927,9 @@ static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha, int beta){
 	}
 	for(sol_cur=sol; sol_cur!=NULL; sol_cur=sol_cur->hh.next){
 		if((bag_cur=find_edge(*bag, sol_cur->fuse_name))!=NULL){
-			bag_cur->likehood += (sol_cur->junc_name!=NULL) ? alpha*log(1-sol_cur->r1->prob+EPSILON)*log(1-sol_cur->r2->prob+EPSILON) : beta*log(1-sol_cur->r1->prob+EPSILON)*log(1-sol_cur->r2->prob+EPSILON);
-			bag_cur->weight   += (sol_cur->junc_name!=NULL) ? alpha : beta;
+			prob = sol_cur->r1->prob*sol_cur->r2->prob;
+			bag_cur->likehood += (sol_cur->junc_name!=NULL) ? -alpha*log10(1.1 - prob) : -log10(1.1 - prob);
+			bag_cur->weight   += (sol_cur->junc_name!=NULL) ? alpha : 1;
 		}
 	}
 	return 0;
@@ -936,8 +938,6 @@ static int fuse_score(solution_pair_t *sol, bag_t **bag, int alpha, int beta){
 static int output(bag_t *bag, gene_t *gene, opt_t *opt){
 	if(bag==NULL) return -1;
 	if(HASH_COUNT(bag)==0) return -1;
-	//printf("gene1      gene2      hits       L  \n");
-	//printf("-----      -----      -----      -----\n");
 	bag_t  *cur_bag;
 	gene_t *cur_gene1, *cur_gene2;
 	for(cur_bag=BAGR_HT; cur_bag!=NULL; cur_bag=cur_bag->hh.next){
@@ -949,7 +949,7 @@ static int output(bag_t *bag, gene_t *gene, opt_t *opt){
 			if(cur_gene2) gene_destory(&cur_gene2);
 			continue;
 		}
-		printf("%s\t%s\t%5d\t%.2f\n", cur_bag->gname1, cur_bag->gname2, cur_bag->weight, cur_bag->likehood/(cur_gene1->hits + cur_gene2->hits+1));	
+		printf("%s\t%s\t%5d\t%.2f\n", cur_bag->gname1, cur_bag->gname2, cur_bag->weight, (cur_bag->likehood/(cur_gene1->hits + cur_gene2->hits+1))*1000000);	
 	}
 	return 0;
 }
@@ -1082,18 +1082,18 @@ int predict(int argc, char *argv[]) {
 	}
 
 	/* score the fusion */
-	if(fuse_score(SOLU_HT, &BAGR_HT, 3, 1)!=0){
+	if(fuse_score(SOLU_HT, &BAGR_HT, opt->alpha)!=0){
     	fprintf(stderr, "[%s] fail to score fusion\n", __func__);
     	return -1;		
 	}
 	
 	output(BAGR_HT, GENE_HT, opt);
-
-	//solution_pair_t *s;
-	//for(s=SOLU_HT; s!=NULL; s=s->hh.next){
-	//	printf("%s\t%s\t%f\t%f\n", s->idx, s->fuse_name, s->r1->prob, s->r2->prob);
-	//}
-	fprintf(stderr, "[%s] cleaning up ... \n", __func__);	
+	
+	mem_t *tmp = mem_usage(PROC_SELF_STATUS);
+	fprintf(stderr, "[%s] vmsize=%dkb\tvmpeak=%dkb\tvmrss=%dkb\tvmhwm=%dkb\n", __func__, tmp->vmsize, tmp->vmpeak, tmp->vmrss, tmp->vmhwm);	
+	
+	fprintf(stderr, "[%s] cleaning up ... \n", __func__);
+	if(tmp)	                      free(tmp);
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);

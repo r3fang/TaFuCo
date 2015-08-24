@@ -72,6 +72,7 @@ static            bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BA
 static           gene_t   *GENE_HT     = NULL; 
 static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
 static  solution_pair_t   *SOLU_UNIQ_HT     = NULL;  // alignment solition of reads against JUN0_HT
+static             char   *PROC_SELF_STATUS = "/proc/self/status";
 
 /* intitlize opt_t object */
 static inline opt_t *opt_init(){

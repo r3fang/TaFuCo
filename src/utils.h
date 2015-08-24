@@ -299,4 +299,106 @@ join (int num, ... )
     return ret;                      
 }
 
+
+typedef struct
+{
+	int vmsize;
+	int vmpeak;
+	int vmrss;
+	int vmhwm;
+} mem_t;
+
+static inline mem_t *mem_init(){
+	mem_t *ret = mycalloc(1, mem_t);
+	ret->vmsize = 0;
+	ret->vmpeak = 0;
+	ret->vmrss = 0;
+	ret->vmhwm = 0;
+	return ret;
+}
+
+static inline mem_t *mem_usage(char *pidstatus)
+{
+	if(pidstatus==NULL) return NULL;
+	mem_t *ret = mem_init();
+	char *line;
+	char *vmsize;
+	char *vmpeak;
+	char *vmrss;
+	char *vmhwm;
+	size_t len;
+	
+	FILE *f;
+
+	vmsize = NULL;
+	vmpeak = NULL;
+	vmrss = NULL;
+	vmhwm = NULL;
+	line = malloc(128);
+	len = 128;
+	
+	f = fopen(pidstatus, "r");
+	if (!f) return NULL;
+	
+	/* Read memory size data from /proc/pid/status */
+	while (!vmsize || !vmpeak || !vmrss || !vmhwm)
+	{
+		if (getline(&line, &len, f) == -1)
+		{
+			/* Some of the information isn't there, die */
+			return NULL;
+		}
+		
+		/* Find VmPeak */
+		if (!strncmp(line, "VmPeak:", 7))
+		{
+			vmpeak = strdup(&line[7]);
+		}
+		
+		/* Find VmSize */
+		else if (!strncmp(line, "VmSize:", 7))
+		{
+			vmsize = strdup(&line[7]);
+		}
+		
+		/* Find VmRSS */
+		else if (!strncmp(line, "VmRSS:", 6))
+		{
+			vmrss = strdup(&line[7]);
+		}
+		
+		/* Find VmHWM */
+		else if (!strncmp(line, "VmHWM:", 6))
+		{
+			vmhwm = strdup(&line[7]);
+		}
+	}
+	free(line);
+	
+	fclose(f);
+
+	/* Get rid of " kB\n"*/
+	len = strlen(vmsize);
+	vmsize[len - 4] = 0;
+	len = strlen(vmpeak);
+	vmpeak[len - 4] = 0;
+	len = strlen(vmrss);
+	vmrss[len - 4] = 0;
+	len = strlen(vmhwm);
+	vmhwm[len - 4] = 0;
+	
+	/* Output results to stderr */
+	ret->vmsize = atoi(vmsize);
+	ret->vmpeak = atoi(vmpeak);
+	ret->vmrss = atoi(vmrss);
+	ret->vmhwm = atoi(vmhwm);
+
+	free(vmpeak);
+	free(vmsize);
+	free(vmrss);
+	free(vmhwm);
+	
+	/* Success */
+	return ret;
+}
 #endif

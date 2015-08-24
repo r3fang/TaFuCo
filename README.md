@@ -84,9 +84,7 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
 ```
 $ sort -k5,5n genes.gtf > genes.sorted.gtf
 $ ./tfc name2fasta -g exon genes.txt genes.sorted.gtf hg19.fa.gz exon.fa
-$ zcat A431-1-ABGHI_S1_L001_R1_001.fastq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz
-$ zcat A431-1-ABGHI_S1_L001_R2_001.fastq.gz | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n' | gzip > A431-1-ABGHI_S1_L001_R2_001.sorted.fastq.gz
-$ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.sorted.fastq.gz A431-1-ABGHI_S1_L001_R2_001.sorted.fastq.gz
+$ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
 ## FAQ
 
