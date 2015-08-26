@@ -91,10 +91,7 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L00
  1. **How fast is TFC?**     
  On average, **~5min** per million read pairs using a single x86_64 32-bit 2000 MHz GenuineIntel processor.   
  We tested TFC against ~40 real targeted RNA-seq data of 75bp for read length with various number of reads ranging from ~6000 to 2.4 million against 506 targeted genes. On average, TFC has ~5min run per million reads. However, the relation is not absolutely linear. For instance, as you can see from the figure below, sometime the running time varies largely between 2 samples with similar number of reads. The reason for that is most of running time is spent for aligning reads that support fusion against corresponding transcript, therefore, the more fusions in the sample identified, the longer TFC usually lasts. 
-<p align="center">
-  <img src="https://github.com/r3fang/tfc/blob/master/img/time_sample.jpg" width="400px" height="350px">
-</p>
- 
+
  2. **What's the maximum memory requirement for TFC?**   
  **1GB** would be the up limit for most of the cases.   
  The majority (~90%) of the memory occupied by TFC is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, the more memory will probably be needed (also depends on the complexity of the sequences). Based on our simulations, predicting against ~500 genes with k=15 always takes less than **1GB** memory, which means TFC can definately be used on most of today's PCs.
