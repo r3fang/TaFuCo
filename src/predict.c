@@ -1088,12 +1088,8 @@ int predict(int argc, char *argv[]) {
 	}
 	
 	output(BAGR_HT, GENE_HT, opt);
-	
-	mem_t *tmp = mem_usage(PROC_SELF_STATUS);
-	fprintf(stderr, "[%s] vmsize=%dkb\tvmpeak=%dkb\tvmrss=%dkb\tvmhwm=%dkb\n", __func__, tmp->vmsize, tmp->vmpeak, tmp->vmrss, tmp->vmhwm);	
-	
+		
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);
-	if(tmp)	                      free(tmp);
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
 	if(KMER_HT)           kmer_destroy(&KMER_HT);
 	if(BAGR_HT)            bag_destory(&BAGR_HT);
