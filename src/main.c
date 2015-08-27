@@ -5,7 +5,7 @@
 #include "predict.h"
 
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "08.19-r15"
+#define PACKAGE_VERSION "08.26-r15"
 #endif
 
 int name2fasta(int argc, char *argv[]);
