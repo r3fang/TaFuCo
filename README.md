@@ -1,3 +1,5 @@
+[![Illumina](https://github.com/r3fang/tfc/tree/master/img/Illumina_logo.jpg)](https://www.illumina.com/)
+
 ##Get Started     
 ```
 $ git clone https://github.com/r3fang/tfc.git
