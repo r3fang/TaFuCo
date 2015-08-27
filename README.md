@@ -94,11 +94,11 @@ Inputs:  exon.fa   .fasta file that contains exon sequences of
 
 ![workflow](https://github.com/r3fang/tfc/blob/master/img/workflow.jpg)
 
-## A Full Example for Rapid Mode
+### A Full Example for Rapid Mode
 ```
 $ ./tfc rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
-## A Full Example for Predict Mode
+### A Full Example for Predict Mode
 ```
 $ sort -k5,5n genes.gtf > genes.sorted.gtf
 $ ./tfc name2fasta -g exon genes.txt genes.sorted.gtf hg19.fa.gz exon.fa
