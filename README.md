@@ -135,35 +135,25 @@ $ ./tfc predict exon.fa A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L00
  | 3000 | 1.89	| 1.89	|1.88	| 1.88 |
  
  6. **How is the likelihood of fusion calculated?**   
- Let 
- In detail, let *e_ij* indicates the fusion between *gene_i* and *gene_j* and *s_ij* and *junc_ij* be the real transcript string and junction of *e(i,j)*. Let *f(x, y)* be the alignment between quary string *x* and reference *y*, for any *x* and *y* (*f(x,y)* is always between [0,1]). Let *S(i)* and *S(j)* be the set of read pairs that aligned to *gene(i)* and *gene(j)* respectively. *S1_ij* is the subset of read pairs that support *e(i,j)* and overlapped with *junc(i,j)* and *S2_ij* be the subset of read pairs also also support *e(i,j)* but not overlaped with *junc(i,j)*. Liklihood of *e(i,j)* can be calculated by  
+ Let Si, Sj be the set of reads that match with gene_i and gene_j respectively. S1_ij is a set of reads that support fusion e_ij and overlap with its junction. S2_ij is a set of reads that support fusion e_ij but not overlapping with its junction. f(s) indicates the alignment score of s against the real transcript of the fusion. Then the likelihood equals the product of alignment score of reads that support the fusion normalized by sequencing depth.
 <p align="center">
-  <img src="https://github.com/r3fang/tfc/blob/master/img/likelihood.jpg" width="400px" height="350px">
+  <img src="https://github.com/r3fang/tfc/blob/master/img/likelihood.jpg" width="400px" height="250px">
 </p>
  
  7. **What's the null model for p-value?**   
- We extracted all transcripts of targeted genes and simulated pair-end reads by art. Then run TFC against the simulated data and calculate the likelihood for every gene pair. Repeat this for 200 times and get the distribution of likelihood of every gene pair as the null model. 
+ We extracted normal transcripts of targeted genes and simulated pair-end reads from the normal transcripts. Then run TFC against the simulated data and calculate the likelihood for every gene pair. Repeat this for 200 times and get the distribution of likelihood of every gene pair as the null model. 
 
  8. **How does TFC guarantee specificity without comparing sequencing reads against regions outside targeted genes?**   
  we have several strict criteria to filter out reads that are likely to come from regions outside targeted intervals. For instance, both ends of a pair are aligned against the constructed transcript and those pairs of any end not being successfully aligned will be discarded. Also, any pair with too large or too small insertion size will be filtered out. The likelihood of fusion will be normalized by sequencing depth of the two genes before p-value is calculated.
 
- 9. **Does tfc work for single-end reads?**   
- Unfornately, TFC only works for pair-end sequencing data now, but having it run for single-end read is a feature we would love to add in the near future.
-
- 10. **Does TFC support parallel computing?**    
- No. We realize TFC is fast enough, but this is a feature we would love to add in the near future.
-
- 11.  **Is there anything I should be very careful about for `./tfc name2fasta`?**    
+ 9.  **Is there anything I should be very careful about for `./tfc name2fasta`?**    
  Yes, genes.gtf needs to be sorted by its 5th column, the end position of the feature.
 
- 12. **Is there anything I should be very careful about for `./tfc predict`?**  
- 2 things.    
-
-- First, before running `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, user has to make sure R1.fq and R2.fq (RNA-seq) are in the right order(R2.fq must be identical to the psoitive strand of reference genome).         
-- Second, name of reads has to be paired up in R1.fq and R2.fq, sort them based on read name if necessary.
+ 10. **Is there anything I should be very careful about for `./tfc predict`?**  
+ Yes, before running `tfc predict [options] <exon.fa> <R1.fq> <R2.fq>`, user has to make sure R1.fq and R2.fq (RNA-seq) are in the right order that R2.fq must be identical to the psoitive strand of reference genome.         
 
 ####Version     
-08.19-r15
+08.26-r15
 
 ####Author     
 Rongxin Fang    
