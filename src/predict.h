@@ -33,6 +33,7 @@
 #define MIN_MIN_ALIGN_SCORE         0
 #define MAX_MIN_ALIGN_SCORE         1
 #define EPSILON                     0.1
+#define FASTA_NAME                  "./data/exon.fa.gz"
 
 //gene_t
 typedef struct {
@@ -151,5 +152,9 @@ static int pred_usage(opt_t *opt);
  * main function, called by main.c
  */
 int predict(int argc, char *argv[]);
+
+int rapid(int argc, char *argv[]);
+
+static int rapid_usage(opt_t *opt);
 
 #endif
