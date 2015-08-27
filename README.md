@@ -1,4 +1,4 @@
-[![Illumina](https://github.com/r3fang/tfc/tree/master/img/Illumina_logo.jpg)](https://www.illumina.com/)
+[<img src="https://github.com/r3fang/tfc/blob/master/img/sp5.jpg" width="110px" height="40px">](https://www.illumina.com/)
 
 ##Get Started     
 ```
