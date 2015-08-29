@@ -47,7 +47,12 @@ fasta_destroy(fasta_t **tb) {
 	HASH_ITER(hh, *tb, cur, tmp) {
 		if(cur == NULL) die("fasta_uthash_destroy: HASH_ITER fails\n");
 		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
-		free(cur);            /* free it */
+		if(cur->seq) free(cur->seq);            /* free it */
+		if(cur->chrom) free(cur->chrom);            /* free it */
+		if(cur->strand) free(cur->strand);            /* free it */
+		if(cur->gene_id) free(cur->gene_id);            /* free it */
+		if(cur->gene_name) free(cur->gene_name);            /* free it */
+		if(cur)      free(cur);                 /* free it */
 	}
 	return FA_ERR_NONE;
 }
