@@ -27,3 +27,5 @@ test.sh
 transcript.fa
 eval.py
 files.txt
+simu_fuse_transcript.py
+simulate_null_model.sh
