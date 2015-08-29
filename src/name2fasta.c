@@ -35,7 +35,7 @@ static char *name_trim(char *s, char delim){
  *-------
  * fasta_uthash object that contains extracted sequences.
  */
-static fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT, char *genr){
+fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT, char *genr){
 	if(fname==NULL || fname_db==NULL || HG19_HT==NULL) return NULL;
 	fasta_t *s_fasta, *cur_fasta, *ret_fasta = NULL;
 	str_ctr *s_ctr, *ctr = NULL, *gene_name_ctr = NULL;

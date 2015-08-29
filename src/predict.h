@@ -46,6 +46,8 @@ typedef struct {
 
 //opt
 typedef struct {
+	char* gfile;
+	char* gtf;
 	char* fq1; 
 	char* fq2; 
 	char* fa; 
@@ -74,16 +76,19 @@ static           gene_t   *GENE_HT     = NULL;
 static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
 static  solution_pair_t   *SOLU_UNIQ_HT     = NULL;  // alignment solition of reads against JUN0_HT
 static             char   *PROC_SELF_STATUS = "/proc/self/status";
+static          fasta_t   *GENO_HT     = NULL;
 
 /* intitlize opt_t object */
 static inline opt_t *opt_init(){
 	opt_t *opt = mycalloc(1, opt_t);
+	opt->gfile = NULL;
+	opt->gtf = NULL;
 	opt->fq1 = NULL;
 	opt->fq2 = NULL;
 	opt->fa = NULL;
 	opt->k = 15;
 	opt->min_kmer_match = 10;
-	opt->min_edge_weight = 3;	
+	opt->min_edge_weight = 4;	
 	opt->match = 2;
 	opt->mismatch = -2.0;
 	opt->gap = -5.0;
@@ -101,6 +106,8 @@ static inline opt_t *opt_init(){
 
 /* destory opt_t object */
 static inline void destory_opt(opt_t *opt){
+	if(opt->gfile) free(opt->gfile);
+	if(opt->gtf) free(opt->gtf);
 	if(opt->fq1) free(opt->fq1);
 	if(opt->fq2) free(opt->fq2);
 	if(opt->fa)  free(opt->fa);

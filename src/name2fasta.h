@@ -28,4 +28,6 @@ int name2fasta_usage();
  */
 int name2fasta(int argc, char *argv[]);
 
+fasta_t *extract_exon_seq(char* fname, char *fname_db, fasta_t *HG19_HT, char *genr);
+
 #endif
