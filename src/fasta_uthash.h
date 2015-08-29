@@ -9,9 +9,6 @@
 #include "kseq.h"
 #include "utils.h"
 
-/* error code */
-#define FA_ERR_NONE		     0 // no error
-
 typedef struct{
     char *name;                /* key */
 	char *chrom;
@@ -47,9 +44,14 @@ fasta_destroy(fasta_t **tb) {
 	HASH_ITER(hh, *tb, cur, tmp) {
 		if(cur == NULL) die("fasta_uthash_destroy: HASH_ITER fails\n");
 		HASH_DEL(*tb, cur);  /* delete it (users advances to next) */
-		free(cur);            /* free it */
+		if(cur->seq)       free(cur->seq);            /* free it */
+		if(cur->chrom)     free(cur->chrom);            /* free it */
+		if(cur->strand)    free(cur->strand);            /* free it */
+		if(cur->gene_id)   free(cur->gene_id);            /* free it */
+		if(cur->gene_name) free(cur->gene_name);            /* free it */
+		if(cur)            free(cur);                 /* free it */
 	}
-	return FA_ERR_NONE;
+	return 0;
 }
 
 static inline int
@@ -60,7 +62,7 @@ fasta_display(fasta_t *tb) {
 		if(cur == NULL) die("fasta_uthash_display: fail to iterate uthash table\n");
 		printf(">%s\n%s\n", cur->name, cur->seq);
 	}	
-	return FA_ERR_NONE;
+	return 0;
 }
 
 static inline int
