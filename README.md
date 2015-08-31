@@ -9,7 +9,7 @@ $ ./tfc rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.f
 
 ##Introduction
 
-**TFC** is a precise, fast, stand-alone, C-implemented and mapping-free Bioinformatics software designed for **fusion detection** from RNA-seq data. TFC has two modes, **rapid** and **predict**, **rapid** requires only two .fastq files and allows user to have a quick prediction against a list of predefined gene candidates with fixed parameter setting. **predict**, however, allows user to decide the gene candidates and parameters themselves. In brief, **rapid** is easier to use and **predict** is more flexible.
+**TFC** is a precise, fast, stand-alone, C-implemented and mapping-free Bioinformatics software designed for **fusion detection** from RNA-seq data. TFC has two modes, **rapid** and **predict**, **rapid** requires only two .fastq files and allows user to have a quick prediction against a list of pre-defined gene candidates with fixed parameter setting. **predict**, however, allows user to decide the gene candidates and parameters themselves. In brief, **rapid** is easier to use and **predict** is more flexible.
 
 ```
 $ ./tfc 
