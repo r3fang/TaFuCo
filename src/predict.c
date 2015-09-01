@@ -19,8 +19,6 @@ static junction_t *transcript_construct_junc(junction_t *junc_ht, fasta_t *exon_
 static inline int find_all_genes(str_ctr **hash, kmer_t *KMER_HT, char* _read, int _k);
 static int update_fusion(bag_t **edge, solution_pair_t **res, opt_t *opt);
 
-
-
 /*
  * Description:
  *------------
@@ -1017,6 +1015,52 @@ static fasta_t* convert_exon_seq(fasta_t *fa){
 	}
 	return ret;
 }
+
+static back_t* read_background(char* fname){
+	if(fname==NULL) return NULL;
+	back_t *back_cur, *back_ret = NULL;
+	char  *line = NULL;
+	size_t len = 0;
+	int l;
+	ssize_t read;
+	char  **fields = NULL;
+	int num; 
+	char *edge_name;
+	int i, j;
+	FILE * fp = fopen (fname, "r");
+	if(fp==NULL) die("[%s] can't open %s", __func__, fname); 
+	while ((read = getline(&line, &len, fp)) != -1) {
+		if((fields = strsplit(line, 0, &num))==NULL) continue; // get rid of \n 
+		if(num==4){
+			int rc = strcmp(fields[0], fields[1]);
+			if(rc<0)  edge_name = concat(concat(fields[0], "_"), fields[1]);
+			if(rc>0)  edge_name = concat(concat(fields[1], "_"), fields[0]);
+			if(rc==0) edge_name = NULL;
+			if(edge_name!=NULL){
+				if((back_cur = find_back(back_ret, edge_name))==NULL){
+					back_cur = back_init();
+					back_cur->key = strdup(edge_name);
+					back_cur->arr_num = 1;
+					back_cur->arr = mycalloc(1, float);
+					back_cur->arr[0] = atof(fields[3]);
+					HASH_ADD_STR(back_ret, key, back_cur);
+				}else{
+					back_cur->arr_num ++;
+					back_cur->arr = realloc(back_cur->arr, back_cur->arr_num*sizeof(*back_cur->arr));
+					back_cur->arr[back_cur->arr_num-1] = atof(fields[3]);
+				}
+			}		
+		}
+		if(fields){
+			for(i=0; i<num; i++) free(fields[i]);
+			free(fields);
+		}
+		
+		free(edge_name);
+	}
+	fclose(fp);
+	return back_ret;
+}
 /*--------------------------------------------------------------------*/
 /*  predict  */
 int predict(int argc, char *argv[]) {
@@ -1152,67 +1196,70 @@ int rapid(int argc, char *argv[]) {
 	if (optind + 2 > argc) return rapid_usage(opt);
 	opt->fq1 = argv[optind+0];  // read1
 	opt->fq2 = argv[optind+1];  // read2
-	
-	opt->fa = FASTA_NAME;
-	fprintf(stderr, "[%s] loading sequences of targeted genes ... \n",__func__);
-	if((EXON_HT = fasta_read(opt->fa)) == NULL) die("[%s] fail to read %s", __func__, opt->fa);	
-
-	fprintf(stderr, "[%s] getting genes infomration ... \n",__func__);
-	if((GENE_HT = fasta_get_info(EXON_HT)) == NULL) die("[%s] fail to gene genes' information", __func__);	
-	
-	fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
-	if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__);
-    
-	fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
-	if((BAGR_HT = bag_construct(KMER_HT, &GENE_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
-	
-	fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
-	if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
-		fprintf(stderr, "[%s] fail to trim graph \n", __func__);
-		return -1;
-	}
-	if(BAGR_HT == NULL) return 0;
-	
-	fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
-	if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
-		fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
-		return -1;	
-	}
-	if(BAGR_HT == NULL) return 0;
-	
-    fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
-    if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
-    	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
-    	return -1;	
-    }
-    
-    fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
-    if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
-    	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
-    	return -1;		
-    }
-	 
-    fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
-    if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
-    	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
-    	return -1;			
-    }
+	BACK_HT = read_background(BACKGROUND_FILE);
+	printf("asdasdas");
+	display_back(BACK_HT);
+	//opt->fa = FASTA_NAME;
+	//fprintf(stderr, "[%s] loading sequences of targeted genes ... \n",__func__);
+	//if((EXON_HT = fasta_read(opt->fa)) == NULL) die("[%s] fail to read %s", __func__, opt->fa);	
+    //
+	//fprintf(stderr, "[%s] getting genes infomration ... \n",__func__);
+	//if((GENE_HT = fasta_get_info(EXON_HT)) == NULL) die("[%s] fail to gene genes' information", __func__);	
+	//
+	//fprintf(stderr, "[%s] indexing sequneces by kmer hash table ... \n",__func__);
+	//if((KMER_HT = kmer_index(EXON_HT, opt->k))==NULL) die("[%s] can't index exon sequences", __func__);
+    //
+	//fprintf(stderr, "[%s] constructing breakend associated graph ... \n", __func__);
+	//if((BAGR_HT = bag_construct(KMER_HT, &GENE_HT, opt->fq1, opt->fq2, opt->min_kmer_match, opt->min_edge_weight, opt->k)) == NULL) return 0;
+	//
+	//fprintf(stderr, "[%s] triming graph by removing edges of weight smaller than %d... \n", __func__, opt->min_edge_weight);
+	//if(bag_trim(&BAGR_HT, opt->min_edge_weight)!=0){
+	//	fprintf(stderr, "[%s] fail to trim graph \n", __func__);
+	//	return -1;
+	//}
+	//if(BAGR_HT == NULL) return 0;
+	//
+	//fprintf(stderr, "[%s] identifying junctions for every fusion candiates... \n", __func__);
+	//if(bag_junction_gen(&BAGR_HT, EXON_HT, KMER_HT, opt)!=0){
+	//	fprintf(stderr, "[%s] fail to identify junctions\n", __func__);
+	//	return -1;	
+	//}
+	//if(BAGR_HT == NULL) return 0;
+	//
+    //fprintf(stderr, "[%s] constructing transcript for identified junctions ... \n", __func__);		
+    //if((bag_transcript_gen(&BAGR_HT, EXON_HT, opt))!=0){
+    //	fprintf(stderr, "[%s] fail to construct transcript\n", __func__);
+    //	return -1;	
+    //}
+    //
+    //fprintf(stderr, "[%s] testing junctions ... \n", __func__);		
+    //if((test_junction(&SOLU_HT, &BAGR_HT, opt))!=0){
+    //	fprintf(stderr, "[%s] fail to rescan reads\n", __func__);
+    //	return -1;		
+    //}
+	// 
+    //fprintf(stderr, "[%s] testing fusion ... \n", __func__);			
+    //if((test_fusion(&SOLU_HT, &BAGR_HT, opt))!=0){
+    //	fprintf(stderr, "[%s] fail to align supportive reads to transcript\n", __func__);
+    //	return -1;			
+    //}
 	
 	/* get rid of the duplicate reads*/
 	//if((SOLU_UNIQ_HT = solution_uniq(SOLU_HT))==NULL) return 0;
 	
-	if(SOLU_HT==NULL){
-    	fprintf(stderr, "[%s] no fusion identified\n", __func__);
-    	return 0;		
-	}
+	//if(SOLU_HT==NULL){
+    //	fprintf(stderr, "[%s] no fusion identified\n", __func__);
+    //	return 0;		
+	//}
 
 	/* score the fusion */
-	if(fuse_score(SOLU_HT, &BAGR_HT, opt->alpha)!=0){
-    	fprintf(stderr, "[%s] fail to score fusion\n", __func__);
-    	return -1;		
-	}
+	//if(fuse_score(SOLU_HT, &BAGR_HT, opt->alpha)!=0){
+    //	fprintf(stderr, "[%s] fail to score fusion\n", __func__);
+    //	return -1;		
+	//}
 	
-	output(BAGR_HT, GENE_HT, opt);
+	//output(BAGR_HT, GENE_HT, opt);
+	
 		
 	fprintf(stderr, "[%s] cleaning up ... \n", __func__);
 	if(EXON_HT)          fasta_destroy(&EXON_HT);
@@ -1221,6 +1268,7 @@ int rapid(int argc, char *argv[]) {
 	if(SOLU_HT)  solution_pair_destory(&SOLU_HT);
 	if(SOLU_UNIQ_HT)  solution_pair_destory(&SOLU_UNIQ_HT);
 	if(GENE_HT)           gene_destory(&GENE_HT);
+	if(BACK_HT)           back_destory(&BACK_HT);
 	fprintf(stderr, "[%s] congradualtions! it succeeded! \n", __func__);	
 	return 0;
 }

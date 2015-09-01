@@ -68,6 +68,15 @@ typedef struct {
 	double pvalue;
 } opt_t;
 
+//opt
+typedef struct {
+	char* key;
+	int arr_num;
+	float *arr;	
+    UT_hash_handle hh;
+} back_t;
+
+
 /* global variables */
 static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
 static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
@@ -75,8 +84,12 @@ static            bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BA
 static           gene_t   *GENE_HT     = NULL; 
 static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
 static  solution_pair_t   *SOLU_UNIQ_HT     = NULL;  // alignment solition of reads against JUN0_HT
-static             char   *PROC_SELF_STATUS = "/proc/self/status";
 static          fasta_t   *GENO_HT     = NULL;
+static           back_t   *BACK_HT     = NULL;
+
+static             char   *PROC_SELF_STATUS = "/proc/self/status";
+static             char   *BACKGROUND_FILE  = "data/null.txt";
+
 
 /* intitlize opt_t object */
 static inline opt_t *opt_init(){
@@ -104,6 +117,43 @@ static inline opt_t *opt_init(){
 	return opt;
 }
 
+/* intilize a back_t object */
+static inline back_t *back_init(){
+	back_t *ret = mycalloc(1, back_t);
+	ret->key    = NULL;
+	ret->arr_num  = 0;
+	ret->arr    = NULL;
+	return ret;
+}
+
+static inline int back_destory(back_t **back){
+	if(*back==NULL) return -1;
+	back_t *back_cur, *back_tmp;
+	HASH_ITER(hh, *back, back_cur, back_tmp) {
+	    HASH_DEL(*back, back_cur);  /* delete; users advances to next */
+		free(back_cur);            /* optional- if you want to free  */
+	}
+	return 0;
+}
+
+static inline back_t *find_back(back_t* back, char* name){
+	if(back==NULL || name==NULL) return NULL;
+	back_t *s = NULL;
+	HASH_FIND_STR(back, name, s);
+	return s;
+}
+
+static inline void display_back(back_t* back){
+	back_t *s;
+	int i;
+	for(s=back; s != NULL; s=s->hh.next){
+		printf("%s: ", s->key);
+		for(i=0; i<s->arr_num; i++){
+			printf("%f\t", s->arr[i]);
+		}
+		printf("\n");
+	}
+}
 /* destory opt_t object */
 static inline void destory_opt(opt_t *opt){
 	if(opt->gfile) free(opt->gfile);
