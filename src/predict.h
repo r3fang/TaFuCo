@@ -34,8 +34,9 @@
 #define MAX_MIN_ALIGN_SCORE         1
 #define EPSILON                     0.1
 #define FASTA_NAME                  "./data/exon.fa.gz"
+#define BACKGROUND_FILE             "./data/null.txt"
 
-//gene_t
+//gene_t object 
 typedef struct {
 	char* name;
 	int len;
@@ -44,7 +45,7 @@ typedef struct {
     UT_hash_handle hh;
 } gene_t;
 
-//opt
+//opt_t object 
 typedef struct {
 	char* gfile;
 	char* gtf;
@@ -68,7 +69,7 @@ typedef struct {
 	double pvalue;
 } opt_t;
 
-//opt
+//back_t - the background distribution
 typedef struct {
 	char* key;
 	int arr_num;
@@ -76,20 +77,15 @@ typedef struct {
     UT_hash_handle hh;
 } back_t;
 
-
 /* global variables */
-static          fasta_t   *EXON_HT     = NULL;  // stores sequences in in.fa
-static           kmer_t   *KMER_HT     = NULL;  // kmer hash table by indexing in.fa
-static            bag_t   *BAGR_HT     = NULL;  // Breakend Associated Graph (BAG)
-static           gene_t   *GENE_HT     = NULL; 
-static  solution_pair_t   *SOLU_HT     = NULL;  // alignment solition of reads against JUN0_HT
+static          fasta_t   *EXON_HT          = NULL;  // stores sequences in in.fa
+static           kmer_t   *KMER_HT          = NULL;  // kmer hash table by indexing in.fa
+static            bag_t   *BAGR_HT          = NULL;  // Breakend Associated Graph (BAG)
+static           gene_t   *GENE_HT          = NULL; 
+static  solution_pair_t   *SOLU_HT          = NULL;  // alignment solition of reads against JUN0_HT
 static  solution_pair_t   *SOLU_UNIQ_HT     = NULL;  // alignment solition of reads against JUN0_HT
-static          fasta_t   *GENO_HT     = NULL;
-static           back_t   *BACK_HT     = NULL;
-
-static             char   *PROC_SELF_STATUS = "/proc/self/status";
-static             char   *BACKGROUND_FILE  = "data/null.txt";
-
+static          fasta_t   *GENO_HT          = NULL;
+static           back_t   *BACK_HT          = NULL;
 
 /* intitlize opt_t object */
 static inline opt_t *opt_init(){
@@ -154,13 +150,14 @@ static inline void display_back(back_t* back){
 		printf("\n");
 	}
 }
+
 /* destory opt_t object */
 static inline void destory_opt(opt_t *opt){
 	if(opt->gfile) free(opt->gfile);
-	if(opt->gtf) free(opt->gtf);
-	if(opt->fq1) free(opt->fq1);
-	if(opt->fq2) free(opt->fq2);
-	if(opt->fa)  free(opt->fa);
+	if(opt->gtf)   free(opt->gtf);
+	if(opt->fq1)   free(opt->fq1);
+	if(opt->fq2)   free(opt->fq2);
+	if(opt->fa)    free(opt->fa);
 	free(opt);
 }
 
@@ -204,7 +201,7 @@ static inline int gene_destory(gene_t **instance){
 /*
  * usage info
  */
-static int pred_usage(opt_t *opt);
+//int pred_usage(opt_t *opt);
 /*
  * main function, called by main.c
  */
@@ -212,6 +209,6 @@ int predict(int argc, char *argv[]);
 
 int rapid(int argc, char *argv[]);
 
-static int rapid_usage(opt_t *opt);
+//int rapid_usage(opt_t *opt);
 
 #endif

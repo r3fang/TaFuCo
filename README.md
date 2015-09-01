@@ -9,7 +9,7 @@ $ ./tfc rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.f
 
 ##Introduction
 
-**TFC** is a precise, fast, stand-alone, C-implemented and mapping-free Bioinformatics software designed for **fusion detection** from RNA-seq data. TFC has two modes, **rapid** and **predict**, **rapid** requires only two .fastq files and allows user to have a quick prediction against a list of pre-defined gene candidates with fixed parameter setting. **predict**, however, allows user to decide the gene candidates and parameters themselves. In brief, **rapid** is easier to use and **predict** is more flexible.
+**TFC** is a precise, fast, stand-alone, C-implemented and mapping-free Bioinformatics software designed for **fusion detection** from RNA-seq data. TFC has two modes, **rapid** and **predict**, **rapid** allows user to have a quick run against a list of predefined gene candidates with fixed parameter setting. **predict** is more flexible and allows user to decide the gene candidates and parameters setting, but it needs more input from the user (e.g. hg19.fa, genes.gtf). In brief, **rapid** is easier to use and **predict** is more flexible.
 
 ```
 $ ./tfc 
@@ -92,10 +92,10 @@ $ ./tfc predict data/genes.txt data/genes.sorted.gtf hg19.fa A431-1-ABGHI_S1_L00
 
  1. **How fast is TFC?**     
  On average, **~5min** per million pairs using a single x86_64 32-bit 2000 MHz GenuineIntel processor.   
- We tested TFC on 43 real RNA-seq data against 506 genes candidates. On average, TFC spends ~5min per million pairs. However, the running time is not absolutely linear to the number of reads. We found most of the time has been spent on the alignment for the step *fusion refinement* and *junction refinement*, therefore, the more fusions in the sample identified, the longer TFC usually runs. 
+ We tested TFC (rapid mode) on 43 real RNA-seq data against 506 genes candidates. On average, TFC spends ~5min per million pairs. However, the running time is not absolutely linear to the number of reads. We found most of the time has been spent on the alignment for the step *fusion refinement* and *junction refinement*, therefore, the more fusions in the sample identified, the longer TFC usually runs. 
 
  2. **What's the maximum memory requirement for TFC?**   
- **1GB** would be enough for the **rapid** mode and predicting against 1,000 genes.   
+ **1GB** would be enough for **rapid** mode predicting against 1,000 genes, **predict** will take over slightly more memory because it will read in the whole reference genome.    
  The majority (~90%) of the memory occupied by TFC is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, theoretically the more memory will be needed (also depends on the complexity of the sequences). Based on our simulations, predicting against ~1000 genes with k=15 always takes less than **1GB** memory, which means TFC can definately be used on most of today's PCs.
 
  3. **How precise is TFC?**  

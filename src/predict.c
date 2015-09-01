@@ -1272,7 +1272,6 @@ int rapid(int argc, char *argv[]) {
 	}
 
 	/* score the fusion */
-	
 	if(fuse_score(SOLU_HT, &BAGR_HT, GENE_HT, BACK_HT, opt)!=0){
     	fprintf(stderr, "[%s] fail to score fusion\n", __func__);
 		return -1;		
