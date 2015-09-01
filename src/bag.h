@@ -47,6 +47,7 @@ typedef struct{
 	char **evidence;    /* stores the read pair that support this edge*/
 	bool junc_flag;
 	float likehood;
+	float pvalue;    /* likelihood of the junction */
 	junction_t *junc;   /* stores the junctions of the edge, NULL if no junction identified */	
     UT_hash_handle hh;  /* makes this structure hashable */
 } bag_t;
