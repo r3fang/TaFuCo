@@ -95,8 +95,8 @@ $ ./TaFuCo predict data/genes.txt data/genes.sorted.gtf hg19.fa A431-1-ABGHI_S1_
  We tested TaFuCo (rapid mode) on 43 real RNA-seq data against 506 genes candidates. On average, TaFuCo spends ~5min per million pairs. However, the running time is not absolutely linear to the number of reads. We found most of the time has been spent on the alignment for the step *fusion refinement* and *junction refinement*, therefore, the more fusions in the sample identified, the longer TaFuCo usually runs. 
 
  2. **What's the maximum memory requirement for TaFuCo?**   
- **1GB** would be enough for **rapid** mode predicting against 1,000 genes, **predict** will take over slightly more memory because it will read in the whole reference genome.    
- The majority (~90%) of the memory occupied by TaFuCo is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, theoretically the more memory will be needed (also depends on the complexity of the sequences). Based on our simulations, predicting against ~1000 genes with k=15 always takes less than **1GB** memory, which means TaFuCo can definately be used on most of today's PCs.
+ **1GB** would be enough for **rapid** mode predicting against 1,000 genes, **predict** will take over more memory since it reads the whole reference genome into RAM.     
+ The majority (~90%) of the memory occupied by TaFuCo-rapid is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, theoretically the more memory will be taken over. Based on our simulations, predicting against ~1000 genes with k=15 always takes less than **1GB** memory in rapid mode, which means TaFuCo can safely be used on most of today's PCs.  
 
  3. **How precise is TaFuCo?**  
  **~0.85** and **~0.99** for sensitivity and specificity on the simulated data.     
@@ -117,14 +117,14 @@ $ ./TaFuCo predict data/genes.txt data/genes.sorted.gtf hg19.fa A431-1-ABGHI_S1_
  | 2500 | 1.54	| 1.59	|1.53	| 1.58 |
  | 3000 | 1.89	| 1.89	|1.88	| 1.88 |
  
- 6. **How is the likelihood of fusion calculated?**   
- Let Si, Sj be the set of reads that match with gene_i and gene_j respectively. S1_ij is a set of reads that support fusion e_ij and overlap with its junction. S2_ij is a set of reads that support fusion e_ij but not overlapping with its junction. f(s) indicates the alignment score of s against the real transcript of the fusion. Then the likelihood equals the product of alignment score of reads that support the fusion normalized by sequencing depth.
+ 6. **How is the score of fusion calculated?**   
+ Let Si, Sj be the set of reads that match with gene_i and gene_j respectively. S1_ij is a set of reads that support fusion e_ij and overlap with its junction. S2_ij is a set of reads that support fusion e_ij but not overlapping with its junction. f(s) indicates the alignment score of s against the real transcript of the fusion. Then score equals the product of alignment score of reads that support the fusion normalized by sequencing depth.
 <p align="center">
   <img src="https://github.com/r3fang/TaFuCo/blob/master/img/likelihood.jpg" width="400px" height="250px">
 </p>
  
  7. **What's the null model for p-value?**   
- We extracted normal transcripts of targeted genes and simulated pair-end reads from the normal transcripts. Then run TaFuCo against the simulated data and calculate the likelihood for every gene pair. Repeat this for 200 times and get the distribution of likelihood of every gene pair as the null model. 
+ We extracted normal transcripts of targeted genes and simulated pair-end reads from the normal transcripts. Then run TaFuCo against the simulated data and calculate the score (defined above) for every gene pair. Repeat this for 200 times and get the distribution of score of every gene pair as the null model. 
 
  8. **How does TaFuCo guarantee specificity without comparing sequencing reads against regions outside targeted genes?**   
  we have several strict criteria to filter out reads that are likely to come from regions outside targeted intervals. For instance, both ends of a pair are aligned against the constructed transcript and those pairs of any end not being successfully aligned will be discarded. Also, any pair with too large or too small insertion size will be filtered out. The likelihood of fusion will be normalized by sequencing depth of the two genes before p-value is calculated.
