@@ -136,7 +136,7 @@ $ ./TaFuCo predict data/genes.txt data/genes.sorted.gtf hg19.fa A431-1-ABGHI_S1_
  Yes, before running `TaFuCo predict [options] <exon.fa> <R1.fq> <R2.fq>`, user has to make sure R1.fq and R2.fq (RNA-seq) are in the right order that R2.fq must be identical to the psoitive strand of reference genome.         
 
 ####Version     
-08.29-r15
+09.04-r15
 
 ####Author     
 Rongxin Fang    
