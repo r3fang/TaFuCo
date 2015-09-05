@@ -5,7 +5,7 @@
 #include "predict.h"
 
 #ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "08.29-r15"
+#define PACKAGE_VERSION "09.05-r15"
 #endif
 
 int name2fasta(int argc, char *argv[]);
@@ -15,10 +15,10 @@ int rapid(int argc, char *argv[]);
 static int usage()
 {
 	fprintf(stderr, "\n");
-	fprintf(stderr, "Program: tfc (targeted gene fusion calling)\n");
+	fprintf(stderr, "Program: tafuco (targeted gene fusion calling)\n");
 	fprintf(stderr, "Version: %s\n", PACKAGE_VERSION);
 	fprintf(stderr, "Contact: Rongxin Fang <r3fang@ucsd.edu>\n\n");
-	fprintf(stderr, "Usage:   tfc <command> [options]\n\n");
+	fprintf(stderr, "Usage:   tafuco <command> [options]\n\n");
 	fprintf(stderr, "Command: rapid          predict gene fusions in rapid mode\n");
 	fprintf(stderr, "         predict        predict gene fusions in predict mode\n");
 	fprintf(stderr, "         name2fasta     extract DNA sequences of targeted genes\n");
@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 	int i, ret;
 	double t_real;
 	kstring_t pg = {0,0,0};
-	ksprintf(&pg, "@PG\tID:tfc\tPN:tfc\tVN:%s\tCL:%s", PACKAGE_VERSION, argv[0]);
+	ksprintf(&pg, "@PG\tID:tafuco\tPN:tafuco\tVN:%s\tCL:%s", PACKAGE_VERSION, argv[0]);
 	for (i = 1; i < argc; ++i) ksprintf(&pg, " %s", argv[i]);
 	if (argc < 2) return usage();
 	else if (strcmp(argv[1], "rapid") == 0) ret = rapid(argc-1, argv+1);

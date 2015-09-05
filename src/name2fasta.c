@@ -320,7 +320,7 @@ static int fasta_write_exon(fasta_t *fa, char* fname){
 
 int name2fasta_usage(){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc name2fasta [options] <gname.txt> <genes.gtf> <in.fa> <out.fa> \n\n");
+			fprintf(stderr, "Usage:   tafuco name2fasta [options] <gname.txt> <genes.gtf> <in.fa> <out.fa> \n\n");
 			fprintf(stderr, "Details: name2fasta is to extract genomic sequence of gene candiates\n\n");
 			fprintf(stderr, "Options: -g               'exon' or 'transcript' or 'CDS' \n\n");
 			fprintf(stderr, "Inputs:  gname.txt        .txt file contains the names of gene candiates\n");

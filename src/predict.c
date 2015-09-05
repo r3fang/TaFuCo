@@ -978,7 +978,7 @@ static int output(bag_t *bag, gene_t *gene, opt_t *opt){
 
 static int pred_usage(opt_t *opt){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc predict [options] <gname.txt> <genes.gtf> <in.fa> <R1.fq> <R2.fq>\n\n");
+			fprintf(stderr, "Usage:   tafuco predict [options] <gname.txt> <genes.gtf> <in.fa> <R1.fq> <R2.fq>\n\n");
 			fprintf(stderr, "Details: predict gene fusion from pair-end RNA-seq data\n\n");
 			fprintf(stderr, "Options:\n");
 			
@@ -1199,7 +1199,7 @@ int predict(int argc, char *argv[]) {
 
 static int rapid_usage(opt_t *opt){
 	fprintf(stderr, "\n");
-			fprintf(stderr, "Usage:   tfc rapid <R1.fq> <R2.fq>\n\n");
+			fprintf(stderr, "Usage:   tafuco rapid <R1.fq> <R2.fq>\n\n");
 			fprintf(stderr, "Details: predict fusions in a rapid mode\n\n");
 			fprintf(stderr, "Inputs:  R1.fq     5'->3' end of pair-end sequencing reads\n");
 			fprintf(stderr, "         R2.fq     the other end of sequencing reads\n");

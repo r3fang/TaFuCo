@@ -4,21 +4,21 @@
 $ git clone https://github.com/r3fang/TaFuCo.git
 $ cd TaFuCo
 $ make
-$ ./TaFuCo rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
+$ ./tafuco rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
 
 ##Introduction
 
-**TaFuCo** is a precise, fast, C-implemented, lightweight, stand-alone and mapping-free Bioinformatics software designed for **targeted fusion detection** from RNA-seq data. TaFuCo has two modes, **rapid** and **predict**, **rapid** allows user to have a quick run against a list of predefined gene candidates with default parameter settings. **predict** is more flexible and allows user to decide the gene candidates and parameters, but it needs more input files from the user (e.g. hg19.fa, genes.gtf). In brief, **rapid** is easier to use and **predict** is more flexible.
+**TaFuCo** is a precise, fast, C-implemented, lightweight, stand-alone and mapping-free Bioinformatics software designed for **targeted fusion detection** from RNA-seq data. TaFuCo has two modes, **rapid** and **predict**, **rapid** allows user to have a quick prediction against a list of predefined gene candidates with default parameter settings. **predict** is more flexible and allows user to decide their own gene candidates and parameters, but it needs more input files from the user (e.g. hg19.fa, genes.gtf). In brief, **rapid** is easier to use and **predict** is more flexible.
 
 ```
-$ ./TaFuCo 
+$ ./tafuco 
 
-Program: TaFuCo (targeted gene fusion calling)
-Version: 08.29-r15
+Program: tafuco (targeted gene fusion calling)
+Version: 09.05-r15
 Contact: Rongxin Fang <r3fang@ucsd.edu>
 
-Usage:   TaFuCo <command> [options]
+Usage:   tafuco <command> [options]
 
 Command: rapid          predict gene fusions in rapid mode
          predict        predict gene fusions in predict mode
@@ -28,9 +28,9 @@ Command: rapid          predict gene fusions in rapid mode
 - **rapid** (predict fusions in rapid mode)
 
 ```
-$ ./TaFuCo rapid
+$ ./tafuco rapid
 
-Usage:   TaFuCo rapid <R1.fq> <R2.fq>
+Usage:   tafuco rapid <R1.fq> <R2.fq>
 
 Details: predict fusions in a rapid mode
 
@@ -41,9 +41,9 @@ Inputs:  R1.fq     5'->3' end of pair-end sequencing reads
 - **predict** (predict fusions in predict mode).
 
 ```
-$ ./TaFuCo predict
+$ ./tafuco predict
 
-Usage:   TaFuCo predict [options] <gname.txt> <genes.gtf> <in.fa> <R1.fq> <R2.fq>
+Usage:   tafuco predict [options] <gname.txt> <genes.gtf> <in.fa> <R1.fq> <R2.fq>
 
 Details: predict gene fusion from pair-end RNA-seq data
 
@@ -80,31 +80,31 @@ Inputs:  gname.txt plain txt file that contains name of gene candidates
 
 ### A Full Example for Rapid Mode
 ```
-$ ./TaFuCo rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
+$ ./tafuco rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
 ### A Full Example for Predict Mode
 ```
 $ sort -k5,5n genes.gtf > genes.sorted.gtf
-$ ./TaFuCo predict data/genes.txt data/genes.sorted.gtf hg19.fa A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
+$ ./tafuco predict data/genes.txt data/genes.sorted.gtf hg19.fa A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
 
 ## FAQ
 
  1. **How fast is TaFuCo?**     
  On average, **~5min** per million pairs using a single x86_64 32-bit 2000 MHz GenuineIntel processor.   
- We tested TaFuCo (rapid mode) on 43 real RNA-seq data against 506 genes candidates. On average, TaFuCo spends ~5min per million pairs. However, the running time is not absolutely linear to the number of reads. We found most of the time has been spent on the alignment for the step *fusion refinement* and *junction refinement*, therefore, the more fusions in the sample identified, the longer TaFuCo usually runs. 
+ We tested TaFuCo (rapid mode) on 43 real RNA-seq data against 506 genes candidates. On average, TaFuCo spends ~5min per million pairs. However, the running time is not absolutely linear to the number of reads. We found TaFuCo spends most of the time on the alignment for the step *fusion refinement* and *junction refinement*, therefore, the more fusions in the sample identified, the longer TaFuCo usually runs.
 
  2. **What's the maximum memory requirement for TaFuCo?**   
- **1GB** would be enough for **rapid** mode predicting against 1,000 genes, **predict** will take over more memory since it reads the whole reference genome into RAM.     
- The majority (~90%) of the memory occupied by TaFuCo-rapid is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, theoretically the more memory will be taken over. Based on our simulations, predicting against ~1000 genes with k=15 always takes less than **1GB** memory in rapid mode, which means TaFuCo can safely be used on most of today's PCs.  
+ **1GB** would be enough for **rapid** mode predicting against 1,000 genes, **predict** will take over more memory than that because it reads the whole reference genome into RAM.     
+ The majority (~90%) of the memory occupied by TaFuCo (rapid) is used for storing the kmer hash table indexed from reference sequences. Thus, the more genes are being tested, the more memory will be taken over. Based on our simulations, predicting against ~1000 genes with k=15 always takes less than **1GB** memory in rapid mode, which means TaFuCo can safely be used on most of today's PCs.  
 
  3. **How precise is TaFuCo?**  
  **~0.85** and **~0.99** for sensitivity and specificity on the simulated data.     
- We randomly constructed 50 fused transcripts and simulated Illumina pair-end sequencing reads from constructed transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end mode with parameters setting as `-p -l 75 -ss HS25 -f 30 -m 200 -s 10` and run ```./TaFuCo rapid``` against simulated reads, then calculate sensitivity and specificity. Repeat above process for 200 time and get the average sensitivity and specificity.
+ We randomly constructed 50 fused transcripts and simulated Illumina pair-end sequencing reads from constructed transcripts using [art](http://www.niehs.nih.gov/research/resources/software/biostatistics/art/) in paired-end mode with parameters setting as `-p -l 75 -ss HS25 -f 30 -m 200 -s 10` and run ```./tafuco rapid``` against simulated reads, then calculate sensitivity and specificity. Repeat above process for 200 time and get the average sensitivity and specificity.
 
- 4. **What are the genes being tested in the rapid mode?**  
- We have a list of 506 genes that have been found fused with other genes in the literature, those genes serve as a default gene set if user does not really know what genes should be tested. 
-
+ 4. **What are the predefined gene candidates in rapid mode?**  
+ We have a list of 506 genes that have previously been found frequently fused with each other.   
+  
  5. **How many genes should I test each time?**  
  Let's make it clear, the more genes being tested, the more memory TaFuCo will grasp. The relationship between number of tested genes (N) and memory usage is linear(R=0.99) when N<3000 as shown in the table below.
  
