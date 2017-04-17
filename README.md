@@ -1,5 +1,6 @@
 [<img src="https://github.com/r3fang/TaFuCo/blob/master/img/sp5.jpg" width="110px" height="30px">](https://www.illumina.com/)
-##Get Started     
+
+# Get Started     
 ```
 $ git clone https://github.com/r3fang/TaFuCo.git
 $ cd TaFuCo
@@ -7,7 +8,7 @@ $ make
 $ ./tafuco rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
 
-##Introduction
+# Introduction
 
 **TaFuCo** is a precise, fast, C-implemented, lightweight, stand-alone and mapping-free Bioinformatics software designed for **targeted fusion detection** from RNA-seq data. TaFuCo has two modes, **rapid** and **predict**, **rapid** allows user to have a quick prediction against a list of predefined gene candidates with default parameter settings. **predict** is more flexible and allows user to decide their own gene candidates and parameters, but it needs more input files from the user (e.g. hg19.fa, genes.gtf). In brief, **rapid** is easier to use and **predict** is more flexible.
 
@@ -74,21 +75,21 @@ Inputs:  gname.txt plain txt file that contains name of gene candidates
          R1.fq     5'->3' end of pair-end sequencing reads
          R2.fq     the other end of sequencing reads
 ```
-## Workflow
+# Workflow
 
 ![workflow](https://github.com/r3fang/TaFuCo/blob/master/img/workflow.jpg)
 
-### A Full Example for Rapid Mode
+## A Full Example for Rapid Mode
 ```
 $ ./tafuco rapid A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
-### A Full Example for Predict Mode
+## A Full Example for Predict Mode
 ```
 $ sort -k5,5n genes.gtf > genes.sorted.gtf
 $ ./tafuco predict data/genes.txt data/genes.sorted.gtf hg19.fa A431-1-ABGHI_S1_L001_R1_001.fastq.gz A431-1-ABGHI_S1_L001_R2_001.fastq.gz
 ```
 
-## FAQ
+# FAQ
 
  1. **How fast is TaFuCo?**     
  On average, **~5min** per million pairs using a single x86_64 32-bit 2000 MHz GenuineIntel processor.   
@@ -135,9 +136,9 @@ $ ./tafuco predict data/genes.txt data/genes.sorted.gtf hg19.fa A431-1-ABGHI_S1_
  10. **Is there anything I should be very careful about for `./TaFuCo predict`?**  
  Yes, before running `TaFuCo predict [options] <exon.fa> <R1.fq> <R2.fq>`, user has to make sure R1.fq and R2.fq (RNA-seq) are in the right order that R2.fq must be identical to the psoitive strand of reference genome.         
 
-####Version     
+#### Version     
 09.04-r15
 
-####Author     
+#### Author     
 Rongxin Fang    
 r3fang@eng.ucsd.edu
